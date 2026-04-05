@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import logging
+
 import pytest
+from pydantic import ValidationError
 
 from ade.tasks import (
+    IterationCounts,
+    TaskState,
     TaskStatus,
     create_task,
     increment_iteration,
@@ -140,3 +145,46 @@ def test_list_tasks_ignores_invalid_dirs(tmp_path: Path) -> None:
     (tmp_path / "tasks" / "garbage").mkdir(parents=True)
     tasks = list_tasks(ade_dir=tmp_path)
     assert len(tasks) == 1
+
+
+def test_save_state_no_tmp_remnant(tmp_path: Path) -> None:
+    """After save, no .json.tmp file should remain."""
+    state = create_task(ade_dir=tmp_path, description="Test task")
+    task_dir = tmp_path / "tasks" / state.task_id
+    tmp_files = list(task_dir.glob("*.tmp"))
+    assert tmp_files == []
+
+
+def test_task_state_rejects_worktree_without_branch() -> None:
+    with pytest.raises(ValidationError, match="worktree.*branch|branch.*worktree"):
+        TaskState(task_id="abc", description="x", worktree="/some/path")
+
+
+def test_task_state_rejects_branch_without_worktree() -> None:
+    with pytest.raises(ValidationError, match="worktree.*branch|branch.*worktree"):
+        TaskState(task_id="abc", description="x", branch="ade/abc")
+
+
+def test_task_state_rejects_empty_task_id() -> None:
+    with pytest.raises(ValidationError, match="task_id"):
+        TaskState(task_id="", description="x")
+
+
+def test_iteration_counts_rejects_negative() -> None:
+    with pytest.raises(ValidationError):
+        IterationCounts(design_check=-1)
+
+
+def test_list_tasks_warns_on_corrupt_json(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Corrupt state.json should log a warning, not silently skip."""
+    create_task(ade_dir=tmp_path, description="Valid task")
+    # Create corrupt task
+    corrupt_dir = tmp_path / "tasks" / "corrupt1"
+    corrupt_dir.mkdir(parents=True)
+    (corrupt_dir / "state.json").write_text("{broken json", encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING, logger="ade.tasks"):
+        tasks = list_tasks(ade_dir=tmp_path)
+
+    assert len(tasks) == 1  # Only valid task returned
+    assert "corrupt1" in caplog.text  # Warning mentions the bad task dir
