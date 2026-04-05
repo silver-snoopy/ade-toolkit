@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
 from ade.tasks import (
-    TaskState,
     TaskStatus,
     create_task,
+    increment_iteration,
+    list_tasks,
     load_task,
     update_task_status,
-    list_tasks,
-    increment_iteration,
 )
 
 

@@ -13,7 +13,7 @@ from rich import print as rprint
 
 from ade.config import build_config
 from ade.detect import detect_project, normalize_language
-from ade.tasks import list_tasks, TaskStatus
+from ade.tasks import TaskStatus, list_tasks
 
 app = typer.Typer(
     name="ade",
@@ -237,14 +237,20 @@ def status(
         }.get(task.status, "cyan")
 
         rprint(f"\n[bold]{task.task_id}[/bold] — {task.description}")
-        rprint(f"  Status:  [{status_color}]{task.status.value}[/{status_color}]  (phase {task.current_phase})")
+        rprint(
+            f"  Status:  [{status_color}]{task.status.value}[/{status_color}]"
+            f"  (phase {task.current_phase})"
+        )
 
         if task.worktree:
             rprint(f"  Worktree: {task.worktree}  (branch: {task.branch})")
 
         iters = task.iterations
         if iters.design_check or iters.code_review or iters.qa_fix:
-            rprint(f"  Iterations: design_check: {iters.design_check}, code_review: {iters.code_review}, qa_fix: {iters.qa_fix}")
+            rprint(
+                f"  Iterations: design_check: {iters.design_check},"
+                f" code_review: {iters.code_review}, qa_fix: {iters.qa_fix}"
+            )
 
         if task.timestamps.get("created"):
             rprint(f"  Created: {task.timestamps['created']}")

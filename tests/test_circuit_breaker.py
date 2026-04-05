@@ -2,16 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
-from ade.tasks import create_task, increment_iteration, TaskStatus
 from ade.circuit_breaker import (
-    check_circuit_breaker,
-    CircuitBreakerResult,
-    MAX_DESIGN_CHECK_ITERATIONS,
     MAX_CODE_REVIEW_CYCLES,
+    MAX_DESIGN_CHECK_ITERATIONS,
     MAX_QA_FIX_ITERATIONS,
+    CircuitBreakerResult,
+    check_circuit_breaker,
 )
+from ade.tasks import create_task, increment_iteration
 
 
 def test_constants() -> None:

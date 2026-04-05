@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 
 from ade.worktrees import (
     create_worktree,
-    remove_worktree,
     list_worktrees,
-    WorktreeInfo,
+    remove_worktree,
 )
 
 

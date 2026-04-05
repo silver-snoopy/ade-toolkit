@@ -4,19 +4,18 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 
+from ade.circuit_breaker import CircuitBreakerResult, check_circuit_breaker
 from ade.tasks import (
+    TaskStatus,
     create_task,
+    increment_iteration,
     load_task,
     update_task_status,
-    increment_iteration,
-    TaskStatus,
 )
-from ade.worktrees import create_worktree, remove_worktree, list_worktrees
-from ade.circuit_breaker import check_circuit_breaker, CircuitBreakerResult
+from ade.worktrees import create_worktree, list_worktrees, remove_worktree
 
 
 @pytest.fixture
@@ -35,7 +34,7 @@ def project(tmp_path: Path) -> Path:
 
 
 def test_full_lifecycle_happy_path(project: Path) -> None:
-    """Simulate a complete SDLC lifecycle: create → plan → code → QA → review → finalize → complete."""
+    """Simulate a complete SDLC lifecycle: create to plan to code to complete."""
     ade_dir = project / ".ade"
 
     # Phase 0: Create task
@@ -88,7 +87,7 @@ def test_qa_fix_loop_with_circuit_breaker(project: Path) -> None:
     task_id = state.task_id
 
     # Simulate 3 QA fix cycles
-    for i in range(3):
+    for _ in range(3):
         increment_iteration(ade_dir, task_id, "qa_fix")
 
     # Circuit breaker should trip
