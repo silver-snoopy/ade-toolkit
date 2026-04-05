@@ -1,0 +1,4 @@
+FROM {{ config.models.fallback.name }}
+PARAMETER num_ctx 32768
+PARAMETER temperature {{ config.models.fallback.temperature }}
+PARAMETER top_p 0.9

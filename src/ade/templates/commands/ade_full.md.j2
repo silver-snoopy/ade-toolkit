@@ -1,0 +1,11 @@
+Run the complete ADE SDLC cycle for the following task: $ARGUMENTS
+
+Follow the ADE workflow defined in CLAUDE.md:
+1. Create a plan and ask for approval
+2. Run design check with local agents
+3. Dispatch coding to CrewAI in a git worktree
+4. Run quality gate (pre-commit + tests)
+5. Deep review the diff
+6. Finalize with docs and PR
+
+Track progress in .ade/tasks/ and report status at each phase transition.

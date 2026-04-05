@@ -1,0 +1,41 @@
+repos:
+  # Security scanning
+  - repo: https://github.com/returntocorp/semgrep
+    rev: v1.117.0
+    hooks:
+      - id: semgrep
+        args: ['--config', 'p/default']
+
+{% if config.scanning.ruff.enabled %}
+  # Python linting + formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.4
+    hooks:
+      - id: ruff
+        args: ['--fix']
+      - id: ruff-format
+{% endif %}
+
+{% if config.scanning.prettier.enabled %}
+  # JavaScript/TypeScript formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.5.3
+    hooks:
+      - id: prettier
+        types_or: [javascript, typescript, css, html, markdown, json, yaml]
+{% endif %}
+
+{% if config.scanning.eslint.enabled %}
+  # ESLint
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.24.0
+    hooks:
+      - id: eslint
+        types: [javascript, typescript]
+{% endif %}
+
+  # Secret detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
