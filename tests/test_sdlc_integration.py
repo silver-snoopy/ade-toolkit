@@ -98,7 +98,13 @@ def test_qa_fix_loop_with_circuit_breaker(project: Path) -> None:
     result = check_circuit_breaker(ade_dir, task_id)
     assert result == CircuitBreakerResult.QA_FIX_LIMIT
 
-    # Escalate to human
+    # Walk to a valid state before escalation
+    update_task_status(ade_dir, task_id, TaskStatus.PLANNING, current_phase=1)
+    update_task_status(ade_dir, task_id, TaskStatus.DESIGN_CHECK, current_phase=1)
+    update_task_status(ade_dir, task_id, TaskStatus.CODING, current_phase=2)
+    update_task_status(ade_dir, task_id, TaskStatus.QUALITY_GATE, current_phase=3)
+    update_task_status(ade_dir, task_id, TaskStatus.REVIEWING, current_phase=4)
+    # Now HUMAN_ESCALATION is valid from REVIEWING
     update_task_status(ade_dir, task_id, TaskStatus.HUMAN_ESCALATION, current_phase=3)
     final = load_task(ade_dir, task_id)
     assert final.status == TaskStatus.HUMAN_ESCALATION

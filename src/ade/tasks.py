@@ -55,6 +55,28 @@ class TaskState(BaseModel):
         return self
 
 
+class InvalidTransitionError(ValueError):
+    """Raised when a state transition is not allowed."""
+
+
+VALID_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
+    TaskStatus.INITIATED: {TaskStatus.PLANNING, TaskStatus.FAILED},
+    TaskStatus.PLANNING: {TaskStatus.DESIGN_CHECK, TaskStatus.FAILED},
+    TaskStatus.DESIGN_CHECK: {TaskStatus.DESIGN_CHECK, TaskStatus.CODING, TaskStatus.FAILED},
+    TaskStatus.CODING: {TaskStatus.QUALITY_GATE, TaskStatus.FAILED},
+    TaskStatus.QUALITY_GATE: {TaskStatus.QUALITY_GATE, TaskStatus.REVIEWING, TaskStatus.FAILED},
+    TaskStatus.REVIEWING: {
+        TaskStatus.QUALITY_GATE, TaskStatus.HUMAN_ESCALATION,
+        TaskStatus.FINALIZING, TaskStatus.FAILED,
+    },
+    TaskStatus.FINALIZING: {TaskStatus.AWAITING_MERGE, TaskStatus.FAILED},
+    TaskStatus.AWAITING_MERGE: {TaskStatus.COMPLETED, TaskStatus.FAILED},
+    TaskStatus.HUMAN_ESCALATION: {TaskStatus.COMPLETED, TaskStatus.FAILED},
+    TaskStatus.COMPLETED: set(),
+    TaskStatus.FAILED: set(),
+}
+
+
 def _task_dir(ade_dir: Path, task_id: str) -> Path:
     return ade_dir / "tasks" / task_id
 
@@ -106,6 +128,11 @@ def update_task_status(
 ) -> TaskState:
     """Update a task's status, phase, and optional worktree info."""
     state = load_task(ade_dir, task_id)
+    allowed = VALID_TRANSITIONS.get(state.status, set())
+    if status not in allowed:
+        raise InvalidTransitionError(
+            f"Cannot transition from {state.status.value} to {status.value}"
+        )
     state.status = status
     state.current_phase = current_phase
     state.timestamps[status.value] = _now_iso()
