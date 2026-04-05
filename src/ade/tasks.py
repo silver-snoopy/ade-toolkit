@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
+from types import MappingProxyType
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+logger = logging.getLogger("ade.tasks")
 
 
 class TaskStatus(StrEnum):
@@ -26,9 +31,9 @@ class TaskStatus(StrEnum):
 
 
 class IterationCounts(BaseModel):
-    design_check: int = 0
-    code_review: int = 0
-    qa_fix: int = 0
+    design_check: int = Field(default=0, ge=0)
+    code_review: int = Field(default=0, ge=0)
+    qa_fix: int = Field(default=0, ge=0)
 
 
 class TaskState(BaseModel):
@@ -42,6 +47,46 @@ class TaskState(BaseModel):
     branch: str | None = None
     files_modified: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def _check_invariants(self) -> TaskState:
+        if not self.task_id:
+            raise ValueError("task_id must be non-empty")
+        if (self.worktree is None) != (self.branch is None):
+            raise ValueError("worktree and branch must both be set or both be None")
+        return self
+
+
+class InvalidTransitionError(ValueError):
+    """Raised when a state transition is not allowed."""
+
+
+VALID_TRANSITIONS: MappingProxyType[TaskStatus, frozenset[TaskStatus]] = MappingProxyType(
+    {
+        TaskStatus.INITIATED: frozenset({TaskStatus.PLANNING, TaskStatus.FAILED}),
+        TaskStatus.PLANNING: frozenset({TaskStatus.DESIGN_CHECK, TaskStatus.FAILED}),
+        TaskStatus.DESIGN_CHECK: frozenset(
+            {TaskStatus.DESIGN_CHECK, TaskStatus.CODING, TaskStatus.FAILED}
+        ),
+        TaskStatus.CODING: frozenset({TaskStatus.QUALITY_GATE, TaskStatus.FAILED}),
+        TaskStatus.QUALITY_GATE: frozenset(
+            {TaskStatus.QUALITY_GATE, TaskStatus.REVIEWING, TaskStatus.FAILED}
+        ),
+        TaskStatus.REVIEWING: frozenset(
+            {
+                TaskStatus.QUALITY_GATE,
+                TaskStatus.HUMAN_ESCALATION,
+                TaskStatus.FINALIZING,
+                TaskStatus.FAILED,
+            }
+        ),
+        TaskStatus.FINALIZING: frozenset({TaskStatus.AWAITING_MERGE, TaskStatus.FAILED}),
+        TaskStatus.AWAITING_MERGE: frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED}),
+        TaskStatus.HUMAN_ESCALATION: frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED}),
+        TaskStatus.COMPLETED: frozenset(),
+        TaskStatus.FAILED: frozenset(),
+    }
+)
+
 
 def _task_dir(ade_dir: Path, task_id: str) -> Path:
     return ade_dir / "tasks" / task_id
@@ -54,7 +99,9 @@ def _state_path(ade_dir: Path, task_id: str) -> Path:
 def _save_state(ade_dir: Path, state: TaskState) -> None:
     path = _state_path(ade_dir, state.task_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(state.model_dump_json(indent=2), encoding="utf-8")
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(state.model_dump_json(indent=2), encoding="utf-8")
+    os.replace(str(tmp), str(path))
 
 
 def _now_iso() -> str:
@@ -92,6 +139,11 @@ def update_task_status(
 ) -> TaskState:
     """Update a task's status, phase, and optional worktree info."""
     state = load_task(ade_dir, task_id)
+    allowed = VALID_TRANSITIONS.get(state.status, set())
+    if status not in allowed:
+        raise InvalidTransitionError(
+            f"Cannot transition from {state.status.value} to {status.value}"
+        )
     state.status = status
     state.current_phase = current_phase
     state.timestamps[status.value] = _now_iso()
@@ -130,6 +182,8 @@ def list_tasks(ade_dir: Path) -> list[TaskState]:
             try:
                 data = json.loads(state_file.read_text(encoding="utf-8"))
                 results.append(TaskState.model_validate(data))
-            except (json.JSONDecodeError, ValueError):
-                continue
+            except json.JSONDecodeError as exc:
+                logger.warning("Skipping task %s: corrupted state.json: %s", entry.name, exc)
+            except (ValueError, KeyError, TypeError) as exc:
+                logger.warning("Skipping task %s: invalid state: %s", entry.name, exc)
     return results

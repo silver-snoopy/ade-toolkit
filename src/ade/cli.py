@@ -11,8 +11,10 @@ import typer
 from jinja2 import Environment, PackageLoader
 from rich import print as rprint
 
-from ade.config import build_config
+from ade.config import ConfigMigrationError, build_config, migrate_config
 from ade.detect import detect_project, normalize_language
+from ade.logging_setup import setup_logging
+from ade.recovery import determine_resume_point
 from ade.tasks import TaskStatus, list_tasks
 
 app = typer.Typer(
@@ -20,6 +22,13 @@ app = typer.Typer(
     help="ADE — Agentic Development Environment toolkit",
     no_args_is_help=True,
 )
+
+
+@app.callback()
+def main() -> None:
+    """ADE — Agentic Development Environment toolkit."""
+    setup_logging()
+
 
 ADE_SECTION_MARKER = "## ADE — Agentic Development Environment"
 
@@ -254,3 +263,45 @@ def status(
 
         if task.timestamps.get("created"):
             rprint(f"  Created: {task.timestamps['created']}")
+
+
+@app.command()
+def update(
+    project_dir: Annotated[Path, typer.Option(help="Project directory")] = Path("."),
+) -> None:
+    """Update ADE config to the latest version."""
+    project_dir = project_dir.resolve()
+    ade_dir = project_dir / ".ade"
+    config_path = ade_dir / "config.yaml"
+
+    if not config_path.exists():
+        rprint("[red]No .ade/config.yaml found. Run 'ade init' first.[/red]")
+        raise typer.Exit(1)
+
+    try:
+        config, migrated = migrate_config(config_path)
+    except ConfigMigrationError as exc:
+        rprint(f"[red]Config migration failed: {exc}[/red]")
+        raise typer.Exit(1) from None
+    if migrated:
+        config_path.write_text(config.to_yaml(), encoding="utf-8")
+        rprint("[green]Config migrated to latest version. Backup saved as config.yaml.bak[/green]")
+    else:
+        rprint("Config is already up to date.")
+
+
+@app.command()
+def resume(
+    task_id: Annotated[str, typer.Argument(help="Task ID to resume")],
+    project_dir: Annotated[Path, typer.Option(help="Project directory")] = Path("."),
+) -> None:
+    """Show resume point for an interrupted task."""
+    project_dir = project_dir.resolve()
+    ade_dir = project_dir / ".ade"
+
+    if not ade_dir.exists():
+        rprint("[red]No .ade directory found. Run 'ade init' first.[/red]")
+        raise typer.Exit(1)
+
+    status, message = determine_resume_point(ade_dir=ade_dir, task_id=task_id)
+    rprint(f"\n[bold]{task_id}[/bold] — {message}")

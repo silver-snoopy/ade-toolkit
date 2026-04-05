@@ -200,7 +200,8 @@ ade-toolkit/
 - [x] **v0.1** — Core CLI: `ade init`, `ade doctor`, project detection, config generation
 - [x] **v0.2** — CrewAI runner: sandboxed agent tools, phase dispatch, progress reporting
 - [x] **v0.3** — End-to-end SDLC: task lifecycle, worktree management, circuit breakers
-- [ ] **v1.0** — Production-ready: crash recovery, `ade update`, model benchmarking
+- [x] **v1.0** — Production-ready: state safety, crash recovery, config migration, structured logging
+- [ ] **v1.1** — Model tooling: `ade models benchmark`, `ade models check`, `ade models create`
 
 ## License
 

@@ -35,10 +35,7 @@ class GitCommitTool(BaseTool):
             )
             branch = branch_result.stdout.strip()
             if branch in _BLOCKED_BRANCHES:
-                return (
-                    f"BLOCKED: Commits to '{branch}' are not allowed. "
-                    f"Use a feature branch."
-                )
+                return f"BLOCKED: Commits to '{branch}' are not allowed. Use a feature branch."
 
             # git add
             file_list = files.split()

@@ -16,6 +16,7 @@ EXIT_PARTIAL = 2
 # Used by the orchestrator (Claude Code) when it kills the subprocess after
 # the configured timeout. The runner itself does not return this code.
 EXIT_TIMEOUT = 3
+EXIT_ESCALATE = EXIT_TIMEOUT  # Alias per architecture spec
 
 # Maps phases to the agent name that handles them
 PHASE_AGENT_MAP: dict[str, str] = {
