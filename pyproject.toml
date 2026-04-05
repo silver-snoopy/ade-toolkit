@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ade-toolkit"
-version = "0.1.0"
+version = "1.0.0"
 description = "Agentic Development Environment — portable AI-driven SDLC toolkit"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -66,8 +66,10 @@ VALID_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
     TaskStatus.CODING: {TaskStatus.QUALITY_GATE, TaskStatus.FAILED},
     TaskStatus.QUALITY_GATE: {TaskStatus.QUALITY_GATE, TaskStatus.REVIEWING, TaskStatus.FAILED},
     TaskStatus.REVIEWING: {
-        TaskStatus.QUALITY_GATE, TaskStatus.HUMAN_ESCALATION,
-        TaskStatus.FINALIZING, TaskStatus.FAILED,
+        TaskStatus.QUALITY_GATE,
+        TaskStatus.HUMAN_ESCALATION,
+        TaskStatus.FINALIZING,
+        TaskStatus.FAILED,
     },
     TaskStatus.FINALIZING: {TaskStatus.AWAITING_MERGE, TaskStatus.FAILED},
     TaskStatus.AWAITING_MERGE: {TaskStatus.COMPLETED, TaskStatus.FAILED},

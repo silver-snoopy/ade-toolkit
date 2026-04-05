@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ade.tasks import TaskStatus, create_task
 from ade.recovery import determine_resume_point, infer_phase_from_artifacts
+from ade.tasks import TaskStatus, create_task
 
 
 def test_infer_from_plan_md(tmp_path: Path) -> None:

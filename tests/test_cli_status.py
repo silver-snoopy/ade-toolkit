@@ -28,10 +28,12 @@ def test_status_shows_task(tmp_path: Path) -> None:
     ade_dir.mkdir()
     state = create_task(ade_dir=ade_dir, description="Add JWT auth")
     # Walk to CODING via valid transitions
-    update_task_status(ade_dir=ade_dir, task_id=state.task_id,
-                       status=TaskStatus.PLANNING, current_phase=1)
-    update_task_status(ade_dir=ade_dir, task_id=state.task_id,
-                       status=TaskStatus.DESIGN_CHECK, current_phase=1)
+    update_task_status(
+        ade_dir=ade_dir, task_id=state.task_id, status=TaskStatus.PLANNING, current_phase=1
+    )
+    update_task_status(
+        ade_dir=ade_dir, task_id=state.task_id, status=TaskStatus.DESIGN_CHECK, current_phase=1
+    )
     update_task_status(
         ade_dir=ade_dir,
         task_id=state.task_id,
@@ -60,6 +62,7 @@ def test_status_shows_iterations(tmp_path: Path) -> None:
 
 def test_status_shows_completed_tasks(tmp_path: Path) -> None:
     import json
+
     ade_dir = tmp_path / ".ade"
     ade_dir.mkdir()
     state = create_task(ade_dir=ade_dir, description="Done task")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ade.config import AdeConfig, CONFIG_VERSION, migrate_config
+from ade.config import CONFIG_VERSION, AdeConfig, migrate_config
 
 
 def test_migrate_same_version_noop(tmp_path: Path) -> None:

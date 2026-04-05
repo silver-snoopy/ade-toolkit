@@ -83,17 +83,22 @@ def test_list_worktrees_with_task(git_repo: Path) -> None:
 def test_create_worktree_timeout(git_repo: Path) -> None:
     ade_dir = git_repo / ".ade"
     ade_dir.mkdir()
-    with patch("ade.worktrees.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="git", timeout=30)):
-        with pytest.raises(RuntimeError, match="timed out"):
-            create_worktree(project_dir=git_repo, task_id="abc123")
+    timeout_err = subprocess.TimeoutExpired(cmd="git", timeout=30)
+    with (
+        patch("ade.worktrees.subprocess.run", side_effect=timeout_err),
+        pytest.raises(RuntimeError, match="timed out"),
+    ):
+        create_worktree(project_dir=git_repo, task_id="abc123")
 
 
 def test_create_worktree_git_not_found(git_repo: Path) -> None:
     ade_dir = git_repo / ".ade"
     ade_dir.mkdir()
-    with patch("ade.worktrees.subprocess.run", side_effect=FileNotFoundError):
-        with pytest.raises(RuntimeError, match="git is not installed"):
-            create_worktree(project_dir=git_repo, task_id="abc123")
+    with (
+        patch("ade.worktrees.subprocess.run", side_effect=FileNotFoundError),
+        pytest.raises(RuntimeError, match="git is not installed"),
+    ):
+        create_worktree(project_dir=git_repo, task_id="abc123")
 
 
 def test_remove_worktree_cleans_branch(git_repo: Path) -> None:
@@ -104,7 +109,9 @@ def test_remove_worktree_cleans_branch(git_repo: Path) -> None:
     # Branch should be deleted
     result = subprocess.run(
         ["git", "branch", "--list", "ade/abc123"],
-        cwd=git_repo, capture_output=True, text=True,
+        cwd=git_repo,
+        capture_output=True,
+        text=True,
     )
     assert result.stdout.strip() == ""
 

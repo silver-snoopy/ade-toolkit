@@ -20,9 +20,7 @@ def infer_phase_from_artifacts(task_dir: Path) -> TaskStatus:
     return TaskStatus.INITIATED
 
 
-def determine_resume_point(
-    ade_dir: Path, task_id: str
-) -> tuple[TaskStatus, str]:
+def determine_resume_point(ade_dir: Path, task_id: str) -> tuple[TaskStatus, str]:
     """Determine where to resume a task from.
 
     Returns (status, human_readable_message).

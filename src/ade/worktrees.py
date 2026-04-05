@@ -21,7 +21,11 @@ def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     """Run a git command with timeout and clear error handling."""
     try:
         return subprocess.run(
-            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=30,
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
     except FileNotFoundError:
         raise RuntimeError(

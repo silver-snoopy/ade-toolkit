@@ -58,9 +58,7 @@ def test_search_sets_cwd_to_worktree_path() -> None:
     wt = Path("/tmp/my-worktree")
     tool = SearchCodeTool(worktree_path=wt)
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(
-            stdout="a:1:x\n", stderr="", returncode=0
-        )
+        mock_run.return_value = MagicMock(stdout="a:1:x\n", stderr="", returncode=0)
         tool._run(pattern="x")
     assert mock_run.call_args.kwargs["cwd"] == wt
 
@@ -68,9 +66,7 @@ def test_search_sets_cwd_to_worktree_path() -> None:
 def test_search_uses_file_glob() -> None:
     tool = SearchCodeTool(worktree_path=Path("/tmp/test"))
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(
-            stdout="", stderr="", returncode=1
-        )
+        mock_run.return_value = MagicMock(stdout="", stderr="", returncode=1)
         tool._run(pattern="hello", file_glob="*.py")
     cmd = mock_run.call_args[0][0]
     assert "--" in cmd
@@ -92,9 +88,7 @@ def test_search_returns_error_on_exit_code_2() -> None:
 def test_search_no_glob_omits_double_dash() -> None:
     tool = SearchCodeTool(worktree_path=Path("/tmp/test"))
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(
-            stdout="", stderr="", returncode=1
-        )
+        mock_run.return_value = MagicMock(stdout="", stderr="", returncode=1)
         tool._run(pattern="hello")
     cmd = mock_run.call_args[0][0]
     assert "--" not in cmd

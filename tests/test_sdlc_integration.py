@@ -8,7 +8,10 @@ from pathlib import Path
 import pytest
 
 from ade.circuit_breaker import CircuitBreakerResult, check_circuit_breaker
+from ade.config import OrchestrationConfig
+from ade.recovery import determine_resume_point
 from ade.tasks import (
+    InvalidTransitionError,
     TaskStatus,
     create_task,
     increment_iteration,
@@ -129,3 +132,70 @@ def test_worktree_isolation(project: Path) -> None:
     # Cleanup
     remove_worktree(project_dir=project, task_id=s1.task_id)
     remove_worktree(project_dir=project, task_id=s2.task_id)
+
+
+def test_full_lifecycle_with_validated_transitions(project: Path) -> None:
+    """Happy path with transition validation enforced."""
+    ade_dir = project / ".ade"
+    state = create_task(ade_dir=ade_dir, description="Validated lifecycle")
+    task_id = state.task_id
+
+    # Each transition must be valid
+    for status, phase in [
+        (TaskStatus.PLANNING, 1),
+        (TaskStatus.DESIGN_CHECK, 1),
+        (TaskStatus.CODING, 2),
+        (TaskStatus.QUALITY_GATE, 3),
+        (TaskStatus.REVIEWING, 4),
+        (TaskStatus.FINALIZING, 5),
+        (TaskStatus.AWAITING_MERGE, 6),
+        (TaskStatus.COMPLETED, 6),
+    ]:
+        update_task_status(ade_dir, task_id, status, current_phase=phase)
+
+    final = load_task(ade_dir, task_id)
+    assert final.status == TaskStatus.COMPLETED
+
+    # Invalid transition should be rejected
+    with pytest.raises(InvalidTransitionError):
+        update_task_status(ade_dir, task_id, TaskStatus.PLANNING, current_phase=1)
+
+
+def test_lifecycle_circuit_breaker_total_limit(project: Path) -> None:
+    import json
+
+    ade_dir = project / ".ade"
+    state = create_task(ade_dir=ade_dir, description="Total limit test")
+    task_id = state.task_id
+    # Set iterations via direct JSON edit
+    state_path = ade_dir / "tasks" / task_id / "state.json"
+    data = json.loads(state_path.read_text(encoding="utf-8"))
+    data["iterations"] = {"design_check": 1, "code_review": 2, "qa_fix": 2}
+    state_path.write_text(json.dumps(data), encoding="utf-8")
+
+    config = OrchestrationConfig(max_total_iterations=5)
+    result = check_circuit_breaker(ade_dir, task_id, config=config)
+    assert result == CircuitBreakerResult.TOTAL_ITERATION_LIMIT
+
+
+def test_lifecycle_crash_recovery(project: Path) -> None:
+    ade_dir = project / ".ade"
+    state = create_task(ade_dir=ade_dir, description="Crash test")
+    task_id = state.task_id
+
+    # Corrupt the state file
+    state_path = ade_dir / "tasks" / task_id / "state.json"
+    (ade_dir / "tasks" / task_id / "plan.md").write_text("# Plan", encoding="utf-8")
+    state_path.write_text("{corrupt!", encoding="utf-8")
+
+    status, message = determine_resume_point(ade_dir, task_id)
+    assert status == TaskStatus.PLANNING
+
+
+def test_exit_codes_defined() -> None:
+    from ade.crew.runner import EXIT_ESCALATE, EXIT_FAILURE, EXIT_PARTIAL, EXIT_SUCCESS
+
+    assert EXIT_SUCCESS == 0
+    assert EXIT_FAILURE == 1
+    assert EXIT_PARTIAL == 2
+    assert EXIT_ESCALATE == 3

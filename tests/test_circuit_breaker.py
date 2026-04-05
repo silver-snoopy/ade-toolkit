@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from ade.circuit_breaker import (
@@ -9,6 +10,7 @@ from ade.circuit_breaker import (
     CircuitBreakerResult,
     check_circuit_breaker,
 )
+from ade.config import OrchestrationConfig
 from ade.tasks import create_task, increment_iteration
 
 
@@ -63,10 +65,6 @@ def test_under_limit_ok(tmp_path: Path) -> None:
     increment_iteration(ade_dir=ade_dir, task_id=state.task_id, counter="qa_fix")
     result = check_circuit_breaker(ade_dir=ade_dir, task_id=state.task_id)
     assert result == CircuitBreakerResult.OK
-
-
-import json
-from ade.config import OrchestrationConfig
 
 
 def test_load_failure_returns_result(tmp_path: Path) -> None:
