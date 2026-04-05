@@ -13,6 +13,7 @@ from rich import print as rprint
 
 from ade.config import build_config, migrate_config
 from ade.detect import detect_project, normalize_language
+from ade.recovery import determine_resume_point
 from ade.tasks import TaskStatus, list_tasks
 
 app = typer.Typer(
@@ -275,3 +276,20 @@ def update(
         rprint("[green]Config migrated to latest version. Backup saved as config.yaml.bak[/green]")
     else:
         rprint("Config is already up to date.")
+
+
+@app.command()
+def resume(
+    task_id: Annotated[str, typer.Argument(help="Task ID to resume")],
+    project_dir: Annotated[Path, typer.Option(help="Project directory")] = Path("."),
+) -> None:
+    """Show resume point for an interrupted task."""
+    project_dir = project_dir.resolve()
+    ade_dir = project_dir / ".ade"
+
+    if not ade_dir.exists():
+        rprint("[red]No .ade directory found. Run 'ade init' first.[/red]")
+        raise typer.Exit(1)
+
+    status, message = determine_resume_point(ade_dir=ade_dir, task_id=task_id)
+    rprint(f"\n[bold]{task_id}[/bold] — {message}")
