@@ -27,6 +27,9 @@ Thumbs.db
 .ade/tasks/
 .ade/worktrees/
 
+# Git worktrees
+.worktrees/
+
 # Environment
 .env
 .env.local
