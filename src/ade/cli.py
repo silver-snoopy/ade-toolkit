@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Annotated
 
@@ -60,11 +62,71 @@ def _update_claude_md(project_dir: Path, ade_section: str) -> None:
     claude_md.write_text(content, encoding="utf-8")
 
 
+def _check_command(name: str) -> bool:
+    """Check if a command is available on PATH."""
+    return shutil.which(name) is not None
+
+
+def _check_ollama_models(required: list[str]) -> list[str]:
+    """Check which required Ollama models are missing. Returns missing model names."""
+    try:
+        result = subprocess.run(["ollama", "list"], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return required
+        installed = result.stdout
+        return [m for m in required if m not in installed]
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return required
+
+
 @app.command()
 def doctor() -> None:
-    """Verify ADE dependencies and configuration."""
-    rprint("[bold]ADE Doctor[/bold]")
-    rprint("  [yellow]doctor command not yet implemented[/yellow]")
+    """Check that all ADE dependencies are available."""
+    all_ok = True
+
+    required_tools = {
+        "ollama": "Ollama (local LLM runtime)",
+        "claude": "Claude Code CLI",
+        "pre-commit": "Pre-commit framework",
+        "git": "Git",
+    }
+
+    optional_tools = {
+        "ruff": "Ruff (Python linting)",
+        "semgrep": "Semgrep (SAST scanning)",
+    }
+
+    rprint("[bold]ADE Doctor — Checking dependencies[/bold]\n")
+
+    for cmd, description in required_tools.items():
+        if _check_command(cmd):
+            rprint(f"  [green]PASS[/green]  {description}")
+        else:
+            rprint(f"  [red]FAIL[/red]  {description} — '{cmd}' not found")
+            all_ok = False
+
+    for cmd, description in optional_tools.items():
+        if _check_command(cmd):
+            rprint(f"  [green]PASS[/green]  {description}")
+        else:
+            rprint(f"  [yellow]WARN[/yellow]  {description} — '{cmd}' not found (optional)")
+
+    # Check Ollama models
+    required_models = ["gemma4:31b", "qwen2.5-coder:14b", "qwen2.5-coder:32b"]
+    missing = _check_ollama_models(required_models)
+    if missing:
+        rprint(f"\n  [yellow]WARN[/yellow]  Missing Ollama models: {', '.join(missing)}")
+        rprint("    Install with: " + " && ".join(f"ollama pull {m}" for m in missing))
+    else:
+        rprint("  [green]PASS[/green]  All required Ollama models available")
+
+    if all_ok:
+        rprint("\n[green]All required dependencies found.[/green]")
+    else:
+        rprint(
+            "\n[red]Some required dependencies are missing. Install them before using ADE.[/red]"
+        )
+        raise typer.Exit(1)
 
 
 @app.command()

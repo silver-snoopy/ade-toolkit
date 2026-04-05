@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -79,3 +80,34 @@ def test_init_python_project_excludes_eslint(python_project: Path) -> None:
     precommit = (python_project / ".pre-commit-config.yaml").read_text()
     assert "ruff" in precommit
     assert "eslint" not in precommit
+
+
+def test_doctor_reports_missing_tools() -> None:
+    """Doctor should report when tools are not found."""
+    with patch("ade.cli._check_command", return_value=False):
+        result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 1
+    assert "FAIL" in result.output or "not found" in result.output.lower()
+
+
+def test_doctor_reports_all_ok() -> None:
+    """Doctor should report success when all tools are present."""
+    with (
+        patch("ade.cli._check_command", return_value=True),
+        patch("ade.cli._check_ollama_models", return_value=[]),
+    ):
+        result = runner.invoke(app, ["doctor"])
+    assert result.exit_code == 0
+    assert "ok" in result.output.lower() or "pass" in result.output.lower()
+
+
+def test_doctor_warns_missing_models() -> None:
+    """Doctor should warn (not fail) when Ollama models are missing."""
+    with (
+        patch("ade.cli._check_command", return_value=True),
+        patch("ade.cli._check_ollama_models", return_value=["gemma4:31b"]),
+    ):
+        result = runner.invoke(app, ["doctor"])
+    # Missing models are warnings, not failures — exit code 0
+    assert result.exit_code == 0
+    assert "gemma4:31b" in result.output
