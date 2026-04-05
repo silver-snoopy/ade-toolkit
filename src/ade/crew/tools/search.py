@@ -57,9 +57,7 @@ class SearchCodeTool(BaseTool):
         lines = output.splitlines()
         if len(lines) > _MAX_LINES:
             truncated = lines[:_MAX_LINES]
-            truncated.append(
-                f"... truncated ({len(lines) - _MAX_LINES} more lines)"
-            )
+            truncated.append(f"... truncated ({len(lines) - _MAX_LINES} more lines)")
             return "\n".join(truncated)
 
         return output

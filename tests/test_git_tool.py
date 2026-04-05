@@ -31,9 +31,7 @@ def test_commit_succeeds_on_feature_branch() -> None:
 def test_commit_blocked_on_main_branch() -> None:
     tool = GitCommitTool(worktree_path=Path("/tmp/test"))
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(
-            stdout="main\n", stderr="", returncode=0
-        )
+        mock_run.return_value = MagicMock(stdout="main\n", stderr="", returncode=0)
         result = tool._run(files="src/foo.py", message="bad commit")
     assert "BLOCKED" in result
     # Only one call (branch check), no add/commit
@@ -43,9 +41,7 @@ def test_commit_blocked_on_main_branch() -> None:
 def test_commit_blocked_on_master_branch() -> None:
     tool = GitCommitTool(worktree_path=Path("/tmp/test"))
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(
-            stdout="master\n", stderr="", returncode=0
-        )
+        mock_run.return_value = MagicMock(stdout="master\n", stderr="", returncode=0)
         result = tool._run(files="src/foo.py", message="bad commit")
     assert "BLOCKED" in result
     assert mock_run.call_count == 1
@@ -70,9 +66,7 @@ def test_commit_handles_git_errors() -> None:
 def test_commit_blocks_flag_injection() -> None:
     tool = GitCommitTool(worktree_path=Path("/tmp/test"))
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(
-            stdout="feat/x\n", stderr="", returncode=0
-        )
+        mock_run.return_value = MagicMock(stdout="feat/x\n", stderr="", returncode=0)
         result = tool._run(files="--all", message="hack")
     assert "BLOCKED" in result
 
