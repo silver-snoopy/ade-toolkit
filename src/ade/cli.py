@@ -13,6 +13,7 @@ from rich import print as rprint
 
 from ade.config import build_config, migrate_config
 from ade.detect import detect_project, normalize_language
+from ade.logging_setup import setup_logging
 from ade.recovery import determine_resume_point
 from ade.tasks import TaskStatus, list_tasks
 
@@ -21,6 +22,12 @@ app = typer.Typer(
     help="ADE — Agentic Development Environment toolkit",
     no_args_is_help=True,
 )
+
+@app.callback()
+def main() -> None:
+    """ADE — Agentic Development Environment toolkit."""
+    setup_logging()
+
 
 ADE_SECTION_MARKER = "## ADE — Agentic Development Environment"
 
