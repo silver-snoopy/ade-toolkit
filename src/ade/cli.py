@@ -11,7 +11,7 @@ import typer
 from jinja2 import Environment, PackageLoader
 from rich import print as rprint
 
-from ade.config import build_config, migrate_config
+from ade.config import ConfigMigrationError, build_config, migrate_config
 from ade.detect import detect_project, normalize_language
 from ade.logging_setup import setup_logging
 from ade.recovery import determine_resume_point
@@ -278,7 +278,11 @@ def update(
         rprint("[red]No .ade/config.yaml found. Run 'ade init' first.[/red]")
         raise typer.Exit(1)
 
-    config, migrated = migrate_config(config_path)
+    try:
+        config, migrated = migrate_config(config_path)
+    except ConfigMigrationError as exc:
+        rprint(f"[red]Config migration failed: {exc}[/red]")
+        raise typer.Exit(1) from None
     if migrated:
         config_path.write_text(config.to_yaml(), encoding="utf-8")
         rprint("[green]Config migrated to latest version. Backup saved as config.yaml.bak[/green]")

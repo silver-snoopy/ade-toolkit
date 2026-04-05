@@ -15,6 +15,7 @@ logger = logging.getLogger("ade.circuit_breaker")
 MAX_DESIGN_CHECK_ITERATIONS = 2
 MAX_CODE_REVIEW_CYCLES = 3
 MAX_QA_FIX_ITERATIONS = 3
+MAX_TOTAL_ITERATIONS = 9
 
 
 class CircuitBreakerResult(StrEnum):
@@ -45,7 +46,7 @@ def check_circuit_breaker(
     design_limit = config.max_phase_iterations if config else MAX_DESIGN_CHECK_ITERATIONS
     review_limit = config.max_phase_iterations if config else MAX_CODE_REVIEW_CYCLES
     qa_limit = config.max_phase_iterations if config else MAX_QA_FIX_ITERATIONS
-    total_limit = config.max_total_iterations if config else 9
+    total_limit = config.max_total_iterations if config else MAX_TOTAL_ITERATIONS
 
     iters = state.iterations
     if iters.design_check >= design_limit:

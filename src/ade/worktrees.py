@@ -59,7 +59,7 @@ def remove_worktree(project_dir: Path, task_id: str) -> None:
         raise RuntimeError(f"Failed to remove worktree: {result.stderr.strip()}")
 
     # Best-effort branch cleanup
-    branch_result = _run_git(["branch", "-D", f"ade/{task_id}"], cwd=project_dir)
+    branch_result = _run_git(["branch", "-d", f"ade/{task_id}"], cwd=project_dir)
     if branch_result.returncode != 0:
         logger.warning("Could not delete branch ade/%s: %s", task_id, branch_result.stderr.strip())
 

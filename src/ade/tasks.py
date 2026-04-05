@@ -9,6 +9,7 @@ import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
+from types import MappingProxyType
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -59,24 +60,32 @@ class InvalidTransitionError(ValueError):
     """Raised when a state transition is not allowed."""
 
 
-VALID_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
-    TaskStatus.INITIATED: {TaskStatus.PLANNING, TaskStatus.FAILED},
-    TaskStatus.PLANNING: {TaskStatus.DESIGN_CHECK, TaskStatus.FAILED},
-    TaskStatus.DESIGN_CHECK: {TaskStatus.DESIGN_CHECK, TaskStatus.CODING, TaskStatus.FAILED},
-    TaskStatus.CODING: {TaskStatus.QUALITY_GATE, TaskStatus.FAILED},
-    TaskStatus.QUALITY_GATE: {TaskStatus.QUALITY_GATE, TaskStatus.REVIEWING, TaskStatus.FAILED},
-    TaskStatus.REVIEWING: {
-        TaskStatus.QUALITY_GATE,
-        TaskStatus.HUMAN_ESCALATION,
-        TaskStatus.FINALIZING,
-        TaskStatus.FAILED,
-    },
-    TaskStatus.FINALIZING: {TaskStatus.AWAITING_MERGE, TaskStatus.FAILED},
-    TaskStatus.AWAITING_MERGE: {TaskStatus.COMPLETED, TaskStatus.FAILED},
-    TaskStatus.HUMAN_ESCALATION: {TaskStatus.COMPLETED, TaskStatus.FAILED},
-    TaskStatus.COMPLETED: set(),
-    TaskStatus.FAILED: set(),
-}
+VALID_TRANSITIONS: MappingProxyType[TaskStatus, frozenset[TaskStatus]] = MappingProxyType(
+    {
+        TaskStatus.INITIATED: frozenset({TaskStatus.PLANNING, TaskStatus.FAILED}),
+        TaskStatus.PLANNING: frozenset({TaskStatus.DESIGN_CHECK, TaskStatus.FAILED}),
+        TaskStatus.DESIGN_CHECK: frozenset(
+            {TaskStatus.DESIGN_CHECK, TaskStatus.CODING, TaskStatus.FAILED}
+        ),
+        TaskStatus.CODING: frozenset({TaskStatus.QUALITY_GATE, TaskStatus.FAILED}),
+        TaskStatus.QUALITY_GATE: frozenset(
+            {TaskStatus.QUALITY_GATE, TaskStatus.REVIEWING, TaskStatus.FAILED}
+        ),
+        TaskStatus.REVIEWING: frozenset(
+            {
+                TaskStatus.QUALITY_GATE,
+                TaskStatus.HUMAN_ESCALATION,
+                TaskStatus.FINALIZING,
+                TaskStatus.FAILED,
+            }
+        ),
+        TaskStatus.FINALIZING: frozenset({TaskStatus.AWAITING_MERGE, TaskStatus.FAILED}),
+        TaskStatus.AWAITING_MERGE: frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED}),
+        TaskStatus.HUMAN_ESCALATION: frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED}),
+        TaskStatus.COMPLETED: frozenset(),
+        TaskStatus.FAILED: frozenset(),
+    }
+)
 
 
 def _task_dir(ade_dir: Path, task_id: str) -> Path:
@@ -175,6 +184,6 @@ def list_tasks(ade_dir: Path) -> list[TaskState]:
                 results.append(TaskState.model_validate(data))
             except json.JSONDecodeError as exc:
                 logger.warning("Skipping task %s: corrupted state.json: %s", entry.name, exc)
-            except (ValueError, Exception) as exc:
+            except (ValueError, KeyError, TypeError) as exc:
                 logger.warning("Skipping task %s: invalid state: %s", entry.name, exc)
     return results
