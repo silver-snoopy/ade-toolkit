@@ -56,9 +56,27 @@ _BLOCKED_PATTERNS: list[str] = [
 ]
 
 
+_SHELL_METACHARACTERS: list[str] = [
+    "`",
+    "$(",
+    "|",
+    ";",
+    "&&",
+    "||",
+    ">",
+    "<",
+    "\n",
+]
+
+
 def is_command_allowed(command: str) -> bool:
     """Check if a command is allowed by the sandbox policy."""
     cmd = command.strip()
+
+    # Block shell metacharacters to prevent injection via shell=True
+    for meta in _SHELL_METACHARACTERS:
+        if meta in cmd:
+            return False
 
     # Check blocklist first (takes priority)
     for pattern in _BLOCKED_PATTERNS:

