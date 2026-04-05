@@ -32,7 +32,7 @@ def create_worktree(project_dir: Path, task_id: str) -> WorktreeInfo:
 
 
 def remove_worktree(project_dir: Path, task_id: str) -> None:
-    """Remove a task's worktree and optionally delete its branch."""
+    """Remove a task's worktree."""
     worktree_path = project_dir / ".ade" / "worktrees" / task_id
 
     if not worktree_path.exists():

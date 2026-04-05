@@ -46,6 +46,7 @@ def test_status_shows_iterations(tmp_path: Path) -> None:
     state = create_task(ade_dir=ade_dir, description="Fix bug")
     # Simulate some iterations
     from ade.tasks import increment_iteration
+
     increment_iteration(ade_dir=ade_dir, task_id=state.task_id, counter="qa_fix")
     increment_iteration(ade_dir=ade_dir, task_id=state.task_id, counter="qa_fix")
     result = runner.invoke(app, ["status", "--project-dir", str(tmp_path)])

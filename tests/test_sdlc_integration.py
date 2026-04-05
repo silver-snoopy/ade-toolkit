@@ -53,8 +53,12 @@ def test_full_lifecycle_happy_path(project: Path) -> None:
     # Phase 2: Coding — create worktree
     wt = create_worktree(project_dir=project, task_id=task_id)
     update_task_status(
-        ade_dir, task_id, TaskStatus.CODING, current_phase=2,
-        worktree=str(wt.path), branch=wt.branch,
+        ade_dir,
+        task_id,
+        TaskStatus.CODING,
+        current_phase=2,
+        worktree=str(wt.path),
+        branch=wt.branch,
     )
     assert wt.path.exists()
 
