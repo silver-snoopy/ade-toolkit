@@ -1,0 +1,8 @@
+Run ADE coding phases (Design Check + Code + Quality Gate) for: $ARGUMENTS
+
+If a plan exists in .ade/tasks/, use it. Otherwise, create one first.
+1. Run design check (Phase 1.5) — generate stubs with CrewAI architect
+2. Code (Phase 2) — dispatch CrewAI coder in a git worktree
+3. Quality gate (Phase 3) — pre-commit + tests + test gap analysis
+
+Report the QA gate result when complete.
