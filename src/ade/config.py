@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
+
 import yaml
 from pydantic import BaseModel, Field
 
 from ade.detect import ProjectInfo
+
+CONFIG_VERSION = "2.0"
 
 
 class ModelConfig(BaseModel):
@@ -114,3 +119,24 @@ def build_config(info: ProjectInfo) -> AdeConfig:
         ),
         scanning=scanning,
     )
+
+
+def migrate_config(config_path: Path) -> tuple[AdeConfig, bool]:
+    """Migrate a config file to the current version.
+
+    Returns (config, was_migrated).
+    """
+    data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    current_version = data.get("version", "1.0")
+
+    if str(current_version) == CONFIG_VERSION:
+        config = AdeConfig.model_validate(data)
+        return config, False
+
+    # Back up old config
+    shutil.copy2(config_path, config_path.with_suffix(".yaml.bak"))
+
+    # Update version and validate with defaults for missing fields
+    data["version"] = CONFIG_VERSION
+    config = AdeConfig.model_validate(data)
+    return config, True

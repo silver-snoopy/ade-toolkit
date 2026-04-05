@@ -11,7 +11,7 @@ import typer
 from jinja2 import Environment, PackageLoader
 from rich import print as rprint
 
-from ade.config import build_config
+from ade.config import build_config, migrate_config
 from ade.detect import detect_project, normalize_language
 from ade.tasks import TaskStatus, list_tasks
 
@@ -254,3 +254,24 @@ def status(
 
         if task.timestamps.get("created"):
             rprint(f"  Created: {task.timestamps['created']}")
+
+
+@app.command()
+def update(
+    project_dir: Annotated[Path, typer.Option(help="Project directory")] = Path("."),
+) -> None:
+    """Update ADE config to the latest version."""
+    project_dir = project_dir.resolve()
+    ade_dir = project_dir / ".ade"
+    config_path = ade_dir / "config.yaml"
+
+    if not config_path.exists():
+        rprint("[red]No .ade/config.yaml found. Run 'ade init' first.[/red]")
+        raise typer.Exit(1)
+
+    config, migrated = migrate_config(config_path)
+    if migrated:
+        config_path.write_text(config.to_yaml(), encoding="utf-8")
+        rprint("[green]Config migrated to latest version. Backup saved as config.yaml.bak[/green]")
+    else:
+        rprint("Config is already up to date.")
