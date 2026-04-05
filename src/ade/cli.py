@@ -73,8 +73,12 @@ def _check_ollama_models(required: list[str]) -> list[str]:
         result = subprocess.run(["ollama", "list"], capture_output=True, text=True, timeout=10)
         if result.returncode != 0:
             return required
-        installed = result.stdout
-        return [m for m in required if m not in installed]
+        # Parse model names from first column of ollama list output
+        installed_models = set()
+        for line in result.stdout.strip().splitlines()[1:]:  # Skip header
+            if line.strip():
+                installed_models.add(line.split()[0])
+        return [m for m in required if m not in installed_models]
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return required
 

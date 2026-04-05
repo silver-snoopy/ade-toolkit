@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ade.detect import ProjectInfo, detect_project  # noqa: F401
+from ade.detect import detect_project
 
 
 def test_detect_python_project(python_project: Path) -> None:

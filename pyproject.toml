@@ -31,7 +31,7 @@ ade = "ade.cli:app"
 packages = ["src/ade"]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py311"
 line-length = 99
 
 [tool.ruff.lint]

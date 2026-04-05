@@ -89,7 +89,12 @@ def _detect_languages(root: Path, info: ProjectInfo) -> None:
 
     # Upgrade javascript → typescript if TS files exist or tsconfig present
     if "javascript" in info.languages:
-        has_ts = (root / "tsconfig.json").exists() or any(root.rglob("*.ts"))
+        # Check tsconfig first (fast), then look for .ts files in src/ only
+        # to avoid scanning node_modules/
+        src_dir = root / "src"
+        has_ts = (root / "tsconfig.json").exists() or (
+            src_dir.is_dir() and any(src_dir.rglob("*.ts"))
+        )
         if has_ts:
             info.languages.remove("javascript")
             if "typescript" not in info.languages:
