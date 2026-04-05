@@ -16,17 +16,13 @@ class ModelConfig(BaseModel):
 
 
 class ModelsConfig(BaseModel):
-    primary: ModelConfig = Field(
-        default_factory=lambda: ModelConfig(name="gemma4:31b")
-    )
+    primary: ModelConfig = Field(default_factory=lambda: ModelConfig(name="gemma4:31b"))
     test_generator: ModelConfig = Field(
         default_factory=lambda: ModelConfig(
             name="qwen2.5-coder:14b", context_window=65536, temperature=0.2
         )
     )
-    fallback: ModelConfig = Field(
-        default_factory=lambda: ModelConfig(name="qwen2.5-coder:32b")
-    )
+    fallback: ModelConfig = Field(default_factory=lambda: ModelConfig(name="qwen2.5-coder:32b"))
     mode: str = "hot-swap"
 
 
@@ -60,9 +56,7 @@ class ScanningConfig(BaseModel):
     ruff: ScannerToggle = Field(default_factory=ScannerToggle)
     eslint: ScannerToggle = Field(default_factory=ScannerToggle)
     prettier: PrettierConfig = Field(default_factory=PrettierConfig)
-    detect_secrets: ScannerToggle = Field(
-        default_factory=lambda: ScannerToggle(enabled=True)
-    )
+    detect_secrets: ScannerToggle = Field(default_factory=lambda: ScannerToggle(enabled=True))
 
 
 class FallbackTriggersConfig(BaseModel):
@@ -91,9 +85,7 @@ class AdeConfig(BaseModel):
     orchestration: OrchestrationConfig = Field(default_factory=OrchestrationConfig)
     worktree: WorktreeConfig = Field(default_factory=WorktreeConfig)
     scanning: ScanningConfig = Field(default_factory=ScanningConfig)
-    fallback_triggers: FallbackTriggersConfig = Field(
-        default_factory=FallbackTriggersConfig
-    )
+    fallback_triggers: FallbackTriggersConfig = Field(default_factory=FallbackTriggersConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     def to_yaml(self) -> str:

@@ -1,4 +1,3 @@
-
 from ade.config import build_config
 from ade.detect import ProjectInfo
 
