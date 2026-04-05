@@ -95,25 +95,46 @@ def check_file_permission(
 
 
 class SafeFileTool(BaseTool):
-    """Write files with tiered permission enforcement.
+    """Read and write files with tiered permission enforcement.
 
     Agents can only write to files that pass the permission check.
     Plan files are freely writable, related files are logged, and
     unrelated files are blocked. Sensitive files are always blocked.
+    Any file in the worktree can be read, except always-blocked patterns.
     """
 
-    name: str = "write_file"
+    name: str = "file_tool"
     description: str = (
-        "Write content to a file in the project worktree. "
+        "Read or write a file in the project worktree. "
+        "Use mode='read' to read a file, mode='write' (default) to write. "
         "Only files in the task plan, related __init__.py/test files, "
-        "and same-directory siblings are permitted. "
+        "and same-directory siblings are permitted for writing. "
         "Sensitive files (.env, credentials, secrets) are always blocked."
     )
     worktree_path: Path = Field(description="Path to the git worktree")
     plan_files: list[str] = Field(description="List of files in the task plan")
     agent_role: str = Field(description="Role of the agent (coder, tester, etc.)")
 
-    def _run(self, path: str, content: str) -> str:
+    def _read_file(self, path: str) -> str:
+        """Read a file from the worktree. Blocks always-blocked patterns."""
+        if _is_always_blocked(path):
+            return f"BLOCKED: Read of '{path}' is not permitted by file policy"
+
+        target = self.worktree_path / path
+        if not target.exists():
+            return f"ERROR: File '{path}' does not exist"
+        if not target.is_file():
+            return f"ERROR: '{path}' is not a file"
+
+        try:
+            return target.read_text(encoding="utf-8")
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    def _run(self, path: str, content: str = "", mode: str = "write") -> str:
+        if mode == "read":
+            return self._read_file(path)
+
         permission = check_file_permission(path, self.plan_files, self.agent_role)
 
         if permission == FilePermission.BLOCKED:

@@ -69,3 +69,48 @@ def test_safe_file_tool_allows_write_to_tier1() -> None:
     # Logic test is sufficient — full integration tested in test_runner.py
     perm = check_file_permission("src/foo.py", ["src/foo.py"], agent_role="coder")
     assert perm == FilePermission.ALLOWED
+
+
+# --- Read mode tests ---
+
+
+def test_safe_file_tool_reads_file(tmp_path: Path) -> None:
+    (tmp_path / "hello.py").write_text("print('hi')", encoding="utf-8")
+    tool = SafeFileTool(
+        worktree_path=tmp_path,
+        plan_files=[],
+        agent_role="coder",
+    )
+    result = tool._run(path="hello.py", mode="read")
+    assert result == "print('hi')"
+
+
+def test_safe_file_tool_read_blocks_env(tmp_path: Path) -> None:
+    (tmp_path / ".env").write_text("SECRET=123", encoding="utf-8")
+    tool = SafeFileTool(
+        worktree_path=tmp_path,
+        plan_files=[],
+        agent_role="coder",
+    )
+    result = tool._run(path=".env", mode="read")
+    assert "BLOCKED" in result
+
+
+def test_safe_file_tool_read_blocks_credentials(tmp_path: Path) -> None:
+    tool = SafeFileTool(
+        worktree_path=tmp_path,
+        plan_files=[],
+        agent_role="coder",
+    )
+    result = tool._run(path="credentials.json", mode="read")
+    assert "BLOCKED" in result
+
+
+def test_safe_file_tool_read_nonexistent(tmp_path: Path) -> None:
+    tool = SafeFileTool(
+        worktree_path=tmp_path,
+        plan_files=[],
+        agent_role="coder",
+    )
+    result = tool._run(path="nope.py", mode="read")
+    assert "does not exist" in result

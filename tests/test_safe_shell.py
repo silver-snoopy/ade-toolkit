@@ -123,6 +123,9 @@ def test_safe_shell_executes_allowed_command() -> None:
         result = tool._run("git status")
     assert "ok" in result
     mock_run.assert_called_once()
+    # Verify command is passed as a list (shell=False)
+    assert mock_run.call_args[0][0] == ["git", "status"]
+    assert mock_run.call_args.kwargs["shell"] is False
     # Verify cwd is set to worktree path
     assert mock_run.call_args.kwargs["cwd"] == Path("/tmp/test")
 

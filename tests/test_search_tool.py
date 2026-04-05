@@ -19,6 +19,11 @@ def test_search_finds_matching_lines() -> None:
         result = tool._run(pattern="hello")
     assert "src/foo.py:10:def hello():" in result
     assert "src/foo.py:20:hello()" in result
+    # Verify git grep command structure
+    cmd = mock_run.call_args[0][0]
+    assert cmd[:2] == ["git", "-C"]
+    assert "grep" in cmd
+    assert "-n" in cmd
 
 
 def test_search_returns_no_matches() -> None:
@@ -68,4 +73,16 @@ def test_search_uses_file_glob() -> None:
         )
         tool._run(pattern="hello", file_glob="*.py")
     cmd = mock_run.call_args[0][0]
-    assert "--include=*.py" in cmd
+    assert "--" in cmd
+    assert "*.py" in cmd
+
+
+def test_search_no_glob_omits_double_dash() -> None:
+    tool = SearchCodeTool(worktree_path=Path("/tmp/test"))
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            stdout="", stderr="", returncode=1
+        )
+        tool._run(pattern="hello")
+    cmd = mock_run.call_args[0][0]
+    assert "--" not in cmd

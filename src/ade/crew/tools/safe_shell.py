@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -105,8 +106,8 @@ class SafeShellTool(BaseTool):
 
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                shlex.split(command),
+                shell=False,
                 cwd=self.worktree_path,
                 capture_output=True,
                 text=True,

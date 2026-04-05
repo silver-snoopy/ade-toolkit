@@ -18,7 +18,7 @@ def load_agent_config(agent_name: str, config_dir: Path) -> dict:
     config_path = config_dir / f"{agent_name}.yaml"
     if not config_path.exists():
         raise FileNotFoundError(f"Agent config not found: {config_path}")
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

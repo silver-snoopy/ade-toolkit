@@ -3,7 +3,13 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-from ade.crew.ollama import check_ollama_health, ensure_model_available, list_models, pull_model
+from ade.crew.ollama import (
+    check_ollama_health,
+    ensure_model_available,
+    hot_swap_model,
+    list_models,
+    pull_model,
+)
 
 
 def _mock_response(data: dict, status: int = 200) -> MagicMock:
@@ -55,6 +61,35 @@ def test_ensure_model_available_found() -> None:
 def test_ensure_model_available_not_found() -> None:
     with patch("ade.crew.ollama.list_models", return_value=["gemma4:31b"]):
         assert ensure_model_available("llama3:8b") is False
+
+
+def test_ensure_model_available_no_loose_partial_match() -> None:
+    """Partial name like 'llama' must not match 'llama3:8b'."""
+    with patch("ade.crew.ollama.list_models", return_value=["llama3:8b"]):
+        assert ensure_model_available("llama") is False
+
+
+def test_ensure_model_available_base_name_match() -> None:
+    """Base name without tag should match if base names are identical."""
+    with patch("ade.crew.ollama.list_models", return_value=["gemma4:31b"]):
+        assert ensure_model_available("gemma4") is True
+
+
+def test_hot_swap_model_success() -> None:
+    with patch("ade.crew.ollama.urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.return_value = _mock_response({})
+        result = hot_swap_model("gemma4:31b", "qwen2.5-coder:14b")
+    assert "Swapped" in result
+    assert "gemma4:31b" in result
+    assert "qwen2.5-coder:14b" in result
+    assert mock_urlopen.call_count == 2
+
+
+def test_hot_swap_model_failure() -> None:
+    with patch("ade.crew.ollama.urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = OSError("Connection refused")
+        result = hot_swap_model("gemma4:31b", "qwen2.5-coder:14b")
+    assert "Failed" in result
 
 
 def test_pull_model_success() -> None:

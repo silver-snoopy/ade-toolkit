@@ -12,24 +12,27 @@ _MAX_LINES = 50
 
 
 class SearchCodeTool(BaseTool):
-    """Search for patterns in the worktree using grep."""
+    """Search for patterns in the worktree using git grep."""
 
     name: str = "search_code"
     description: str = (
-        "Search for a regex pattern in the project worktree using grep. "
+        "Search for a regex pattern in the project worktree using git grep. "
         "Returns matching lines with file paths and line numbers. "
         "Optionally filter by file glob (e.g. '*.py')."
     )
     worktree_path: Path = Field(description="Path to the git worktree")
 
-    def _run(self, pattern: str, file_glob: str = "*") -> str:
+    def _run(self, pattern: str, file_glob: str = "") -> str:
         cmd = [
-            "grep",
-            "-rn",
-            f"--include={file_glob}",
-            pattern,
+            "git",
+            "-C",
             str(self.worktree_path),
+            "grep",
+            "-n",
+            pattern,
         ]
+        if file_glob:
+            cmd.extend(["--", file_glob])
         try:
             result = subprocess.run(
                 cmd,
