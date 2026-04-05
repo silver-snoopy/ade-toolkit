@@ -47,6 +47,9 @@ class SearchCodeTool(BaseTool):
         except Exception as e:
             return f"ERROR: {e}"
 
+        if result.returncode >= 2:
+            return f"ERROR: {result.stderr.strip() or 'Search failed'}"
+
         output = result.stdout.strip()
         if not output:
             return "No matches found"

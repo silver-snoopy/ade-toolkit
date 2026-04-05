@@ -74,7 +74,8 @@ def is_command_allowed(command: str) -> bool:
     """Check if a command is allowed by the sandbox policy."""
     cmd = command.strip()
 
-    # Block shell metacharacters to prevent injection via shell=True
+    # Block shell metacharacters as defense-in-depth against command injection
+    # via shlex.split parsing and allowlist bypass
     for meta in _SHELL_METACHARACTERS:
         if meta in cmd:
             return False
@@ -85,7 +86,7 @@ def is_command_allowed(command: str) -> bool:
             return False
 
     # Check allowlist
-    return any(cmd.startswith(prefix) for prefix in _ALLOWED_PREFIXES)
+    return any(cmd == prefix or cmd.startswith(prefix + " ") for prefix in _ALLOWED_PREFIXES)
 
 
 class SafeShellTool(BaseTool):

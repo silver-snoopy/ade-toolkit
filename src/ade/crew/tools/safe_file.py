@@ -120,7 +120,10 @@ class SafeFileTool(BaseTool):
         if _is_always_blocked(path):
             return f"BLOCKED: Read of '{path}' is not permitted by file policy"
 
-        target = self.worktree_path / path
+        target = (self.worktree_path / path).resolve()
+        if not target.is_relative_to(self.worktree_path.resolve()):
+            return f"BLOCKED: '{path}' escapes the worktree boundary"
+
         if not target.exists():
             return f"ERROR: File '{path}' does not exist"
         if not target.is_file():
@@ -132,6 +135,9 @@ class SafeFileTool(BaseTool):
             return f"ERROR: {e}"
 
     def _run(self, path: str, content: str = "", mode: str = "write") -> str:
+        if mode not in ("read", "write"):
+            return f"ERROR: Invalid mode '{mode}'. Use 'read' or 'write'."
+
         if mode == "read":
             return self._read_file(path)
 
@@ -140,9 +146,15 @@ class SafeFileTool(BaseTool):
         if permission == FilePermission.BLOCKED:
             return f"BLOCKED: Write to '{path}' is not permitted by file policy"
 
-        target = self.worktree_path / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        target = (self.worktree_path / path).resolve()
+        if not target.is_relative_to(self.worktree_path.resolve()):
+            return f"BLOCKED: '{path}' escapes the worktree boundary"
+
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
+        except OSError as e:
+            return f"ERROR: {e}"
 
         if permission == FilePermission.LOGGED:
             return (

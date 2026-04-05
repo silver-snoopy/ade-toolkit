@@ -112,7 +112,7 @@ def run(
             worktree_path=worktree_path,
             plan_files=plan_files,
         )
-    except FileNotFoundError as e:
+    except (FileNotFoundError, KeyError, TypeError, ValueError) as e:
         progress.log(phase=phase, agent="runner", step="2/3", file="", status=f"error: {e}")
         return EXIT_FAILURE
 

@@ -77,6 +77,18 @@ def test_search_uses_file_glob() -> None:
     assert "*.py" in cmd
 
 
+def test_search_returns_error_on_exit_code_2() -> None:
+    tool = SearchCodeTool(worktree_path=Path("/tmp/test"))
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            stdout="",
+            stderr="fatal: invalid regex",
+            returncode=2,
+        )
+        result = tool._run(pattern="[invalid")
+    assert "ERROR" in result
+
+
 def test_search_no_glob_omits_double_dash() -> None:
     tool = SearchCodeTool(worktree_path=Path("/tmp/test"))
     with patch("subprocess.run") as mock_run:

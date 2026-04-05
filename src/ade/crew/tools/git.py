@@ -41,7 +41,10 @@ class GitCommitTool(BaseTool):
                 )
 
             # git add
-            add_cmd = ["git", "add"] + files.split()
+            file_list = files.split()
+            if any(f.startswith("-") for f in file_list):
+                return "BLOCKED: File arguments cannot start with '-' (flag injection)"
+            add_cmd = ["git", "add", "--"] + file_list
             add_result = subprocess.run(
                 add_cmd,
                 shell=False,

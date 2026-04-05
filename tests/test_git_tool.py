@@ -67,6 +67,16 @@ def test_commit_handles_git_errors() -> None:
     assert "error" in result.lower()
 
 
+def test_commit_blocks_flag_injection() -> None:
+    tool = GitCommitTool(worktree_path=Path("/tmp/test"))
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            stdout="feat/x\n", stderr="", returncode=0
+        )
+        result = tool._run(files="--all", message="hack")
+    assert "BLOCKED" in result
+
+
 def test_commit_sets_cwd_to_worktree_path() -> None:
     wt = Path("/tmp/my-worktree")
     tool = GitCommitTool(worktree_path=wt)

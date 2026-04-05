@@ -137,6 +137,12 @@ def test_safe_shell_enforces_timeout() -> None:
     assert "timeout" in result.lower() or "timed out" in result.lower()
 
 
+def test_allowlist_requires_word_boundary() -> None:
+    assert is_command_allowed("makedumpfile foo") is False
+    assert is_command_allowed("make") is True
+    assert is_command_allowed("make clean") is True
+
+
 def test_safe_shell_handles_nonzero_exit() -> None:
     tool = SafeShellTool(worktree_path=Path("/tmp/test"))
     with patch("subprocess.run") as mock_run:

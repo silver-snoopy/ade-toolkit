@@ -114,3 +114,49 @@ def test_safe_file_tool_read_nonexistent(tmp_path: Path) -> None:
     )
     result = tool._run(path="nope.py", mode="read")
     assert "does not exist" in result
+
+
+# --- Path traversal tests ---
+
+
+def test_read_blocked_path_traversal(tmp_path: Path) -> None:
+    tool = SafeFileTool(
+        worktree_path=tmp_path,
+        plan_files=[],
+        agent_role="coder",
+    )
+    result = tool._run(path="../../etc/passwd", mode="read")
+    assert "BLOCKED" in result
+
+
+def test_write_blocked_path_traversal(tmp_path: Path) -> None:
+    tool = SafeFileTool(
+        worktree_path=tmp_path,
+        plan_files=["../../etc/evil.py"],
+        agent_role="coder",
+    )
+    result = tool._run(path="../../etc/evil.py", content="hack")
+    assert "BLOCKED" in result
+
+
+def test_read_blocked_absolute_path(tmp_path: Path) -> None:
+    tool = SafeFileTool(
+        worktree_path=tmp_path,
+        plan_files=[],
+        agent_role="coder",
+    )
+    result = tool._run(path="/etc/passwd", mode="read")
+    assert "BLOCKED" in result
+
+
+# --- Mode validation tests ---
+
+
+def test_safe_file_invalid_mode(tmp_path: Path) -> None:
+    tool = SafeFileTool(
+        worktree_path=tmp_path,
+        plan_files=[],
+        agent_role="coder",
+    )
+    result = tool._run(path="foo.py", content="x", mode="delete")
+    assert "ERROR" in result
