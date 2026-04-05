@@ -13,6 +13,7 @@ from rich import print as rprint
 
 from ade.config import build_config
 from ade.detect import detect_project, normalize_language
+from ade.tasks import TaskStatus, list_tasks
 
 app = typer.Typer(
     name="ade",
@@ -208,3 +209,48 @@ def init(
     rprint("    2. ade doctor          # Verify dependencies")
     rprint("    3. claude              # Start Claude Code")
     rprint("    4. /ade-full <task>    # Run a full SDLC cycle")
+
+
+@app.command()
+def status(
+    project_dir: Annotated[Path, typer.Option(help="Project directory")] = Path("."),
+) -> None:
+    """Show the status of ADE tasks."""
+    project_dir = project_dir.resolve()
+    ade_dir = project_dir / ".ade"
+
+    if not ade_dir.exists():
+        rprint("[yellow]No .ade directory found. Run 'ade init' first.[/yellow]")
+        return
+
+    tasks = list_tasks(ade_dir=ade_dir)
+
+    if not tasks:
+        rprint("No active tasks.")
+        return
+
+    for task in tasks:
+        status_color = {
+            TaskStatus.COMPLETED: "green",
+            TaskStatus.FAILED: "red",
+            TaskStatus.HUMAN_ESCALATION: "red",
+        }.get(task.status, "cyan")
+
+        rprint(f"\n[bold]{task.task_id}[/bold] — {task.description}")
+        rprint(
+            f"  Status:  [{status_color}]{task.status.value}[/{status_color}]"
+            f"  (phase {task.current_phase})"
+        )
+
+        if task.worktree:
+            rprint(f"  Worktree: {task.worktree}  (branch: {task.branch})")
+
+        iters = task.iterations
+        if iters.design_check or iters.code_review or iters.qa_fix:
+            rprint(
+                f"  Iterations: design_check: {iters.design_check},"
+                f" code_review: {iters.code_review}, qa_fix: {iters.qa_fix}"
+            )
+
+        if task.timestamps.get("created"):
+            rprint(f"  Created: {task.timestamps['created']}")
