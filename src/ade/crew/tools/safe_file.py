@@ -98,20 +98,26 @@ def check_file_permission(
 
 
 class SafeFileTool(BaseTool):
-    """Read and write files with tiered permission enforcement.
+    """Read, write, and edit files with tiered permission enforcement.
 
-    Agents can only write to files that pass the permission check.
+    Agents can only write/edit files that pass the permission check.
     Plan files are freely writable, related files are logged, and
     unrelated files are blocked. Sensitive files are always blocked.
     Any file in the worktree can be read, except always-blocked patterns.
+
+    Modes:
+    - read: Read file contents
+    - write: Create or overwrite a file (use for NEW files only)
+    - edit: Search-and-replace in an existing file (use for MODIFYING files)
     """
 
     name: str = "file_tool"
     description: str = (
-        "Read or write a file in the project worktree. "
-        "Use mode='read' to read a file, mode='write' (default) to write. "
-        "Only files in the task plan, related __init__.py/test files, "
-        "and same-directory siblings are permitted for writing. "
+        "Read, write, or edit a file in the project worktree. "
+        "Modes: mode='read' to read, mode='write' to create NEW files, "
+        "mode='edit' to modify EXISTING files (requires old_string and new_string). "
+        "For edit mode: old_string is the exact text to find, new_string is the replacement. "
+        "Only files in the task plan and related directories are permitted for writing/editing. "
         "Sensitive files (.env, credentials, secrets) are always blocked."
     )
     worktree_path: Path = Field(description="Path to the git worktree")
@@ -137,9 +143,77 @@ class SafeFileTool(BaseTool):
         except Exception as e:
             return f"ERROR: {e}"
 
-    def _run(self, path: str, content: str = "", mode: str = "write") -> str:
-        if mode not in ("read", "write"):
-            return f"ERROR: Invalid mode '{mode}'. Use 'read' or 'write'."
+    def _edit_file(self, path: str, old_string: str, new_string: str) -> str:
+        """Replace exact text in an existing file. Safe: no match = no change."""
+        permission = check_file_permission(path, self.plan_files, self.agent_role)
+
+        if permission == FilePermission.BLOCKED:
+            logger.warning(
+                "file_tool edit BLOCKED path=%s agent=%s",
+                path,
+                self.agent_role,
+            )
+            return f"BLOCKED: Edit of '{path}' is not permitted by file policy"
+
+        target = (self.worktree_path / path).resolve()
+        if not target.is_relative_to(self.worktree_path.resolve()):
+            logger.warning("file_tool edit BLOCKED path=%s reason=path_traversal", path)
+            return f"BLOCKED: '{path}' escapes the worktree boundary"
+
+        if not target.exists():
+            return f"ERROR: File '{path}' does not exist. Use mode='write' to create new files."
+
+        if not old_string:
+            return "ERROR: old_string must not be empty for edit mode"
+
+        try:
+            original = target.read_text(encoding="utf-8")
+        except Exception as e:
+            return f"ERROR: Could not read '{path}': {e}"
+
+        if old_string not in original:
+            # Help the agent understand what went wrong
+            return (
+                f"ERROR: old_string not found in '{path}'. "
+                f"The file has {len(original)} chars and {original.count(chr(10))+1} lines. "
+                f"Use mode='read' to see the current content, then retry with the exact text."
+            )
+
+        count = original.count(old_string)
+        updated = original.replace(old_string, new_string, 1)
+
+        try:
+            target.write_text(updated, encoding="utf-8")
+        except OSError as e:
+            logger.error("file_tool edit ERROR path=%s error=%s", path, e)
+            return f"ERROR: {e}"
+
+        logger.info(
+            "file_tool edit %s path=%s old_chars=%d new_chars=%d occurrences=%d",
+            permission.value,
+            path,
+            len(old_string),
+            len(new_string),
+            count,
+        )
+
+        result = f"OK: Replaced {len(old_string)} chars with {len(new_string)} chars in '{path}'"
+        if count > 1:
+            result += f" (replaced first of {count} occurrences)"
+        if permission == FilePermission.LOGGED:
+            result += " — this edit was outside the task plan and has been logged"
+        return result
+
+    def _run(
+        self,
+        path: str,
+        content: str = "",
+        mode: str = "write",
+        old_string: str = "",
+        new_string: str = "",
+    ) -> str:
+        if mode not in ("read", "write", "edit"):
+            return f"ERROR: Invalid mode '{mode}'. Use 'read', 'write', or 'edit'."
 
         if mode == "read":
             result = self._read_file(path)
@@ -150,6 +224,10 @@ class SafeFileTool(BaseTool):
             )
             return result
 
+        if mode == "edit":
+            return self._edit_file(path, old_string, new_string)
+
+        # mode == "write"
         permission = check_file_permission(path, self.plan_files, self.agent_role)
 
         if permission == FilePermission.BLOCKED:
