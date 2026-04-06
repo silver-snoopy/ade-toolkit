@@ -1,40 +1,119 @@
-## ADE — Agentic Development Environment
+## ADE — Agentic Development Environment (v3)
 
 ### Workflow
 
 When asked to implement a feature or fix a bug using the ADE workflow
 (triggered by /ade-full or when the user says "use ADE"):
 
-1. **PLAN**: Analyze the codebase and create a structured plan in
-   `.ade/tasks/<task-id>/plan.md`. Ask the user to approve before proceeding.
+**Phase 0 — INTENT**: Extract structured requirements from the task:
+- Type: feature | bugfix | refactor
+- Goal: one-sentence summary
+- Acceptance criteria: bullet list of what "done" looks like
+- Affected areas: which packages/features are likely impacted
+- Estimated scope: S (< 3 files) | M (3-10 files) | L (> 10 files)
+- Save to `.ade/tasks/<task-id>/intent.md`
 
-2. **DESIGN CHECK**: Dispatch CrewAI architect agent to generate code stubs:
-   `python -m ade.crew run --phase stubs --task-id <id>`
-   Review the stubs for plan alignment. Re-dispatch if needed (max 2x).
+**Phase 1 — RESEARCH**: Investigate the codebase before planning.
+Prefer launching up to 3 Explore agents in parallel:
+1. Existing implementation — files, functions, execution paths involved
+2. Related patterns — how similar features work elsewhere in the codebase
+3. Reusable utilities — shared helpers, hooks, components that can be reused
+Present findings to the user with a proposed implementation approach.
 
-3. **CODE**: Create git worktree, dispatch CrewAI coder agent:
-   `git worktree add .ade/worktrees/<id> -b ade/<id>`
-   `python -m ade.crew run --phase code --task-id <id> --worktree .ade/worktrees/<id>`
+**◆ USER GATE ◆**: STOP. Present research findings and proposed approach.
+Get explicit approval before proceeding. Include:
+- Summary of research findings
+- Proposed approach (files to create/modify)
+- Design decisions that need user input
+- Estimated scope (S/M/L)
+Do NOT proceed to Phase 2 until the user explicitly approves.
 
-4. **QUALITY GATE**: Run scanning and tests in the worktree:
-   `cd .ade/worktrees/<id> && pre-commit run --all-files`
+**Phase 2 — PLAN**: Write a detailed implementation plan to
+`.ade/tasks/<task-id>/plan.md` with these 6 mandatory sections:
+1. **Context** — why this change is being made
+2. **Ordered task list** — dependency-aware (shared types → backend → frontend)
+3. **Files to create/modify** — table with paths and descriptions
+4. **Dependencies** — new packages, environment variables
+5. **Test strategy** — unit tests, integration tests, E2E tests
+6. **Risk areas** — what could break, performance concerns
+
+For large features (scope L): decompose into a task DAG for parallel assignment.
+
+**◆ PLAN GATE ◆**: Verify the plan file exists at `.ade/tasks/<task-id>/plan.md`
+and contains all 6 sections. Do NOT proceed if incomplete.
+
+**Phase 3 — DESIGN CHECK**: Dispatch CrewAI architect agent to generate stubs:
+`python -m ade.crew run --phase stubs --task-id <id>`
+Review stubs for plan alignment. Re-dispatch if needed (max 2x).
+For team use: generate shared interface stubs as contracts for parallel work.
+
+**Phase 4 — IMPLEMENT**: Create git worktree, dispatch CrewAI coder agent:
+`git worktree add .ade/worktrees/<id> -b ade/<id>`
+`python -m ade.crew run --phase code --task-id <id> --worktree .ade/worktrees/<id>`
+Enforce build order: shared types → backend → frontend.
+
+**Phase 5 — QUALITY GATE**: Run scanning and tests in the worktree:
+`cd .ade/worktrees/<id> && pre-commit run --all-files`
 {% for lang, cmd in config.project.test_commands.items() %}
-   `cd .ade/worktrees/<id> && {{ cmd }}`
+`cd .ade/worktrees/<id> && {{ cmd }}`
 {% endfor %}
-   If failures, dispatch fixer agent (max 3x).
+If failures, dispatch fixer agent (max 3x).
+Optionally dispatch test gap analysis:
+`python -m ade.crew run --phase test --task-id <id> --worktree .ade/worktrees/<id>`
 
-5. **REVIEW**: Review the diff (`git diff main...ade/<id>`) against the plan.
-   Check for: logic errors, security issues, plan alignment, code quality.
-   If issues: dispatch fixer agent and re-run QA gate (max 3 total cycles).
+**Phase 6 — REVIEW**: 3-lens parallel code review of `git diff main...ade/<id>`:
+- **Lens 1 — Logic**: errors, edge cases, null handling, race conditions
+- **Lens 2 — Conventions**: project patterns, naming, structure
+- **Lens 3 — Security**: OWASP top 10, injection, auth bypass, secrets exposure
+Classify findings: HIGH (blocking) | MEDIUM (fix before merge) | LOW (advisory).
+Fix all HIGH and MEDIUM findings before proceeding.
+If issues require code changes: loop back to Quality Gate (max 3 total cycles).
 
-6. **FINALIZE**: Squash commits, generate docs, create PR description.
-   Present to user for merge decision. Clean up worktree after merge.
+**Phase 7 — VERIFY**: Mandatory live verification with evidence.
+- Run the project's full test suite against the actual system
+- For UI changes: capture screenshot evidence
+- For API changes: capture request/response evidence
+- Verify each acceptance criterion from Phase 0
+- Save evidence to `.ade/tasks/<task-id>/verification/`
+If verification fails: loop back to Review (max 2 reject cycles).
+
+**Phase 8 — DOCUMENTATION**: Update affected project documentation:
+- Product docs: new features, changed behavior
+- CLAUDE.md: new conventions, patterns, structure changes
+- Architecture docs: new routes, schemas, data flows
+- API docs: new/changed endpoints
+Only update docs that are affected by the change.
+
+**Phase 9 — COMMIT & PR**: Create clean commit and open pull request:
+1. Stage relevant files (not .env, credentials, or unrelated changes)
+2. Commit with conventional message (imperative mood, max 72 chars)
+3. Push to feature branch
+4. Open PR with summary, acceptance criteria, test plan, verification evidence
+
+**◆ MERGE GATE ◆**: Present PR to user for review and merge decision.
+
+**Phase 10 — RETROSPECTIVE**: Capture cycle metrics and learnings:
+- Cycle time per phase
+- Iteration counts (design check, review, QA fix, verify reject)
+- Circuit breaker triggers (if any)
+- What worked, what didn't
+- Save to `.ade/tasks/<task-id>/retro.json`
+- Clean up worktree after merge: `git worktree remove .ade/worktrees/<id>`
 
 ### Circuit Breaker
-After 3 code→review cycles, escalate to the user with a summary of what's
-failing. Do NOT keep retrying silently.
+- Design check: max 2 iterations
+- Code→review loop: max 3 cycles
+- QA fix: max 3 iterations
+- Verify→review reject: max 2 cycles
+- Total across all: max 11 iterations
+After any limit is reached, escalate to the user with a summary. Do NOT retry silently.
+
+### Scope Drift Detection
+If the actual changes (files modified, lines changed) exceed the Phase 2 plan
+estimate by more than 2x, pause and present to the user for re-scoping.
 
 ### Models
-- Planning, review, finalization: Claude Opus (this session)
+- Intent, research, planning, review, verify, docs, finalize: Claude Opus (this session)
 - Coding, fixing: Ollama {{ config.models.primary.name }} (via CrewAI)
 - Test generation: Ollama {{ config.models.test_generator.name }} (via CrewAI)
+- Research (optional): Ollama {{ config.models.primary.name }} (via CrewAI)

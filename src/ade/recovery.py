@@ -13,10 +13,16 @@ logger = logging.getLogger("ade.recovery")
 
 def infer_phase_from_artifacts(task_dir: Path) -> TaskStatus:
     """Infer the last completed phase from task artifacts on disk."""
+    if (task_dir / "retro.json").exists():
+        return TaskStatus.COMPLETED
+    if (task_dir / "verification").is_dir():
+        return TaskStatus.VERIFYING
     if (task_dir / "qa-report.json").exists():
         return TaskStatus.QUALITY_GATE
     if (task_dir / "plan.md").exists():
         return TaskStatus.PLANNING
+    if (task_dir / "intent.md").exists():
+        return TaskStatus.INTENT_CAPTURE
     return TaskStatus.INITIATED
 
 

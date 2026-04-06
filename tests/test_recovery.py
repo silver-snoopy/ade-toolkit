@@ -35,6 +35,27 @@ def test_determine_resume_with_valid_state(tmp_path: Path) -> None:
     assert message  # Non-empty
 
 
+def test_infer_from_intent_md(tmp_path: Path) -> None:
+    task_dir = tmp_path / "tasks" / "abc123"
+    task_dir.mkdir(parents=True)
+    (task_dir / "intent.md").write_text("# Intent", encoding="utf-8")
+    assert infer_phase_from_artifacts(task_dir) == TaskStatus.INTENT_CAPTURE
+
+
+def test_infer_from_verification_dir(tmp_path: Path) -> None:
+    task_dir = tmp_path / "tasks" / "abc123"
+    task_dir.mkdir(parents=True)
+    (task_dir / "verification").mkdir()
+    assert infer_phase_from_artifacts(task_dir) == TaskStatus.VERIFYING
+
+
+def test_infer_from_retro_json(tmp_path: Path) -> None:
+    task_dir = tmp_path / "tasks" / "abc123"
+    task_dir.mkdir(parents=True)
+    (task_dir / "retro.json").write_text("{}", encoding="utf-8")
+    assert infer_phase_from_artifacts(task_dir) == TaskStatus.COMPLETED
+
+
 def test_determine_resume_with_corrupt_state_and_artifacts(tmp_path: Path) -> None:
     ade_dir = tmp_path / ".ade"
     ade_dir.mkdir()

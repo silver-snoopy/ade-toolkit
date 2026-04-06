@@ -77,15 +77,19 @@ def project_env(tmp_path: Path) -> Path:
     return project
 
 
+@patch("ade.crew.runner._check_worktree_changes", return_value=True)
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_full_pipeline_code_phase(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,
+    mock_changes: MagicMock,
     project_env: Path,
 ) -> None:
     """Full pipeline: health check -> agent creation -> crew execution -> success."""
@@ -116,15 +120,19 @@ def test_full_pipeline_code_phase(
     assert "complete" in content
 
 
+@patch("ade.crew.runner._check_worktree_changes", return_value=True)
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_full_pipeline_stubs_phase(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,
+    mock_changes: MagicMock,
     project_env: Path,
 ) -> None:
     """Stubs phase uses architect agent."""
@@ -140,9 +148,11 @@ def test_full_pipeline_stubs_phase(
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_full_pipeline_test_phase(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,
@@ -158,15 +168,19 @@ def test_full_pipeline_test_phase(
     assert mock_create_agent.call_args.kwargs["agent_name"] == "tester"
 
 
+@patch("ade.crew.runner._check_worktree_changes", return_value=True)
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_full_pipeline_fix_phase(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,
+    mock_changes: MagicMock,
     project_env: Path,
 ) -> None:
     """Fix phase uses fixer agent."""
@@ -194,9 +208,11 @@ def test_pipeline_ollama_not_running(mock_health: MagicMock, project_env: Path) 
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_pipeline_max_iterations(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,
@@ -212,15 +228,19 @@ def test_pipeline_max_iterations(
     assert result == EXIT_PARTIAL
 
 
+@patch("ade.crew.runner._check_worktree_changes", return_value=True)
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_pipeline_progress_log_records_all_steps(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,
+    mock_changes: MagicMock,
     project_env: Path,
 ) -> None:
     """Verify all progress steps are logged during a successful run."""
@@ -233,23 +253,28 @@ def test_pipeline_progress_log_records_all_steps(
     content = log_path.read_text()
     lines = content.strip().splitlines()
 
-    # Should have at least 4 log entries: checking ollama, creating agent, running crew, complete
-    assert len(lines) >= 4
+    # Should have at least 5 entries: ollama, model, agent, crew, complete
+    assert len(lines) >= 5
     assert any("checking ollama" in line for line in lines)
+    assert any("checking model" in line for line in lines)
     assert any("creating coder agent" in line for line in lines)
     assert any("running crew" in line for line in lines)
     assert any("complete" in line for line in lines)
 
 
+@patch("ade.crew.runner._check_worktree_changes", return_value=True)
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_pipeline_crew_receives_correct_task_description(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task_cls: MagicMock,
     mock_crew: MagicMock,
+    mock_changes: MagicMock,
     project_env: Path,
 ) -> None:
     """Verify CrewAI Task is created with the correct phase description."""
@@ -269,9 +294,11 @@ def test_pipeline_crew_receives_correct_task_description(
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_pipeline_generic_error_returns_failure(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,

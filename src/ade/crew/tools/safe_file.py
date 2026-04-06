@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import enum
+import logging
 from fnmatch import fnmatch
 from pathlib import Path, PurePosixPath
 
 from crewai.tools import BaseTool
 from pydantic import Field
+
+logger = logging.getLogger("ade.tools.file")
 
 # Patterns that are always blocked regardless of tier
 _ALWAYS_BLOCKED_PATTERNS: list[str] = [
@@ -139,22 +142,38 @@ class SafeFileTool(BaseTool):
             return f"ERROR: Invalid mode '{mode}'. Use 'read' or 'write'."
 
         if mode == "read":
-            return self._read_file(path)
+            result = self._read_file(path)
+            logger.info(
+                "file_tool read path=%s result=%s",
+                path,
+                result[:60] if len(result) > 60 else result,
+            )
+            return result
 
         permission = check_file_permission(path, self.plan_files, self.agent_role)
 
         if permission == FilePermission.BLOCKED:
+            logger.warning(
+                "file_tool write BLOCKED path=%s agent=%s plan_files=%s",
+                path,
+                self.agent_role,
+                self.plan_files[:5],
+            )
             return f"BLOCKED: Write to '{path}' is not permitted by file policy"
 
         target = (self.worktree_path / path).resolve()
         if not target.is_relative_to(self.worktree_path.resolve()):
+            logger.warning("file_tool write BLOCKED path=%s reason=path_traversal", path)
             return f"BLOCKED: '{path}' escapes the worktree boundary"
 
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
         except OSError as e:
+            logger.error("file_tool write ERROR path=%s error=%s", path, e)
             return f"ERROR: {e}"
+
+        logger.info("file_tool write %s path=%s chars=%d", permission.value, path, len(content))
 
         if permission == FilePermission.LOGGED:
             return (

@@ -171,9 +171,11 @@ def init(
     rprint(f"  Project name: {info.project_name}")
 
     # Build config
+    import sys
+
     config = build_config(info)
     env = _get_template_env()
-    ctx = {"config": config, "info": info}
+    ctx = {"config": config, "info": info, "is_windows": sys.platform == "win32"}
 
     # Generate .ade/ directory
     ade_dir = project_dir / ".ade"
@@ -181,7 +183,7 @@ def init(
     _render_and_write(env, "ade_gitignore.j2", ade_dir / ".gitignore", ctx)
 
     # Generate CrewAI agent definitions
-    for agent in ["architect", "coder", "tester", "fixer"]:
+    for agent in ["architect", "coder", "tester", "fixer", "researcher", "reviewer"]:
         _render_and_write(env, f"crew/{agent}.yaml.j2", ade_dir / "crew" / f"{agent}.yaml", ctx)
 
     # Generate Ollama Modelfiles
@@ -200,7 +202,7 @@ def init(
 
     # Generate .claude/ commands
     commands_dir = project_dir / ".claude" / "commands"
-    for cmd in ["ade_full", "ade_plan", "ade_code", "ade_review", "ade_status"]:
+    for cmd in ["ade_full", "ade_plan", "ade_code", "ade_review", "ade_status", "ade_ship"]:
         dest_name = cmd.replace("_", "-") + ".md"
         _render_and_write(env, f"commands/{cmd}.md.j2", commands_dir / dest_name, ctx)
 
@@ -255,10 +257,11 @@ def status(
             rprint(f"  Worktree: {task.worktree}  (branch: {task.branch})")
 
         iters = task.iterations
-        if iters.design_check or iters.code_review or iters.qa_fix:
+        if iters.design_check or iters.code_review or iters.qa_fix or iters.verify_reject:
             rprint(
                 f"  Iterations: design_check: {iters.design_check},"
-                f" code_review: {iters.code_review}, qa_fix: {iters.qa_fix}"
+                f" code_review: {iters.code_review}, qa_fix: {iters.qa_fix},"
+                f" verify_reject: {iters.verify_reject}"
             )
 
         if task.timestamps.get("created"):

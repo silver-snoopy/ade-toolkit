@@ -33,7 +33,7 @@ def task_env(tmp_path: Path) -> Path:
     # .ade/crew/<agent>.yaml
     crew_dir = ade_dir / "crew"
     crew_dir.mkdir()
-    for agent_name in ["architect", "coder", "tester", "fixer"]:
+    for agent_name in ["architect", "coder", "tester", "fixer", "researcher", "reviewer"]:
         agent_config = {
             "role": f"{agent_name.title()} Agent",
             "goal": f"Perform {agent_name} tasks",
@@ -72,22 +72,61 @@ def test_load_plan_files_missing(tmp_path: Path) -> None:
     assert files == []
 
 
+def test_load_plan_files_table_format(tmp_path: Path) -> None:
+    """Bug 1: Table-format plans should also be parsed correctly."""
+    task_dir = tmp_path / "task"
+    task_dir.mkdir()
+    plan = """# Test Plan
+## Files Summary
+### New Files (2)
+| File | Phase | Purpose |
+|------|-------|---------|
+| `packages/shared/src/types/intelligence.ts` | 1 | Shared types |
+| `packages/backend/src/services/test-service.ts` | 2 | Test service |
+"""
+    (task_dir / "plan.md").write_text(plan)
+    files = _load_plan_files(task_dir)
+    assert "packages/shared/src/types/intelligence.ts" in files
+    assert "packages/backend/src/services/test-service.ts" in files
+
+
+def test_load_plan_files_deduplicates(tmp_path: Path) -> None:
+    """Duplicate file references should be deduplicated."""
+    task_dir = tmp_path / "task"
+    task_dir.mkdir()
+    plan = """# Plan
+- Create: `src/foo.py`
+| `src/foo.py` | also mentioned here |
+"""
+    (task_dir / "plan.md").write_text(plan)
+    files = _load_plan_files(task_dir)
+    assert files.count("src/foo.py") == 1
+
+
 def test_phase_agent_mapping() -> None:
     assert PHASE_AGENT_MAP["stubs"] == "architect"
     assert PHASE_AGENT_MAP["code"] == "coder"
     assert PHASE_AGENT_MAP["test"] == "tester"
     assert PHASE_AGENT_MAP["fix"] == "fixer"
+    assert PHASE_AGENT_MAP["research"] == "researcher"
+    assert PHASE_AGENT_MAP["review_logic"] == "reviewer"
+    assert PHASE_AGENT_MAP["review_conventions"] == "reviewer"
+    assert PHASE_AGENT_MAP["review_security"] == "reviewer"
 
 
+@patch("ade.crew.runner._check_worktree_changes", return_value=True)
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_run_success(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,
+    mock_changes: MagicMock,
     task_env: Path,
 ) -> None:
     mock_create_agent.return_value = MagicMock()
@@ -97,6 +136,7 @@ def test_run_success(
     result = run("code", "test-123", str(task_env))
     assert result == EXIT_SUCCESS
     mock_health.assert_called_once()
+    mock_model.assert_called_once()
     mock_create_agent.assert_called_once()
     mock_crew_instance.kickoff.assert_called_once()
 
@@ -105,14 +145,38 @@ def test_run_success(
 def test_run_ollama_not_running(mock_health: MagicMock, task_env: Path) -> None:
     result = run("code", "test-123", str(task_env))
     assert result == EXIT_FAILURE
+    # Handoff report should exist
+    handoffs = list((task_env / ".ade" / "tasks" / "test-123" / "handoffs").glob("*.json"))
+    assert len(handoffs) == 1
+    import json
+
+    data = json.loads(handoffs[0].read_text())
+    assert data["status"] == "ollama_down"
+
+
+@patch("ade.crew.runner.ensure_model_available", return_value=False)
+@patch("ade.crew.runner.check_ollama_health", return_value=True)
+def test_run_model_not_found(
+    mock_health: MagicMock, mock_model: MagicMock, task_env: Path
+) -> None:
+    result = run("code", "test-123", str(task_env))
+    assert result == EXIT_FAILURE
+    import json
+
+    handoffs = list((task_env / ".ade" / "tasks" / "test-123" / "handoffs").glob("*.json"))
+    assert len(handoffs) == 1
+    data = json.loads(handoffs[0].read_text())
+    assert data["status"] == "model_not_found"
 
 
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_run_agent_failure(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,
@@ -130,9 +194,11 @@ def test_run_agent_failure(
 @patch("ade.crew.runner.Crew")
 @patch("ade.crew.runner.Task")
 @patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
 def test_run_max_iterations(
     mock_health: MagicMock,
+    mock_model: MagicMock,
     mock_create_agent: MagicMock,
     mock_task: MagicMock,
     mock_crew: MagicMock,
@@ -154,8 +220,12 @@ def test_run_invalid_phase(task_env: Path) -> None:
     assert result == EXIT_FAILURE
 
 
+@patch("ade.crew.runner._check_worktree_changes", return_value=True)
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
 @patch("ade.crew.runner.check_ollama_health", return_value=True)
-def test_run_writes_progress_log(mock_health: MagicMock, task_env: Path) -> None:
+def test_run_writes_progress_log(
+    mock_health: MagicMock, mock_model: MagicMock, mock_changes: MagicMock, task_env: Path
+) -> None:
     """Verify progress log entries are written during a run."""
     with (
         patch("ade.crew.runner.create_agent") as mock_create,
@@ -171,5 +241,37 @@ def test_run_writes_progress_log(mock_health: MagicMock, task_env: Path) -> None
     assert log_path.exists()
     content = log_path.read_text()
     assert "checking ollama" in content
+    assert "checking model" in content
     assert "creating coder agent" in content
     assert "running crew" in content
+
+
+@patch("ade.crew.runner._check_worktree_changes", return_value=True)
+@patch("ade.crew.runner.Crew")
+@patch("ade.crew.runner.Task")
+@patch("ade.crew.runner.create_agent")
+@patch("ade.crew.runner.ensure_model_available", return_value=True)
+@patch("ade.crew.runner.check_ollama_health", return_value=True)
+def test_run_success_writes_handoff_report(
+    mock_health: MagicMock,
+    mock_model: MagicMock,
+    mock_create_agent: MagicMock,
+    mock_task: MagicMock,
+    mock_crew: MagicMock,
+    mock_changes: MagicMock,
+    task_env: Path,
+) -> None:
+    """Successful runs should also write a handoff report."""
+    import json
+
+    mock_create_agent.return_value = MagicMock()
+    mock_crew.return_value = MagicMock()
+
+    run("code", "test-123", str(task_env))
+
+    handoffs = list((task_env / ".ade" / "tasks" / "test-123" / "handoffs").glob("*.json"))
+    assert len(handoffs) == 1
+    data = json.loads(handoffs[0].read_text())
+    assert data["status"] == "success"
+    assert data["phase"] == "code"
+    assert data["agent_name"] == "coder"

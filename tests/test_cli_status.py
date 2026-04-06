@@ -27,18 +27,24 @@ def test_status_shows_task(tmp_path: Path) -> None:
     ade_dir = tmp_path / ".ade"
     ade_dir.mkdir()
     state = create_task(ade_dir=ade_dir, description="Add JWT auth")
-    # Walk to CODING via valid transitions
+    # Walk to CODING via valid transitions (10-phase pipeline)
     update_task_status(
-        ade_dir=ade_dir, task_id=state.task_id, status=TaskStatus.PLANNING, current_phase=1
+        ade_dir=ade_dir, task_id=state.task_id, status=TaskStatus.INTENT_CAPTURE, current_phase=0
     )
     update_task_status(
-        ade_dir=ade_dir, task_id=state.task_id, status=TaskStatus.DESIGN_CHECK, current_phase=1
+        ade_dir=ade_dir, task_id=state.task_id, status=TaskStatus.RESEARCHING, current_phase=1
+    )
+    update_task_status(
+        ade_dir=ade_dir, task_id=state.task_id, status=TaskStatus.PLANNING, current_phase=2
+    )
+    update_task_status(
+        ade_dir=ade_dir, task_id=state.task_id, status=TaskStatus.DESIGN_CHECK, current_phase=3
     )
     update_task_status(
         ade_dir=ade_dir,
         task_id=state.task_id,
         status=TaskStatus.CODING,
-        current_phase=2,
+        current_phase=4,
     )
     result = runner.invoke(app, ["status", "--project-dir", str(tmp_path)])
     assert result.exit_code == 0

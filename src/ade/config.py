@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from ade.detect import ProjectInfo
 
-CONFIG_VERSION = "2.0"
+CONFIG_VERSION = "3.0"
 
 
 class ModelConfig(BaseModel):
@@ -33,10 +33,12 @@ class ModelsConfig(BaseModel):
 
 class OrchestrationConfig(BaseModel):
     max_phase_iterations: int = 3
-    max_total_iterations: int = 9
+    max_verify_iterations: int = 2
+    max_total_iterations: int = 11
     max_phase_duration_minutes: int = 30
+    scope_drift_threshold: float = 2.0
     human_checkpoints: list[str] = Field(
-        default_factory=lambda: ["after_plan", "after_final_review"]
+        default_factory=lambda: ["after_research", "after_plan", "after_commit"]
     )
 
 
@@ -84,7 +86,7 @@ class LoggingConfig(BaseModel):
 
 
 class AdeConfig(BaseModel):
-    version: str = "2.0"
+    version: str = "3.0"
     project: ProjectConfig
     models: ModelsConfig = Field(default_factory=ModelsConfig)
     orchestration: OrchestrationConfig = Field(default_factory=OrchestrationConfig)
@@ -150,6 +152,18 @@ def migrate_config(config_path: Path) -> tuple[AdeConfig, bool]:
 
         # Back up old config
         shutil.copy2(config_path, config_path.with_suffix(".yaml.bak"))
+
+        # Migrate v2.0 orchestration fields to v3.0
+        orch = data.get("orchestration", {})
+        if isinstance(orch, dict):
+            # Update old checkpoint names
+            old_checkpoints = orch.get("human_checkpoints", [])
+            if "after_final_review" in old_checkpoints:
+                orch["human_checkpoints"] = ["after_research", "after_plan", "after_commit"]
+            # Update old total iterations default
+            if orch.get("max_total_iterations") == 9:
+                orch["max_total_iterations"] = 11
+            data["orchestration"] = orch
 
         # Update version and validate with defaults for missing fields
         data["version"] = CONFIG_VERSION

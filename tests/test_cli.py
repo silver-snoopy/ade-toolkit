@@ -16,8 +16,11 @@ def test_init_python_project(python_project: Path) -> None:
     assert (python_project / ".ade" / "config.yaml").exists()
     assert (python_project / ".ade" / ".gitignore").exists()
     assert (python_project / ".ade" / "crew" / "coder.yaml").exists()
+    assert (python_project / ".ade" / "crew" / "researcher.yaml").exists()
+    assert (python_project / ".ade" / "crew" / "reviewer.yaml").exists()
     assert (python_project / ".pre-commit-config.yaml").exists()
     assert (python_project / ".claude" / "commands" / "ade-full.md").exists()
+    assert (python_project / ".claude" / "commands" / "ade-ship.md").exists()
     assert (python_project / "CLAUDE.md").exists()
 
 
