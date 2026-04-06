@@ -183,6 +183,43 @@ def _setup_worktree_task_dir(
                 shutil.copy2(md_file, dest)
 
 
+def _build_task_description(phase: str, task_dir: Path, plan_files: list[str]) -> str:
+    """Build a rich task description that includes plan context and file list.
+
+    Local LLMs need explicit context — a generic one-liner like
+    "create stubs based on the plan" produces no output because the
+    agent doesn't know what plan or what files.
+    """
+    base = PHASE_DESCRIPTIONS[phase]
+
+    # Read plan content (truncate to avoid blowing context)
+    plan_content = ""
+    for plan_name in ("plan.md", "implementation-plan.md"):
+        plan_path = task_dir / plan_name
+        if plan_path.exists():
+            raw = plan_path.read_text(encoding="utf-8")
+            # Keep first 8000 chars to fit in context
+            plan_content = raw[:8000]
+            break
+
+    # Build file list section
+    file_list = ""
+    if plan_files:
+        items = "\n".join(f"- {f}" for f in plan_files if "/" in f)
+        file_list = f"\n\nFiles to create/modify:\n{items}"
+
+    # Tool usage instructions (local LLMs need explicit guidance)
+    tool_guidance = (
+        "\n\nIMPORTANT: You MUST use the file_tool to create files. "
+        "For each file, call file_tool with mode='write', the file path, and the content. "
+        "Do NOT just describe what to create — actually call file_tool to write each file."
+    )
+
+    if plan_content:
+        return f"{base}\n\n--- PLAN ---\n{plan_content}\n--- END PLAN ---{file_list}{tool_guidance}"
+    return f"{base}{file_list}{tool_guidance}"
+
+
 def run(
     phase: str,
     task_id: str,
@@ -286,12 +323,13 @@ def run(
     # Step 4: Execute crew
     progress.log(phase=phase, agent="runner", step="4/4", file="", status="running crew")
     try:
+        task_description = _build_task_description(phase, task_dir, plan_files)
         task = Task(
-            description=PHASE_DESCRIPTIONS[phase],
+            description=task_description,
             expected_output=f"Completed {phase} phase successfully",
             agent=agent,
         )
-        crew = Crew(agents=[agent], tasks=[task], verbose=False)
+        crew = Crew(agents=[agent], tasks=[task], verbose=True)
         crew.kickoff()
 
         # Detect silent failures: agent "completed" but produced no file changes
