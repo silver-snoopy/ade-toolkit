@@ -118,3 +118,35 @@ def test_status_with_tasks(python_project: Path) -> None:
     result = runner.invoke(app, ["status", "--project-dir", str(python_project)])
     assert result.exit_code == 0
     assert "test-task" in result.output
+
+
+def test_init_generates_phase_docs(python_project: Path) -> None:
+    """Phase reference docs should be generated."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    phases_dir = python_project / ".claude" / "skills" / "ade" / "phases"
+    assert phases_dir.is_dir()
+    assert (phases_dir / "00-intent.md").exists()
+    assert (phases_dir / "07-verify.md").exists()
+    assert (phases_dir / "qa-verify-bug.md").exists()
+
+
+def test_init_generates_feature_spec_template(python_project: Path) -> None:
+    """Feature spec template should be generated."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert (python_project / ".claude" / "skills" / "ade" / "feature-spec.md").exists()
+
+
+def test_init_full_skill_has_exit_criteria(python_project: Path) -> None:
+    """The main ade-full skill should have exit criteria for phases."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
+    assert "Exit criteria:" in content
+    assert "Hard requirement:" in content
+    assert "Allowed fallback:" in content
+
+
+def test_init_full_skill_has_live_verification(python_project: Path) -> None:
+    """Mandatory live verification should be in the skill."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
+    assert "no exemptions" in content.lower() or "NO EXEMPTIONS" in content
