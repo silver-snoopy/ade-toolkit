@@ -1,7 +1,9 @@
 Show the status of ADE tasks.
 
 Check .ade/tasks/ for active tasks and report:
-- Task ID, description, current phase
-- Iteration counts (design check, code review, QA fix)
+- Task ID, description, current phase (0-10)
+- Phase name: Intent → Research → Plan → Design Check → Implement →
+  Quality Gate → Review → Verify → Documentation → Commit & PR → Retrospective
+- Iteration counts (design check, code review, QA fix, verify reject)
 - Active worktrees (git worktree list)
 - Last progress log entries

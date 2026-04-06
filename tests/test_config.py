@@ -50,8 +50,16 @@ def test_config_to_yaml() -> None:
 def test_config_defaults() -> None:
     info = ProjectInfo(project_name="proj", languages=[])
     config = build_config(info)
-    assert config.version == "2.0"
+    assert config.version == "3.0"
     assert config.models.primary.name == "gemma4:31b"
     assert config.models.mode == "hot-swap"
     assert config.orchestration.max_phase_iterations == 3
+    assert config.orchestration.max_verify_iterations == 2
+    assert config.orchestration.max_total_iterations == 11
+    assert config.orchestration.scope_drift_threshold == 2.0
+    assert config.orchestration.human_checkpoints == [
+        "after_research",
+        "after_plan",
+        "after_commit",
+    ]
     assert config.worktree.branch_prefix == "ade/"

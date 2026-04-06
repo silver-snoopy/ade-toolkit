@@ -1,9 +1,9 @@
 # ADE — Agentic Development Environment
 
-## Architecture Design Specification v2
+## Architecture Design Specification v3
 
-**Version**: 2.0  
-**Date**: 2026-04-05  
+**Version**: 3.0  
+**Date**: 2026-04-06  
 **Status**: Draft  
 
 ---
@@ -25,7 +25,7 @@ ADE is a **portable toolkit**: a thin `ade init` scaffolder generates all config
 
 ### Goals
 
-- Autonomous 6-phase SDLC with human checkpoints at plan approval and PR review
+- Autonomous 10-phase SDLC with human checkpoints at research approval, plan approval, and PR review
 - Portable across any project (Python, TypeScript, Go, multi-language)
 - Industry-standard quality gates (Semgrep, Ruff, ESLint, Prettier)
 - Circuit breakers and observability for safe autonomous operation
@@ -64,7 +64,8 @@ The 3D V-Cache on the 9950X3D benefits CPU-bound tasks: CrewAI orchestration, pa
 │  │                                                               │  │
 │  │  Inputs:                                                      │  │
 │  │  • CLAUDE.md → ADE workflow phases, standards, constraints    │  │
-│  │  • .claude/commands/ → /ade-plan, /ade-code, /ade-review      │  │
+│  │  • .claude/commands/ → /ade-plan, /ade-code, /ade-review,      │  │
+│  │    /ade-ship                                                  │  │
 │  │  • .claude/settings.json → hooks (PostEdit, PreCommit)        │  │
 │  │                                                               │  │
 │  │  Capabilities:                                                │  │
@@ -112,34 +113,82 @@ The 3D V-Cache on the 9950X3D benefits CPU-bound tasks: CrewAI orchestration, pa
 
 ---
 
-## SDLC Flow — The 6 Phases
+## SDLC Flow — The 10 Phases
 
 ### Overview
 
 ```
-Phase 1:   PLAN           → Claude Opus (Claude Code)
-Phase 1.5: DESIGN CHECK   → Local LLM stubs + Claude Opus validation
-Phase 2:   CODE           → CrewAI + Ollama (local, in git worktree)
-Phase 3:   QUALITY GATE   → Pre-commit + local LLM test generation
-Phase 4:   REVIEW         → Claude Opus deep review
-Phase 5:   FINALIZE       → Claude Opus docs + human PR review
+Phase 0:   INTENT           → Claude Opus (Claude Code)
+Phase 1:   RESEARCH          → Claude Opus + optional local LLM
+           ◆ USER GATE ◆    → Human approves approach
+Phase 2:   PLAN             → Claude Opus (Claude Code)
+           ◆ PLAN GATE ◆   → Verify plan completeness
+Phase 3:   DESIGN CHECK     → Local LLM stubs + Claude Opus validation
+Phase 4:   IMPLEMENT        → CrewAI + Ollama (local, in git worktree)
+Phase 5:   QUALITY GATE     → Pre-commit + local LLM test generation
+Phase 6:   REVIEW           → Claude Opus 3-lens parallel review
+Phase 7:   VERIFY           → Live verification with evidence
+Phase 8:   DOCUMENTATION    → Claude Opus doc updates
+Phase 9:   COMMIT & PR      → Claude Opus + git
+           ◆ MERGE GATE ◆  → Human reviews PR
+Phase 10:  RETROSPECTIVE    → Claude Opus metrics capture
 ```
 
 **Human Checkpoints** (mandatory):
-- After Phase 1: approve the plan
-- After Phase 5: review the PR and decide to merge
+- After Phase 1: approve the research findings and approach
+- After Phase 2: approve the plan
+- After Phase 9: review the PR and decide to merge
 
-**Circuit Breaker**: Max 3 iterations of Code→Review loop. After that → HUMAN_ESCALATION.
+**Circuit Breakers**:
+- Design check: max 2 iterations
+- Code→Review loop: max 3 cycles
+- QA fix: max 3 iterations
+- Verify→Review reject: max 2 cycles
+- Total: max 11 iterations
+After any limit → HUMAN_ESCALATION
 
 ---
 
-### Phase 1: PLAN (Claude Opus via Claude Code)
+### Phase 0: INTENT (Claude Opus via Claude Code)
 
 **Actor**: Claude Code (Max Pro subscription)  
-**Input**: Human task description + codebase context  
+**Input**: Human task description (potentially vague)  
+**Output**: `.ade/tasks/<task-id>/intent.md` — structured requirements  
+
+**How it works**: Claude Code parses the user's request and extracts structured requirements:
+- **Goal**: What the user wants to achieve
+- **Scope**: Which parts of the codebase are affected
+- **Constraints**: Performance, compatibility, or design constraints mentioned
+- **Ambiguities**: Questions that need clarification before proceeding
+
+If the intent is unclear, Claude Code asks clarifying questions before moving to research.
+
+---
+
+### Phase 1: RESEARCH (Claude Opus + optional local LLM)
+
+**Actor**: Claude Code (Max Pro subscription), optionally CrewAI Researcher Agent  
+**Input**: `intent.md` + codebase context  
+**Output**: `.ade/tasks/<task-id>/research.md`  
+
+**Process**: 3 parallel exploration scopes:
+1. **Codebase exploration** — Find relevant files, existing patterns, dependencies
+2. **Interface analysis** — Identify APIs, contracts, and integration points affected
+3. **Risk assessment** — Potential breaking changes, security implications, edge cases
+
+The Researcher Agent (local LLM) can handle codebase exploration in parallel while Claude Opus focuses on architectural analysis.
+
+**Human checkpoint**: User reviews research findings and approves the approach before planning.
+
+---
+
+### Phase 2: PLAN (Claude Opus via Claude Code)
+
+**Actor**: Claude Code (Max Pro subscription)  
+**Input**: `intent.md` + `research.md` + codebase context  
 **Output**: `.ade/tasks/<task-id>/plan.md`  
 
-**How it works**: Claude Code reads the codebase, analyzes the task, and produces a structured implementation plan. The ADE workflow instructions in CLAUDE.md guide Claude to follow this format:
+**How it works**: Claude Code produces a structured implementation plan with 6 mandatory sections:
 
 ```markdown
 # Implementation Plan: <task-title>
@@ -169,13 +218,15 @@ Phase 5:   FINALIZE       → Claude Opus docs + human PR review
 - Suitable for: single CrewAI coding cycle (no decomposition needed)
 ```
 
-**For large tasks**: Claude Opus decomposes into sub-tasks, each scoped to fit within model context. Sub-tasks run Phases 1.5-3 independently, then a unified Phase 4 review.
+**Plan Gate**: Claude Opus validates the plan for completeness (all 6 sections present, steps are actionable, acceptance criteria are testable). If incomplete, auto-corrects before presenting to user.
+
+**For large tasks**: Claude Opus decomposes into sub-tasks (task DAG), each scoped to fit within model context. Sub-tasks run Phases 3-5 independently, then a unified Phase 6 review.
 
 **Human checkpoint**: User reviews and approves the plan before proceeding.
 
 ---
 
-### Phase 1.5: DESIGN CHECK (Local LLM + Claude Validation)
+### Phase 3: DESIGN CHECK (Local LLM + Claude Validation)
 
 **Actor**: CrewAI Architect Agent (Gemma 4 31B) → Claude Code validation  
 **Input**: `plan.md`  
@@ -186,13 +237,13 @@ Phase 5:   FINALIZE       → Claude Opus docs + human PR review
 2. Architect Agent reads plan, generates skeleton code
 3. Claude Code reads stubs, validates alignment with the plan
 4. If misaligned → feedback to Architect Agent (max 2 iterations)
-5. If aligned → proceed to Phase 2
+5. If aligned → proceed to Phase 4
 
 **Why this phase exists**: A 30-second stub check prevents 10-minute rewrites by catching architectural drift before full implementation.
 
 ---
 
-### Phase 2: CODE (CrewAI + Ollama, in Git Worktree)
+### Phase 4: IMPLEMENT (CrewAI + Ollama, in Git Worktree)
 
 **Actor**: CrewAI Coder Agent (Gemma 4 31B, local)  
 **Input**: `plan.md` + approved stubs  
@@ -228,13 +279,13 @@ Each task gets a completely isolated copy of the repository. The main working di
 
 ---
 
-### Phase 3: QUALITY GATE (Pre-commit + Local LLM Tests)
+### Phase 5: QUALITY GATE (Pre-commit + Local LLM Tests)
 
 **Actors**: Pre-commit framework (deterministic) + Test Agent (Qwen 2.5 Coder 14B)  
 
-Steps 3a and 3b run **in parallel** (both CPU-bound). Step 3c runs **sequentially after** model hot-swap:
+Steps 5a and 5b run **in parallel** (both CPU-bound). Step 5c runs **sequentially after** model hot-swap:
 
-#### 3a. Static Analysis (Pre-commit Framework — Deterministic)
+#### 5a. Static Analysis (Pre-commit Framework — Deterministic)
 
 ```bash
 cd .ade/worktrees/<task-id>
@@ -251,21 +302,21 @@ Configured tools:
 | **Prettier** | JS/TS/CSS/HTML/MD | Code formatting consistency |
 | **detect-secrets** | All files | Prevent secret/credential commits |
 
-#### 3b. Test Execution
+#### 5b. Test Execution
 
 Runs the project's configured test command in the worktree:
 ```bash
 pytest --tb=short -q    # or jest --ci, go test ./..., etc.
 ```
 
-#### 3c. Test Gap Analysis (LLM — Qwen 2.5 Coder 14B)
+#### 5c. Test Gap Analysis (LLM — Qwen 2.5 Coder 14B)
 
 - Ollama hot-swaps to Qwen 2.5 Coder 14B
 - Test Agent analyzes the diff, identifies untested code paths
 - Generates additional tests for uncovered scenarios
 - Runs the new tests to verify they pass
 
-#### 3d. QA Report
+#### 5d. QA Report
 
 Results compiled to `.ade/tasks/<task-id>/qa-report.json`:
 ```json
@@ -283,49 +334,95 @@ Results compiled to `.ade/tasks/<task-id>/qa-report.json`:
 ```
 
 **Gate Logic**:
-- **PASS**: Zero errors, all tests pass → proceed to Phase 4
+- **PASS**: Zero errors, all tests pass → proceed to Phase 6
 - **WARN**: Minor warnings → auto-fix and re-check
 - **FAIL**: Errors found → Fixer Agent resolves (max 3 iterations)
 
 ---
 
-### Phase 4: REVIEW (Claude Opus via Claude Code)
+### Phase 6: REVIEW (Claude Opus via Claude Code — 3-Lens Parallel Review)
 
 **Actor**: Claude Code (Max Pro subscription)  
 **Input**: Git diff + QA report + original plan  
 **Output**: `.ade/tasks/<task-id>/review-feedback.md`  
 
-Claude Code reviews the complete diff against the plan:
-- **Plan alignment**: Does the code implement what was planned?
-- **Logic correctness**: Bugs, race conditions, edge cases?
-- **Security**: Injection, auth bypass, secrets exposure?
-- **Architecture**: Does it follow project patterns?
+Claude Code performs a 3-lens parallel review of the complete diff:
+
+1. **Logic lens**: Plan alignment, correctness, bugs, race conditions, edge cases
+2. **Conventions lens**: Code style, project patterns, naming, documentation
+3. **Security lens**: Injection, auth bypass, secrets exposure, input validation
+
+Each lens produces findings with **severity classification**:
+- **CRITICAL** — Must fix before merge (security vulnerabilities, data loss risks)
+- **HIGH** — Should fix (logic errors, missing error handling)
+- **MEDIUM** — Recommended (convention violations, code clarity)
+- **LOW** — Optional (style preferences, minor improvements)
 
 **Review Outcomes**:
-- **APPROVED** → proceed to Phase 5
-- **MINOR_FIXES** → Fixer Agent in worktree → re-run Phase 3 → back to Phase 4
+- **APPROVED** → proceed to Phase 7
+- **MINOR_FIXES** → Fixer Agent in worktree → re-run Phase 5 → back to Phase 6
 - **MAJOR_ISSUES** → HUMAN_ESCALATION with detailed explanation
 
 **Circuit Breaker**: After 3 Code→Review cycles → HUMAN_ESCALATION regardless.
 
-**Context Management**: For large diffs, Claude Code should spawn a subagent for Phase 4 review (each subagent gets its own context window). The custom commands `/ade-code` and `/ade-review` as separate commands are natural context boundaries — running phases as separate commands prevents context overflow in long sessions.
+**Context Management**: For large diffs, Claude Code should spawn a subagent for Phase 6 review (each subagent gets its own context window). The custom commands `/ade-code` and `/ade-review` as separate commands are natural context boundaries — running phases as separate commands prevents context overflow in long sessions.
 
 ---
 
-### Phase 5: FINALIZE (Claude Opus via Claude Code)
+### Phase 7: VERIFY (Live Verification with Evidence)
 
 **Actor**: Claude Code (Max Pro subscription)  
-**Input**: Approved code + review feedback  
-**Output**: Documentation, PR, polished commits  
+**Input**: Approved code in worktree  
+**Output**: `.ade/tasks/<task-id>/verification.md` — evidence of working code  
 
 **Process**:
-1. Squash commits on feature branch for clean history
-2. Generate/update documentation for changed APIs
-3. Update CHANGELOG.md
-4. Create PR description with summary, test results, QA report
-5. **Human checkpoint**: User reviews final PR → merge decision
+1. Run the full test suite in the worktree
+2. Execute acceptance criteria from `plan.md` with concrete evidence
+3. Capture output/screenshots as verification artifacts
+4. If verification fails → reject back to Phase 6 (max 2 cycles)
 
-After merge, cleanup: `git worktree remove .ade/worktrees/<task-id>`
+**Why this phase exists**: Review checks code quality; verification proves it actually works. Every acceptance criterion must have evidence.
+
+---
+
+### Phase 8: DOCUMENTATION (Claude Opus via Claude Code)
+
+**Actor**: Claude Code (Max Pro subscription)  
+**Input**: Verified code + review feedback  
+**Output**: Updated documentation files  
+
+**Process**:
+1. Identify documentation affected by the changes (API docs, README, CHANGELOG)
+2. Update or generate documentation for changed APIs
+3. Update CHANGELOG.md with conventional changelog entry
+4. Verify documentation accuracy against the actual implementation
+
+---
+
+### Phase 9: COMMIT & PR (Claude Opus via Claude Code)
+
+**Actor**: Claude Code (Max Pro subscription)  
+**Input**: Verified code + documentation updates  
+**Output**: Clean commits + pull request  
+
+**Process**:
+1. Squash or organize commits on feature branch with conventional commit messages
+2. Create PR description with summary, test results, QA report, verification evidence
+3. **Human checkpoint**: User reviews final PR → merge decision
+
+---
+
+### Phase 10: RETROSPECTIVE (Claude Opus via Claude Code)
+
+**Actor**: Claude Code (Max Pro subscription)  
+**Input**: Completed task metadata  
+**Output**: `.ade/tasks/<task-id>/retrospective.md` — metrics and learnings  
+
+**Process**:
+1. Capture metrics: total duration, iterations per phase, models used, tokens consumed
+2. Record what went well and what caused rework
+3. Clean up worktree after merge: `git worktree remove .ade/worktrees/<task-id>`
+4. Archive task state for future reference
 
 ---
 
@@ -335,8 +432,14 @@ After merge, cleanup: `git worktree remove .ade/worktrees/<task-id>`
                       INITIATED
                           │ user provides task
                           ▼
+                    INTENT_CAPTURE
+                          │ requirements extracted
+                          ▼
+                      RESEARCHING
+                          │ human approves approach
+                          ▼
                       PLANNING
-                          │ human approves plan
+                          │ plan verified (PLAN GATE)
                           ▼
                     DESIGN_CHECK ◄──┐
                           │        │ stubs rejected (max 2x)
@@ -354,18 +457,27 @@ After merge, cleanup: `git worktree remove .ade/worktrees/<task-id>`
                           │
                 ┌─────────┼──────────────┐
                 │         │              │
-             approved   minor         major issues /
+             verified   minor         major issues /
                 │       fixes →       max iterations
                 ▼       Fixer Agent        │
-            FINALIZING                     ▼
-                │                  HUMAN_ESCALATION
-                │                     │         │
-                ▼                  resolved   abandoned
-          AWAITING_MERGE              │         │
-                │                     ▼         ▼
-                │ human merges    COMPLETED   FAILED
-                ▼
-            COMPLETED
+              VERIFYING                    ▼
+                    │         │     HUMAN_ESCALATION
+               accepted   rejected     │         │
+                    │     (max 2x)  resolved   abandoned
+                    ▼         │        │         │
+                DOCUMENTING   │        ▼         ▼
+                    │    back to    COMPLETED   FAILED
+                    ▼    REVIEWING
+                COMMITTING
+                    │
+                    ▼
+              AWAITING_MERGE
+                    │ human merges PR
+                    ▼
+              RETROSPECTIVE
+                    │ metrics captured, worktree cleaned
+                    ▼
+                COMPLETED
 
 Terminal states: COMPLETED, FAILED
 Any state + user abort → FAILED
@@ -396,9 +508,10 @@ my-project/
 ├── CLAUDE.md                      # Updated with ADE workflow section
 ├── .claude/
 │   ├── commands/
-│   │   ├── ade-plan.md            # /ade-plan — run Phase 1 only
-│   │   ├── ade-code.md            # /ade-code — run Phases 1.5-3
-│   │   ├── ade-review.md          # /ade-review — run Phase 4
+│   │   ├── ade-plan.md            # /ade-plan — run Phases 0-2
+│   │   ├── ade-code.md            # /ade-code — run Phases 3-5
+│   │   ├── ade-review.md          # /ade-review — run Phase 6
+│   │   ├── ade-ship.md            # /ade-ship — run Phases 9-10
 │   │   ├── ade-full.md            # /ade-full — complete SDLC cycle
 │   │   └── ade-status.md          # /ade-status — check task status
 │   └── settings.json              # Hooks configuration
@@ -409,7 +522,9 @@ my-project/
 │   │   ├── architect.yaml
 │   │   ├── coder.yaml
 │   │   ├── tester.yaml
-│   │   └── fixer.yaml
+│   │   ├── fixer.yaml
+│   │   ├── researcher.yaml        # Researcher agent config
+│   │   └── reviewer.yaml          # Reviewer agent config
 │   ├── modelfiles/                # Ollama model configs
 │   │   ├── Modelfile.gemma4-ade
 │   │   └── Modelfile.qwen-test-ade
@@ -431,35 +546,55 @@ my-project/
 When asked to implement a feature or fix a bug using the ADE workflow
 (triggered by /ade-full or when the user says "use ADE"):
 
-1. **PLAN**: Analyze the codebase and create a structured plan in
-   `.ade/tasks/<task-id>/plan.md`. Ask the user to approve before proceeding.
+0. **INTENT**: Parse the request and extract structured requirements.
+   Save to `.ade/tasks/<task-id>/intent.md`.
 
-2. **DESIGN CHECK**: Dispatch CrewAI architect agent to generate code stubs:
+1. **RESEARCH**: Explore the codebase, analyze interfaces, assess risks.
+   Save to `.ade/tasks/<task-id>/research.md`.
+   ◆ Ask the user to approve the research findings and approach.
+
+2. **PLAN**: Create a structured plan with 6 mandatory sections in
+   `.ade/tasks/<task-id>/plan.md`. Validate completeness (PLAN GATE).
+   ◆ Ask the user to approve the plan before proceeding.
+
+3. **DESIGN CHECK**: Dispatch CrewAI architect agent to generate code stubs:
    `python -m ade.crew run --phase stubs --task-id <id>`
    Review the stubs for plan alignment. Re-dispatch if needed (max 2x).
 
-3. **CODE**: Create git worktree, dispatch CrewAI coder agent:
+4. **IMPLEMENT**: Create git worktree, dispatch CrewAI coder agent:
    `git worktree add .ade/worktrees/<id> -b ade/<id>`
    `python -m ade.crew run --phase code --task-id <id> --worktree .ade/worktrees/<id>`
 
-4. **QUALITY GATE**: Run scanning and tests in the worktree:
+5. **QUALITY GATE**: Run scanning and tests in the worktree:
    `cd .ade/worktrees/<id> && pre-commit run --all-files`
    `cd .ade/worktrees/<id> && <test_command>`
    If failures, dispatch fixer agent (max 3x).
 
-5. **REVIEW**: Review the diff (`git diff main...ade/<id>`) against the plan.
-   Check for: logic errors, security issues, plan alignment, code quality.
+6. **REVIEW**: 3-lens parallel review of the diff (`git diff main...ade/<id>`).
+   Lenses: logic, conventions, security. Severity: CRITICAL/HIGH/MEDIUM/LOW.
    If issues: dispatch fixer agent and re-run QA gate (max 3 total cycles).
 
-6. **FINALIZE**: Squash commits, generate docs, create PR description.
-   Present to user for merge decision. Clean up worktree after merge.
+7. **VERIFY**: Run acceptance criteria with live evidence. Every criterion
+   must have proof. If verification fails → back to review (max 2 cycles).
 
-### Circuit Breaker
-After 3 code→review cycles, escalate to the user with a summary of what's
-failing. Do NOT keep retrying silently.
+8. **DOCUMENTATION**: Update affected docs, API references, CHANGELOG.
+
+9. **COMMIT & PR**: Squash commits with conventional messages, create PR.
+   ◆ Present to user for merge decision.
+
+10. **RETROSPECTIVE**: Capture metrics (duration, iterations, tokens).
+    Clean up worktree after merge.
+
+### Circuit Breakers
+- Design check: max 2 iterations
+- Code→Review loop: max 3 cycles
+- QA fix: max 3 iterations
+- Verify→Review reject: max 2 cycles
+- Total: max 11 iterations
+After any limit → escalate to the user with a summary. Do NOT keep retrying.
 
 ### Models
-- Planning, review, finalization: Claude Opus (this session)
+- Intent, research, planning, review, verification, docs, shipping: Claude Opus (this session)
 - Coding, fixing: Ollama Gemma 4 31B (via CrewAI)
 - Test generation: Ollama Qwen 2.5 Coder 14B (via CrewAI)
 ```
@@ -471,30 +606,52 @@ failing. Do NOT keep retrying silently.
 Run the complete ADE SDLC cycle for the following task: $ARGUMENTS
 
 Follow the ADE workflow defined in CLAUDE.md:
-1. Create a plan and ask for approval
-2. Run design check with local agents
-3. Dispatch coding to CrewAI in a git worktree
-4. Run quality gate (pre-commit + tests)
-5. Deep review the diff
-6. Finalize with docs and PR
+0. Extract structured intent
+1. Research the codebase and present findings for approval
+2. Create a plan and ask for approval
+3. Run design check with local agents
+4. Dispatch coding to CrewAI in a git worktree
+5. Run quality gate (pre-commit + tests)
+6. 3-lens parallel review of the diff
+7. Verify with live evidence
+8. Update documentation
+9. Commit and create PR for review
+10. Capture retrospective metrics
 
 Track progress in .ade/tasks/ and report status at each phase transition.
 ```
 
 **`.claude/commands/ade-plan.md`** (triggered by `/ade-plan`):
 ```markdown
-Create an ADE implementation plan for: $ARGUMENTS
+Run ADE Phases 0-2 for: $ARGUMENTS
 
-Analyze the codebase and produce a structured plan in
-.ade/tasks/<task-id>/plan.md following the format in CLAUDE.md.
-Include: files to modify, implementation steps, acceptance criteria.
-Ask me to approve the plan before any further action.
+0. Extract structured intent from the task description
+1. Research the codebase — explore relevant files, analyze interfaces, assess risks
+   Present research findings and ask for approval before planning.
+2. Create a structured plan in .ade/tasks/<task-id>/plan.md with 6 mandatory sections:
+   Summary, Files to Modify, Implementation Steps, Acceptance Criteria,
+   Dependencies Required, Estimated Complexity.
+   Validate plan completeness (PLAN GATE).
+   Ask me to approve the plan before any further action.
+```
+
+**`.claude/commands/ade-ship.md`** (triggered by `/ade-ship`):
+```markdown
+Run ADE Phases 9-10 for the current task: $ARGUMENTS
+
+9. COMMIT & PR: Squash commits with conventional commit messages.
+   Create a PR with summary, test results, QA report, and verification evidence.
+   Present the PR for my review.
+
+10. RETROSPECTIVE: After merge, capture metrics (duration, iterations, tokens consumed).
+    Record what went well and what caused rework.
+    Clean up the git worktree.
 ```
 
 ### Configuration (`.ade/config.yaml`)
 
 ```yaml
-version: "2.0"
+version: "3.0"
 
 project:
   name: auto-detected
@@ -522,10 +679,14 @@ models:
 
 orchestration:
   max_phase_iterations: 3           # Per phase circuit breaker
-  max_total_iterations: 9           # Total across all phases
+  max_verify_iterations: 2          # Verify→Review reject cycles
+  max_total_iterations: 11          # Total across all phases
+  max_phase_duration_minutes: 30    # Kill subprocess after 30 min
+  scope_drift_threshold: 2.0        # Max scope expansion factor
   human_checkpoints:
+    - after_research                # Always: review research findings
     - after_plan                    # Always: review the plan
-    - after_final_review            # Always: review the PR
+    - after_commit                  # Always: review the PR
 
 worktree:
   base_dir: .ade/worktrees
@@ -574,7 +735,8 @@ After `ade init`, you use Claude Code directly:
 ```bash
 claude                             # Start Claude Code
 > /ade-full Add JWT authentication  # Run complete SDLC cycle
-> /ade-plan Refactor user service   # Plan only
+> /ade-plan Refactor user service   # Phases 0-2 (intent, research, plan)
+> /ade-ship                         # Phases 9-10 (commit, PR, retrospective)
 > /ade-status                       # Check current task status
 ```
 
@@ -644,6 +806,41 @@ backstory: >
   minimal fix needed. You never make unrelated changes.
 model: ollama/gemma4:31b
 tools: [read_file, write_file, edit_file, execute_command, search_code, git_commit]
+max_iterations: 10
+```
+
+### Researcher Agent
+
+```yaml
+role: Codebase Researcher
+goal: >
+  Explore the codebase to understand existing patterns, find relevant files,
+  identify interfaces and dependencies affected by a proposed change, and
+  assess risks including potential breaking changes.
+backstory: >
+  You are an experienced developer who excels at codebase archaeology. You
+  quickly navigate large codebases, understand dependency graphs, and identify
+  the ripple effects of changes. You document your findings clearly.
+model: ollama/gemma4:31b
+tools: [read_file, list_directory, search_code, execute_command]
+max_iterations: 10
+```
+
+### Reviewer Agent
+
+```yaml
+role: Code Reviewer
+goal: >
+  Perform thorough 3-lens code review (logic, conventions, security) on
+  implementation diffs, classifying findings by severity and providing
+  actionable feedback for each issue found.
+backstory: >
+  You are a meticulous code reviewer who catches bugs that others miss.
+  You review through three lenses simultaneously: logical correctness,
+  project conventions, and security. You classify every finding by severity
+  so the team can prioritize fixes effectively.
+model: ollama/gemma4:31b
+tools: [read_file, search_code, list_directory]
 max_iterations: 10
 ```
 
@@ -750,9 +947,39 @@ The fallback model (Qwen 2.5 Coder 32B) activates when:
 
 ### Cloud: Claude Opus (via Claude Code, Max Pro)
 
-- **Phases**: Plan (1), Design Check (1.5 validation), Review (4), Finalize (5)
+- **Phases**: Intent (0), Research (1), Plan (2), Design Check (3 validation), Review (6), Verify (7), Docs (8), Commit & PR (9), Retrospective (10)
 - **Cost**: $0 additional — covered by Max Pro subscription ($250/month)
 - **Why**: Superior reasoning for architecture, nuanced review, security analysis
+
+---
+
+## Team-Scale Coordination (3+ Engineers)
+
+### Task DAG Decomposition
+
+For large features (scope L), Phase 2 decomposes the work into a task DAG:
+- Each sub-task is scoped for independent implementation
+- Dependencies between tasks are explicitly tracked
+- Sub-tasks can be assigned to different engineers
+
+### Interface Contracts
+
+Phase 3 (Design Check) generates shared interface stubs that serve as contracts
+between parallel implementations. All engineers agree on interfaces before coding.
+
+### Conflict Detection
+
+Before merging parallel work:
+- Check for file overlap between tasks
+- Verify interface compatibility
+- Run full integration test suite
+
+### Concurrent Execution
+
+Multiple ADE tasks can run in parallel worktrees. Constraints:
+- Hot-swap mode: only one Ollama model at a time (serialize GPU access)
+- Each engineer runs their own full SDLC pipeline
+- Integration phase runs after parallel work merges
 
 ---
 
@@ -816,7 +1043,7 @@ Similarly, `SafeFileWriteTool` enforces the tiered file permission model. Agents
 
 ### Dependency Changes
 
-If a task requires new dependencies, the plan (Phase 1) must list them explicitly. Claude Code prompts the human to install them before Phase 2 begins. Agents never install dependencies directly.
+If a task requires new dependencies, the plan (Phase 2) must list them explicitly. Claude Code prompts the human to install them before Phase 4 begins. Agents never install dependencies directly.
 
 ---
 
@@ -879,12 +1106,17 @@ Each phase boundary writes state to `.ade/tasks/<id>/state.json`. If Claude Code
 
 | Phase | Safe to Re-run? | Notes |
 |-------|-----------------|-------|
+| Intent | Yes | Regenerates intent.md |
+| Research | Yes | Regenerates research.md |
 | Plan | Yes | Regenerates plan.md |
 | Design Check | Yes | Regenerates stubs |
-| Code | With caution | Reset worktree branch first |
+| Implement | With caution | Reset worktree branch first |
 | Quality Gate | Yes | Deterministic tools |
 | Review | Yes | Stateless Claude evaluation |
-| Finalize | Yes | Regenerates docs |
+| Verify | Yes | Re-runs acceptance criteria |
+| Documentation | Yes | Regenerates docs |
+| Commit & PR | Yes | Re-creates commits and PR |
+| Retrospective | Yes | Re-captures metrics |
 
 ### Git Worktree Safety
 
@@ -1071,7 +1303,7 @@ claude                             # Launch Claude Code
 1. Create test project with simple Python module
 2. `ade init` → verify config generated correctly
 3. `claude` → `/ade-full "Add a greet() function that returns 'Hello, World!'"`
-4. Verify all 6 phases execute end-to-end
+4. Verify all 10 phases execute end-to-end
 5. Verify git worktree created and cleaned up after merge
 
 ### Stress Test

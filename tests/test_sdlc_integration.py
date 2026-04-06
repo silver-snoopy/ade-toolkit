@@ -37,49 +37,64 @@ def project(tmp_path: Path) -> Path:
 
 
 def test_full_lifecycle_happy_path(project: Path) -> None:
-    """Simulate a complete SDLC lifecycle: create to plan to code to complete."""
+    """Simulate a complete 10-phase SDLC lifecycle."""
     ade_dir = project / ".ade"
 
-    # Phase 0: Create task
+    # Create task
     state = create_task(ade_dir=ade_dir, description="Add JWT auth")
     task_id = state.task_id
     assert state.status == TaskStatus.INITIATED
 
-    # Phase 1: Planning
-    update_task_status(ade_dir, task_id, TaskStatus.PLANNING, current_phase=1)
+    # Phase 0: Intent capture
+    update_task_status(ade_dir, task_id, TaskStatus.INTENT_CAPTURE, current_phase=0)
 
-    # Phase 1.5: Design check
-    update_task_status(ade_dir, task_id, TaskStatus.DESIGN_CHECK, current_phase=1)
+    # Phase 1: Research
+    update_task_status(ade_dir, task_id, TaskStatus.RESEARCHING, current_phase=1)
+
+    # Phase 2: Planning
+    update_task_status(ade_dir, task_id, TaskStatus.PLANNING, current_phase=2)
+
+    # Phase 3: Design check
+    update_task_status(ade_dir, task_id, TaskStatus.DESIGN_CHECK, current_phase=3)
     increment_iteration(ade_dir, task_id, "design_check")
     assert check_circuit_breaker(ade_dir, task_id) == CircuitBreakerResult.OK
 
-    # Phase 2: Coding — create worktree
+    # Phase 4: Implement — create worktree
     wt = create_worktree(project_dir=project, task_id=task_id)
     update_task_status(
         ade_dir,
         task_id,
         TaskStatus.CODING,
-        current_phase=2,
+        current_phase=4,
         worktree=str(wt.path),
         branch=wt.branch,
     )
     assert wt.path.exists()
 
-    # Phase 3: QA Gate
-    update_task_status(ade_dir, task_id, TaskStatus.QUALITY_GATE, current_phase=3)
+    # Phase 5: Quality Gate
+    update_task_status(ade_dir, task_id, TaskStatus.QUALITY_GATE, current_phase=5)
 
-    # Phase 4: Review
-    update_task_status(ade_dir, task_id, TaskStatus.REVIEWING, current_phase=4)
+    # Phase 6: Review
+    update_task_status(ade_dir, task_id, TaskStatus.REVIEWING, current_phase=6)
 
-    # Phase 5: Finalize
-    update_task_status(ade_dir, task_id, TaskStatus.FINALIZING, current_phase=5)
+    # Phase 7: Verify
+    update_task_status(ade_dir, task_id, TaskStatus.VERIFYING, current_phase=7)
 
-    # Phase 6: Awaiting merge
-    update_task_status(ade_dir, task_id, TaskStatus.AWAITING_MERGE, current_phase=6)
+    # Phase 8: Documentation
+    update_task_status(ade_dir, task_id, TaskStatus.DOCUMENTING, current_phase=8)
 
-    # Merge and cleanup
+    # Phase 9: Commit & PR
+    update_task_status(ade_dir, task_id, TaskStatus.COMMITTING, current_phase=9)
+
+    # Awaiting merge (merge gate)
+    update_task_status(ade_dir, task_id, TaskStatus.AWAITING_MERGE, current_phase=9)
+
+    # Phase 10: Retrospective — cleanup
     remove_worktree(project_dir=project, task_id=task_id)
-    update_task_status(ade_dir, task_id, TaskStatus.COMPLETED, current_phase=6)
+    update_task_status(ade_dir, task_id, TaskStatus.RETROSPECTIVE, current_phase=10)
+
+    # Complete
+    update_task_status(ade_dir, task_id, TaskStatus.COMPLETED, current_phase=10)
 
     final = load_task(ade_dir, task_id)
     assert final.status == TaskStatus.COMPLETED
@@ -102,13 +117,15 @@ def test_qa_fix_loop_with_circuit_breaker(project: Path) -> None:
     assert result == CircuitBreakerResult.QA_FIX_LIMIT
 
     # Walk to a valid state before escalation
-    update_task_status(ade_dir, task_id, TaskStatus.PLANNING, current_phase=1)
-    update_task_status(ade_dir, task_id, TaskStatus.DESIGN_CHECK, current_phase=1)
-    update_task_status(ade_dir, task_id, TaskStatus.CODING, current_phase=2)
-    update_task_status(ade_dir, task_id, TaskStatus.QUALITY_GATE, current_phase=3)
-    update_task_status(ade_dir, task_id, TaskStatus.REVIEWING, current_phase=4)
+    update_task_status(ade_dir, task_id, TaskStatus.INTENT_CAPTURE, current_phase=0)
+    update_task_status(ade_dir, task_id, TaskStatus.RESEARCHING, current_phase=1)
+    update_task_status(ade_dir, task_id, TaskStatus.PLANNING, current_phase=2)
+    update_task_status(ade_dir, task_id, TaskStatus.DESIGN_CHECK, current_phase=3)
+    update_task_status(ade_dir, task_id, TaskStatus.CODING, current_phase=4)
+    update_task_status(ade_dir, task_id, TaskStatus.QUALITY_GATE, current_phase=5)
+    update_task_status(ade_dir, task_id, TaskStatus.REVIEWING, current_phase=6)
     # Now HUMAN_ESCALATION is valid from REVIEWING
-    update_task_status(ade_dir, task_id, TaskStatus.HUMAN_ESCALATION, current_phase=3)
+    update_task_status(ade_dir, task_id, TaskStatus.HUMAN_ESCALATION, current_phase=6)
     final = load_task(ade_dir, task_id)
     assert final.status == TaskStatus.HUMAN_ESCALATION
 
@@ -135,21 +152,26 @@ def test_worktree_isolation(project: Path) -> None:
 
 
 def test_full_lifecycle_with_validated_transitions(project: Path) -> None:
-    """Happy path with transition validation enforced."""
+    """Happy path with transition validation enforced (10-phase pipeline)."""
     ade_dir = project / ".ade"
     state = create_task(ade_dir=ade_dir, description="Validated lifecycle")
     task_id = state.task_id
 
     # Each transition must be valid
     for status, phase in [
-        (TaskStatus.PLANNING, 1),
-        (TaskStatus.DESIGN_CHECK, 1),
-        (TaskStatus.CODING, 2),
-        (TaskStatus.QUALITY_GATE, 3),
-        (TaskStatus.REVIEWING, 4),
-        (TaskStatus.FINALIZING, 5),
-        (TaskStatus.AWAITING_MERGE, 6),
-        (TaskStatus.COMPLETED, 6),
+        (TaskStatus.INTENT_CAPTURE, 0),
+        (TaskStatus.RESEARCHING, 1),
+        (TaskStatus.PLANNING, 2),
+        (TaskStatus.DESIGN_CHECK, 3),
+        (TaskStatus.CODING, 4),
+        (TaskStatus.QUALITY_GATE, 5),
+        (TaskStatus.REVIEWING, 6),
+        (TaskStatus.VERIFYING, 7),
+        (TaskStatus.DOCUMENTING, 8),
+        (TaskStatus.COMMITTING, 9),
+        (TaskStatus.AWAITING_MERGE, 9),
+        (TaskStatus.RETROSPECTIVE, 10),
+        (TaskStatus.COMPLETED, 10),
     ]:
         update_task_status(ade_dir, task_id, status, current_phase=phase)
 
@@ -158,7 +180,7 @@ def test_full_lifecycle_with_validated_transitions(project: Path) -> None:
 
     # Invalid transition should be rejected
     with pytest.raises(InvalidTransitionError):
-        update_task_status(ade_dir, task_id, TaskStatus.PLANNING, current_phase=1)
+        update_task_status(ade_dir, task_id, TaskStatus.PLANNING, current_phase=2)
 
 
 def test_lifecycle_circuit_breaker_total_limit(project: Path) -> None:
@@ -170,10 +192,10 @@ def test_lifecycle_circuit_breaker_total_limit(project: Path) -> None:
     # Set iterations via direct JSON edit
     state_path = ade_dir / "tasks" / task_id / "state.json"
     data = json.loads(state_path.read_text(encoding="utf-8"))
-    data["iterations"] = {"design_check": 1, "code_review": 2, "qa_fix": 2}
+    data["iterations"] = {"design_check": 1, "code_review": 2, "qa_fix": 2, "verify_reject": 1}
     state_path.write_text(json.dumps(data), encoding="utf-8")
 
-    config = OrchestrationConfig(max_total_iterations=5)
+    config = OrchestrationConfig(max_total_iterations=6)
     result = check_circuit_breaker(ade_dir, task_id, config=config)
     assert result == CircuitBreakerResult.TOTAL_ITERATION_LIMIT
 
@@ -190,6 +212,56 @@ def test_lifecycle_crash_recovery(project: Path) -> None:
 
     status, message = determine_resume_point(ade_dir, task_id)
     assert status == TaskStatus.PLANNING
+
+
+def test_verify_reject_loop(project: Path) -> None:
+    """VERIFYING can reject back to REVIEWING."""
+    ade_dir = project / ".ade"
+    state = create_task(ade_dir=ade_dir, description="Verify reject test")
+    task_id = state.task_id
+
+    # Walk to VERIFYING
+    for status, phase in [
+        (TaskStatus.INTENT_CAPTURE, 0),
+        (TaskStatus.RESEARCHING, 1),
+        (TaskStatus.PLANNING, 2),
+        (TaskStatus.DESIGN_CHECK, 3),
+        (TaskStatus.CODING, 4),
+        (TaskStatus.QUALITY_GATE, 5),
+        (TaskStatus.REVIEWING, 6),
+        (TaskStatus.VERIFYING, 7),
+    ]:
+        update_task_status(ade_dir, task_id, status, current_phase=phase)
+
+    # Reject back to REVIEWING
+    update_task_status(ade_dir, task_id, TaskStatus.REVIEWING, current_phase=6)
+    increment_iteration(ade_dir, task_id, "verify_reject")
+
+    # Can proceed to VERIFYING again
+    update_task_status(ade_dir, task_id, TaskStatus.VERIFYING, current_phase=7)
+    final = load_task(ade_dir, task_id)
+    assert final.status == TaskStatus.VERIFYING
+    assert final.iterations.verify_reject == 1
+
+
+def test_retrospective_captures_completion(project: Path) -> None:
+    """RETROSPECTIVE transitions to COMPLETED."""
+    import json
+
+    ade_dir = project / ".ade"
+    state = create_task(ade_dir=ade_dir, description="Retro test")
+    task_id = state.task_id
+
+    # Set state directly to RETROSPECTIVE for simplicity
+    state_path = ade_dir / "tasks" / task_id / "state.json"
+    data = json.loads(state_path.read_text(encoding="utf-8"))
+    data["status"] = "retrospective"
+    data["current_phase"] = 10
+    state_path.write_text(json.dumps(data), encoding="utf-8")
+
+    update_task_status(ade_dir, task_id, TaskStatus.COMPLETED, current_phase=10)
+    final = load_task(ade_dir, task_id)
+    assert final.status == TaskStatus.COMPLETED
 
 
 def test_exit_codes_defined() -> None:

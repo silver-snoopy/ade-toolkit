@@ -52,3 +52,41 @@ def test_migrate_preserves_user_values(tmp_path: Path) -> None:
     result, _ = migrate_config(config_path)
     assert result.project.name == "my-app"
     assert result.models.primary.name == "custom-model:7b"
+
+
+def test_migrate_v2_to_v3_updates_checkpoints(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    old_yaml = (
+        "version: '2.0'\n"
+        "project:\n  name: test\n  languages: [python]\n"
+        "orchestration:\n"
+        "  max_phase_iterations: 3\n"
+        "  max_total_iterations: 9\n"
+        "  human_checkpoints: [after_plan, after_final_review]\n"
+    )
+    config_path.write_text(old_yaml, encoding="utf-8")
+    result, migrated = migrate_config(config_path)
+    assert migrated
+    assert result.version == CONFIG_VERSION
+    assert result.orchestration.human_checkpoints == [
+        "after_research",
+        "after_plan",
+        "after_commit",
+    ]
+    assert result.orchestration.max_total_iterations == 11
+    assert result.orchestration.max_verify_iterations == 2
+
+
+def test_migrate_v2_preserves_custom_checkpoints(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    old_yaml = (
+        "version: '2.0'\n"
+        "project:\n  name: test\n  languages: [python]\n"
+        "orchestration:\n"
+        "  human_checkpoints: [after_plan, custom_gate]\n"
+    )
+    config_path.write_text(old_yaml, encoding="utf-8")
+    result, migrated = migrate_config(config_path)
+    assert migrated
+    # Custom checkpoints should be preserved (no after_final_review to trigger migration)
+    assert result.orchestration.human_checkpoints == ["after_plan", "custom_gate"]

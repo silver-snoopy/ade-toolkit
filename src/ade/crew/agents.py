@@ -27,8 +27,12 @@ def create_agent(
     config_dir: Path,
     worktree_path: Path,
     plan_files: list[str],
+    model_override: str | None = None,
 ) -> Agent:
-    """Create a CrewAI Agent with sandboxed tools."""
+    """Create a CrewAI Agent with sandboxed tools.
+
+    If model_override is provided, it replaces the model from the agent's YAML config.
+    """
     config = load_agent_config(agent_name, config_dir)
 
     tools = [
@@ -42,12 +46,14 @@ def create_agent(
         GitCommitTool(worktree_path=worktree_path),
     ]
 
+    llm = model_override if model_override else config.get("model", "ollama/gemma4:31b")
+
     return Agent(
         role=config["role"],
         goal=config["goal"],
         backstory=config.get("backstory", ""),
         tools=tools,
-        llm=config.get("model", "ollama/gemma4:31b"),
+        llm=llm,
         verbose=config.get("verbose", False),
         allow_delegation=False,
         max_iter=config.get("max_iter", 10),

@@ -7,6 +7,7 @@ from ade.circuit_breaker import (
     MAX_CODE_REVIEW_CYCLES,
     MAX_DESIGN_CHECK_ITERATIONS,
     MAX_QA_FIX_ITERATIONS,
+    MAX_VERIFY_REJECT_ITERATIONS,
     CircuitBreakerResult,
     check_circuit_breaker,
 )
@@ -18,6 +19,7 @@ def test_constants() -> None:
     assert MAX_DESIGN_CHECK_ITERATIONS == 2
     assert MAX_CODE_REVIEW_CYCLES == 3
     assert MAX_QA_FIX_ITERATIONS == 3
+    assert MAX_VERIFY_REJECT_ITERATIONS == 2
 
 
 def test_all_clear(tmp_path: Path) -> None:
@@ -58,6 +60,16 @@ def test_qa_fix_limit(tmp_path: Path) -> None:
     assert result == CircuitBreakerResult.QA_FIX_LIMIT
 
 
+def test_verify_reject_limit(tmp_path: Path) -> None:
+    ade_dir = tmp_path / ".ade"
+    ade_dir.mkdir()
+    state = create_task(ade_dir=ade_dir, description="Test")
+    for _ in range(MAX_VERIFY_REJECT_ITERATIONS):
+        increment_iteration(ade_dir=ade_dir, task_id=state.task_id, counter="verify_reject")
+    result = check_circuit_breaker(ade_dir=ade_dir, task_id=state.task_id)
+    assert result == CircuitBreakerResult.VERIFY_REJECT_LIMIT
+
+
 def test_under_limit_ok(tmp_path: Path) -> None:
     ade_dir = tmp_path / ".ade"
     ade_dir.mkdir()
@@ -91,9 +103,9 @@ def test_total_iteration_limit(tmp_path: Path) -> None:
     # Set iterations to sum=5 via direct JSON edit
     state_path = ade_dir / "tasks" / state.task_id / "state.json"
     data = json.loads(state_path.read_text(encoding="utf-8"))
-    data["iterations"] = {"design_check": 1, "code_review": 2, "qa_fix": 2}
+    data["iterations"] = {"design_check": 1, "code_review": 2, "qa_fix": 2, "verify_reject": 1}
     state_path.write_text(json.dumps(data), encoding="utf-8")
-    config = OrchestrationConfig(max_total_iterations=5)
+    config = OrchestrationConfig(max_total_iterations=6)
     result = check_circuit_breaker(ade_dir=ade_dir, task_id=state.task_id, config=config)
     assert result == CircuitBreakerResult.TOTAL_ITERATION_LIMIT
 

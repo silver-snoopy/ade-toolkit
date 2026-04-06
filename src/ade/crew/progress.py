@@ -11,6 +11,7 @@ class ProgressLogger:
 
     def __init__(self, task_dir: Path) -> None:
         self._log_path = task_dir / "progress.log"
+        self._log_path.parent.mkdir(parents=True, exist_ok=True)
 
     def log(
         self,

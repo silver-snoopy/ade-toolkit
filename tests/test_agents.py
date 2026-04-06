@@ -116,3 +116,49 @@ def test_create_agent_defaults(mock_agent_class: MagicMock, config_dir: Path) ->
     assert call_kwargs["backstory"] == ""
     assert call_kwargs["verbose"] is False
     assert call_kwargs["max_iter"] == 8
+
+
+@patch("ade.crew.agents.Agent")
+def test_create_researcher_agent(mock_agent_class: MagicMock, config_dir: Path) -> None:
+    """Researcher agent loads correctly from YAML."""
+    researcher_config = {
+        "role": "Codebase Researcher",
+        "goal": "Investigate the existing codebase",
+        "backstory": "Thorough code archaeologist",
+        "model": "ollama/gemma4:31b",
+        "max_iter": 10,
+    }
+    (config_dir / "researcher.yaml").write_text(yaml.dump(researcher_config))
+    mock_agent_class.return_value = MagicMock()
+    create_agent(
+        "researcher",
+        config_dir,
+        worktree_path=Path("/tmp/worktree"),
+        plan_files=[],
+    )
+    call_kwargs = mock_agent_class.call_args.kwargs
+    assert call_kwargs["role"] == "Codebase Researcher"
+    assert call_kwargs["max_iter"] == 10
+
+
+@patch("ade.crew.agents.Agent")
+def test_create_reviewer_agent(mock_agent_class: MagicMock, config_dir: Path) -> None:
+    """Reviewer agent loads correctly from YAML."""
+    reviewer_config = {
+        "role": "Code Reviewer",
+        "goal": "Review code for logic errors and security vulnerabilities",
+        "backstory": "Meticulous reviewer",
+        "model": "ollama/gemma4:31b",
+        "max_iter": 10,
+    }
+    (config_dir / "reviewer.yaml").write_text(yaml.dump(reviewer_config))
+    mock_agent_class.return_value = MagicMock()
+    create_agent(
+        "reviewer",
+        config_dir,
+        worktree_path=Path("/tmp/worktree"),
+        plan_files=[],
+    )
+    call_kwargs = mock_agent_class.call_args.kwargs
+    assert call_kwargs["role"] == "Code Reviewer"
+    assert call_kwargs["max_iter"] == 10

@@ -18,13 +18,18 @@ logger = logging.getLogger("ade.tasks")
 
 class TaskStatus(StrEnum):
     INITIATED = "initiated"
+    INTENT_CAPTURE = "intent_capture"
+    RESEARCHING = "researching"
     PLANNING = "planning"
     DESIGN_CHECK = "design_check"
     CODING = "coding"
     QUALITY_GATE = "quality_gate"
     REVIEWING = "reviewing"
-    FINALIZING = "finalizing"
+    VERIFYING = "verifying"
+    DOCUMENTING = "documenting"
+    COMMITTING = "committing"
     AWAITING_MERGE = "awaiting_merge"
+    RETROSPECTIVE = "retrospective"
     COMPLETED = "completed"
     FAILED = "failed"
     HUMAN_ESCALATION = "human_escalation"
@@ -34,6 +39,7 @@ class IterationCounts(BaseModel):
     design_check: int = Field(default=0, ge=0)
     code_review: int = Field(default=0, ge=0)
     qa_fix: int = Field(default=0, ge=0)
+    verify_reject: int = Field(default=0, ge=0)
 
 
 class TaskState(BaseModel):
@@ -62,7 +68,9 @@ class InvalidTransitionError(ValueError):
 
 VALID_TRANSITIONS: MappingProxyType[TaskStatus, frozenset[TaskStatus]] = MappingProxyType(
     {
-        TaskStatus.INITIATED: frozenset({TaskStatus.PLANNING, TaskStatus.FAILED}),
+        TaskStatus.INITIATED: frozenset({TaskStatus.INTENT_CAPTURE, TaskStatus.FAILED}),
+        TaskStatus.INTENT_CAPTURE: frozenset({TaskStatus.RESEARCHING, TaskStatus.FAILED}),
+        TaskStatus.RESEARCHING: frozenset({TaskStatus.PLANNING, TaskStatus.FAILED}),
         TaskStatus.PLANNING: frozenset({TaskStatus.DESIGN_CHECK, TaskStatus.FAILED}),
         TaskStatus.DESIGN_CHECK: frozenset(
             {TaskStatus.DESIGN_CHECK, TaskStatus.CODING, TaskStatus.FAILED}
@@ -74,13 +82,18 @@ VALID_TRANSITIONS: MappingProxyType[TaskStatus, frozenset[TaskStatus]] = Mapping
         TaskStatus.REVIEWING: frozenset(
             {
                 TaskStatus.QUALITY_GATE,
+                TaskStatus.VERIFYING,
                 TaskStatus.HUMAN_ESCALATION,
-                TaskStatus.FINALIZING,
                 TaskStatus.FAILED,
             }
         ),
-        TaskStatus.FINALIZING: frozenset({TaskStatus.AWAITING_MERGE, TaskStatus.FAILED}),
-        TaskStatus.AWAITING_MERGE: frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED}),
+        TaskStatus.VERIFYING: frozenset(
+            {TaskStatus.DOCUMENTING, TaskStatus.REVIEWING, TaskStatus.FAILED}
+        ),
+        TaskStatus.DOCUMENTING: frozenset({TaskStatus.COMMITTING, TaskStatus.FAILED}),
+        TaskStatus.COMMITTING: frozenset({TaskStatus.AWAITING_MERGE, TaskStatus.FAILED}),
+        TaskStatus.AWAITING_MERGE: frozenset({TaskStatus.RETROSPECTIVE, TaskStatus.FAILED}),
+        TaskStatus.RETROSPECTIVE: frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED}),
         TaskStatus.HUMAN_ESCALATION: frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED}),
         TaskStatus.COMPLETED: frozenset(),
         TaskStatus.FAILED: frozenset(),
@@ -162,7 +175,7 @@ def increment_iteration(
 ) -> TaskState:
     """Increment an iteration counter (design_check, code_review, qa_fix)."""
     state = load_task(ade_dir, task_id)
-    if counter not in ("design_check", "code_review", "qa_fix"):
+    if counter not in ("design_check", "code_review", "qa_fix", "verify_reject"):
         raise ValueError(f"Invalid counter: {counter}")
     current = getattr(state.iterations, counter)
     setattr(state.iterations, counter, current + 1)

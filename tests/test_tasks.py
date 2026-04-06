@@ -22,13 +22,18 @@ from ade.tasks import (
 
 def test_task_status_values() -> None:
     assert TaskStatus.INITIATED == "initiated"
+    assert TaskStatus.INTENT_CAPTURE == "intent_capture"
+    assert TaskStatus.RESEARCHING == "researching"
     assert TaskStatus.PLANNING == "planning"
     assert TaskStatus.DESIGN_CHECK == "design_check"
     assert TaskStatus.CODING == "coding"
     assert TaskStatus.QUALITY_GATE == "quality_gate"
     assert TaskStatus.REVIEWING == "reviewing"
-    assert TaskStatus.FINALIZING == "finalizing"
+    assert TaskStatus.VERIFYING == "verifying"
+    assert TaskStatus.DOCUMENTING == "documenting"
+    assert TaskStatus.COMMITTING == "committing"
     assert TaskStatus.AWAITING_MERGE == "awaiting_merge"
+    assert TaskStatus.RETROSPECTIVE == "retrospective"
     assert TaskStatus.COMPLETED == "completed"
     assert TaskStatus.FAILED == "failed"
     assert TaskStatus.HUMAN_ESCALATION == "human_escalation"
@@ -46,6 +51,7 @@ def test_create_task(tmp_path: Path) -> None:
     assert state.iterations.design_check == 0
     assert state.iterations.code_review == 0
     assert state.iterations.qa_fix == 0
+    assert state.iterations.verify_reject == 0
     # state.json should exist on disk
     state_path = tmp_path / "tasks" / state.task_id / "state.json"
     assert state_path.exists()
@@ -69,19 +75,25 @@ def test_update_task_status(tmp_path: Path) -> None:
     updated = update_task_status(
         ade_dir=tmp_path,
         task_id=state.task_id,
-        status=TaskStatus.PLANNING,
+        status=TaskStatus.INTENT_CAPTURE,
         current_phase=1,
     )
-    assert updated.status == TaskStatus.PLANNING
+    assert updated.status == TaskStatus.INTENT_CAPTURE
     assert updated.current_phase == 1
     # Verify persisted
     reloaded = load_task(ade_dir=tmp_path, task_id=state.task_id)
-    assert reloaded.status == TaskStatus.PLANNING
+    assert reloaded.status == TaskStatus.INTENT_CAPTURE
 
 
 def test_update_task_with_worktree(tmp_path: Path) -> None:
     state = create_task(ade_dir=tmp_path, description="Test task")
     # Walk to CODING via valid transitions
+    update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.INTENT_CAPTURE, current_phase=0
+    )
+    update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.RESEARCHING, current_phase=1
+    )
     update_task_status(
         ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.PLANNING, current_phase=1
     )
@@ -105,10 +117,10 @@ def test_update_task_adds_timestamp(tmp_path: Path) -> None:
     updated = update_task_status(
         ade_dir=tmp_path,
         task_id=state.task_id,
-        status=TaskStatus.PLANNING,
+        status=TaskStatus.INTENT_CAPTURE,
         current_phase=1,
     )
-    assert "planning" in updated.timestamps
+    assert "intent_capture" in updated.timestamps
     assert updated.timestamps["created"]  # From creation
 
 
@@ -200,16 +212,22 @@ def test_list_tasks_warns_on_corrupt_json(
     assert "corrupt1" in caplog.text  # Warning mentions the bad task dir
 
 
-def test_valid_transition_initiated_to_planning(tmp_path: Path) -> None:
+def test_valid_transition_initiated_to_intent_capture(tmp_path: Path) -> None:
     state = create_task(ade_dir=tmp_path, description="Test")
     updated = update_task_status(
-        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.PLANNING, current_phase=1
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.INTENT_CAPTURE, current_phase=1
     )
-    assert updated.status == TaskStatus.PLANNING
+    assert updated.status == TaskStatus.INTENT_CAPTURE
 
 
 def test_valid_transition_design_check_self_loop(tmp_path: Path) -> None:
     state = create_task(ade_dir=tmp_path, description="Test")
+    update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.INTENT_CAPTURE, current_phase=0
+    )
+    update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.RESEARCHING, current_phase=1
+    )
     update_task_status(
         ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.PLANNING, current_phase=1
     )
@@ -224,9 +242,15 @@ def test_valid_transition_design_check_self_loop(tmp_path: Path) -> None:
 
 
 def test_valid_transition_reviewing_to_quality_gate(tmp_path: Path) -> None:
-    """Review loop: REVIEWING → QUALITY_GATE is valid."""
+    """Review loop: REVIEWING -> QUALITY_GATE is valid."""
     state = create_task(ade_dir=tmp_path, description="Test")
     # Walk to REVIEWING
+    update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.INTENT_CAPTURE, current_phase=0
+    )
+    update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.RESEARCHING, current_phase=1
+    )
     update_task_status(
         ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.PLANNING, current_phase=1
     )
@@ -253,14 +277,19 @@ def test_invalid_transition_completed_to_planning(tmp_path: Path) -> None:
     state = create_task(ade_dir=tmp_path, description="Test")
     # Walk to COMPLETED
     for s, p in [
-        (TaskStatus.PLANNING, 1),
-        (TaskStatus.DESIGN_CHECK, 1),
-        (TaskStatus.CODING, 2),
-        (TaskStatus.QUALITY_GATE, 3),
-        (TaskStatus.REVIEWING, 4),
-        (TaskStatus.FINALIZING, 5),
-        (TaskStatus.AWAITING_MERGE, 6),
-        (TaskStatus.COMPLETED, 6),
+        (TaskStatus.INTENT_CAPTURE, 0),
+        (TaskStatus.RESEARCHING, 1),
+        (TaskStatus.PLANNING, 2),
+        (TaskStatus.DESIGN_CHECK, 3),
+        (TaskStatus.CODING, 4),
+        (TaskStatus.QUALITY_GATE, 5),
+        (TaskStatus.REVIEWING, 6),
+        (TaskStatus.VERIFYING, 7),
+        (TaskStatus.DOCUMENTING, 8),
+        (TaskStatus.COMMITTING, 9),
+        (TaskStatus.AWAITING_MERGE, 9),
+        (TaskStatus.RETROSPECTIVE, 10),
+        (TaskStatus.COMPLETED, 10),
     ]:
         update_task_status(ade_dir=tmp_path, task_id=state.task_id, status=s, current_phase=p)
     with pytest.raises(InvalidTransitionError):
@@ -271,6 +300,12 @@ def test_invalid_transition_completed_to_planning(tmp_path: Path) -> None:
 
 def test_invalid_transition_coding_to_reviewing(tmp_path: Path) -> None:
     state = create_task(ade_dir=tmp_path, description="Test")
+    update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.INTENT_CAPTURE, current_phase=0
+    )
+    update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.RESEARCHING, current_phase=1
+    )
     update_task_status(
         ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.PLANNING, current_phase=1
     )
@@ -284,6 +319,88 @@ def test_invalid_transition_coding_to_reviewing(tmp_path: Path) -> None:
         update_task_status(
             ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.REVIEWING, current_phase=4
         )
+
+
+def test_valid_transition_verifying_to_reviewing(tmp_path: Path) -> None:
+    """Reject loop: VERIFYING -> REVIEWING is valid."""
+    state = create_task(ade_dir=tmp_path, description="Test")
+    # Walk to VERIFYING
+    for s, p in [
+        (TaskStatus.INTENT_CAPTURE, 0),
+        (TaskStatus.RESEARCHING, 1),
+        (TaskStatus.PLANNING, 2),
+        (TaskStatus.DESIGN_CHECK, 3),
+        (TaskStatus.CODING, 4),
+        (TaskStatus.QUALITY_GATE, 5),
+        (TaskStatus.REVIEWING, 6),
+        (TaskStatus.VERIFYING, 7),
+    ]:
+        update_task_status(ade_dir=tmp_path, task_id=state.task_id, status=s, current_phase=p)
+    # Loop back to REVIEWING
+    updated = update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.REVIEWING, current_phase=6
+    )
+    assert updated.status == TaskStatus.REVIEWING
+
+
+def test_valid_transition_verifying_to_documenting(tmp_path: Path) -> None:
+    """Happy path: VERIFYING -> DOCUMENTING is valid."""
+    state = create_task(ade_dir=tmp_path, description="Test")
+    for s, p in [
+        (TaskStatus.INTENT_CAPTURE, 0),
+        (TaskStatus.RESEARCHING, 1),
+        (TaskStatus.PLANNING, 2),
+        (TaskStatus.DESIGN_CHECK, 3),
+        (TaskStatus.CODING, 4),
+        (TaskStatus.QUALITY_GATE, 5),
+        (TaskStatus.REVIEWING, 6),
+        (TaskStatus.VERIFYING, 7),
+    ]:
+        update_task_status(ade_dir=tmp_path, task_id=state.task_id, status=s, current_phase=p)
+    updated = update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.DOCUMENTING, current_phase=8
+    )
+    assert updated.status == TaskStatus.DOCUMENTING
+
+
+def test_valid_transition_retrospective_to_completed(tmp_path: Path) -> None:
+    """RETROSPECTIVE -> COMPLETED is valid."""
+    state = create_task(ade_dir=tmp_path, description="Test")
+    for s, p in [
+        (TaskStatus.INTENT_CAPTURE, 0),
+        (TaskStatus.RESEARCHING, 1),
+        (TaskStatus.PLANNING, 2),
+        (TaskStatus.DESIGN_CHECK, 3),
+        (TaskStatus.CODING, 4),
+        (TaskStatus.QUALITY_GATE, 5),
+        (TaskStatus.REVIEWING, 6),
+        (TaskStatus.VERIFYING, 7),
+        (TaskStatus.DOCUMENTING, 8),
+        (TaskStatus.COMMITTING, 9),
+        (TaskStatus.AWAITING_MERGE, 9),
+        (TaskStatus.RETROSPECTIVE, 10),
+    ]:
+        update_task_status(ade_dir=tmp_path, task_id=state.task_id, status=s, current_phase=p)
+    updated = update_task_status(
+        ade_dir=tmp_path, task_id=state.task_id, status=TaskStatus.COMPLETED, current_phase=10
+    )
+    assert updated.status == TaskStatus.COMPLETED
+
+
+def test_increment_verify_reject_counter(tmp_path: Path) -> None:
+    state = create_task(ade_dir=tmp_path, description="Test task")
+    updated = increment_iteration(
+        ade_dir=tmp_path,
+        task_id=state.task_id,
+        counter="verify_reject",
+    )
+    assert updated.iterations.verify_reject == 1
+    updated2 = increment_iteration(
+        ade_dir=tmp_path,
+        task_id=state.task_id,
+        counter="verify_reject",
+    )
+    assert updated2.iterations.verify_reject == 2
 
 
 @pytest.mark.parametrize(
