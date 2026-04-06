@@ -189,7 +189,27 @@ def _setup_worktree_task_dir(
                 shutil.copy2(md_file, dest)
 
 
-def _build_task_description(phase: str, task_dir: Path, plan_files: list[str]) -> str:
+def _load_project_context(worktree_path: Path) -> str:
+    """Load project conventions from AGENTS.md or CLAUDE.md.
+
+    Single source of truth — no duplication. If the project maintains
+    AGENTS.md (cross-tool standard) or CLAUDE.md (Claude Code), the
+    same file is injected into every agent's task description.
+
+    TODO: If context rot becomes a problem with large files, add section
+    filtering (e.g., only extract "Backend Conventions", "Project Structure")
+    rather than loading the entire file. Fix the source, not the reader.
+    """
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        path = worktree_path / name
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+    return ""
+
+
+def _build_task_description(
+    phase: str, task_dir: Path, plan_files: list[str], worktree_path: Path
+) -> str:
     """Build a rich task description that includes plan context and file list.
 
     Local LLMs need explicit context — a generic one-liner like
@@ -197,6 +217,9 @@ def _build_task_description(phase: str, task_dir: Path, plan_files: list[str]) -
     agent doesn't know what plan or what files.
     """
     base = PHASE_DESCRIPTIONS[phase]
+
+    # Load project conventions (AGENTS.md or CLAUDE.md)
+    project_context = _load_project_context(worktree_path)
 
     # Read plan content (truncate to avoid blowing context)
     plan_content = ""
@@ -228,9 +251,15 @@ def _build_task_description(phase: str, task_dir: Path, plan_files: list[str]) -
         "If it doesn't match, you'll get an error — read the file again and retry."
     )
 
+    # Assemble: base + project conventions + plan + file list + tool guidance
+    sections = [base]
+    if project_context:
+        sections.append(f"\n\n--- PROJECT CONVENTIONS ---\n{project_context}\n--- END CONVENTIONS ---")
     if plan_content:
-        return f"{base}\n\n--- PLAN ---\n{plan_content}\n--- END PLAN ---{file_list}{tool_guidance}"
-    return f"{base}{file_list}{tool_guidance}"
+        sections.append(f"\n\n--- PLAN ---\n{plan_content}\n--- END PLAN ---")
+    sections.append(file_list)
+    sections.append(tool_guidance)
+    return "".join(sections)
 
 
 def run(
@@ -336,7 +365,7 @@ def run(
     # Step 4: Execute crew
     progress.log(phase=phase, agent="runner", step="4/4", file="", status="running crew")
     try:
-        task_description = _build_task_description(phase, task_dir, plan_files)
+        task_description = _build_task_description(phase, task_dir, plan_files, worktree_path)
         task = Task(
             description=task_description,
             expected_output=f"Completed {phase} phase successfully",
