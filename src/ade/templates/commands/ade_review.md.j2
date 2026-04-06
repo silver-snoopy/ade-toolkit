@@ -1,12 +1,2 @@
 Run ADE review phases (Review + Verify + Documentation) for: $ARGUMENTS
-
-1. Phase 6 — REVIEW: 3-lens parallel review of the diff:
-   - Logic: errors, edge cases, null handling, race conditions
-   - Conventions: project patterns, naming, structure
-   - Security: OWASP top 10, injection, auth, secrets
-   Classify: HIGH (blocking), MEDIUM (fix before merge), LOW (advisory)
-2. Phase 7 — VERIFY: Live verification with evidence
-   Verify acceptance criteria, capture screenshots/logs as evidence
-3. Phase 8 — DOCUMENTATION: Update affected project docs
-
-Report: APPROVED, MINOR_FIXES (with details), or MAJOR_ISSUES (escalate).
+Follow the ADE workflow defined in CLAUDE.md and the ade-review skill.

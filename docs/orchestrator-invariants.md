@@ -50,14 +50,14 @@ It must NOT silently fix issues it finds during review.
 
 ## 4. Sub-agents edit, never overwrite existing files
 
-When modifying existing files, sub-agents MUST use `mode='edit'`
-(search/replace) instead of `mode='write'` (full overwrite).
+When modifying existing files, sub-agents MUST use the Edit tool
+(search/replace) instead of Write (full overwrite).
 
-`mode='write'` is only for creating NEW files that don't exist yet.
+Write is only for creating NEW files that don't exist yet.
 
-The task description builder enforces this via explicit tool guidance
-injected into every task. If a sub-agent overwrites an existing file
-anyway, the runner's change detection should flag it.
+The skill instructions enforce this via explicit tool guidance.
+Subagent definitions reinforce it: "Use Edit for existing files,
+Write only for new files."
 
 ## 5. Circuit breakers are hard limits
 

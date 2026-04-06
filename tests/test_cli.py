@@ -12,16 +12,27 @@ def test_init_python_project(python_project: Path) -> None:
     result = runner.invoke(app, ["init", "--project-dir", str(python_project)])
     assert result.exit_code == 0
 
-    # Verify generated files
-    assert (python_project / ".ade" / "config.yaml").exists()
+    # Verify v4 generated files
     assert (python_project / ".ade" / ".gitignore").exists()
-    assert (python_project / ".ade" / "crew" / "coder.yaml").exists()
-    assert (python_project / ".ade" / "crew" / "researcher.yaml").exists()
-    assert (python_project / ".ade" / "crew" / "reviewer.yaml").exists()
-    assert (python_project / ".pre-commit-config.yaml").exists()
+    assert (python_project / ".claude" / "agents" / "backend-coder.md").exists()
+    assert (python_project / ".claude" / "agents" / "code-reviewer.md").exists()
+    assert (python_project / ".claude" / "agents" / "test-runner.md").exists()
+    assert (python_project / ".claude" / "skills" / "ade" / "ade-full.md").exists()
+    assert (python_project / ".claude" / "skills" / "ade" / "ade-plan.md").exists()
     assert (python_project / ".claude" / "commands" / "ade-full.md").exists()
     assert (python_project / ".claude" / "commands" / "ade-ship.md").exists()
     assert (python_project / "CLAUDE.md").exists()
+
+
+def test_init_does_not_generate_v3_artifacts(python_project: Path) -> None:
+    """v4 should NOT generate CrewAI, Ollama, or pre-commit artifacts."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+
+    assert not (python_project / ".ade" / "config.yaml").exists()
+    assert not (python_project / ".ade" / "crew").exists()
+    assert not (python_project / ".ade" / "modelfiles").exists()
+    assert not (python_project / ".pre-commit-config.yaml").exists()
+    assert not (python_project / ".claude" / "settings.json").exists()
 
 
 def test_init_creates_claude_md_with_ade_section(python_project: Path) -> None:
@@ -47,70 +58,63 @@ def test_init_appends_to_existing_claude_md(python_project: Path) -> None:
 
 
 def test_init_does_not_duplicate_ade_section(python_project: Path) -> None:
-    # Run init twice
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
 
     content = (python_project / "CLAUDE.md").read_text()
-    # ADE section marker should appear only once
     assert content.count("## ADE") == 1
 
 
-def test_init_with_language_override(python_project: Path) -> None:
-    result = runner.invoke(
-        app, ["init", "--project-dir", str(python_project), "--language", "python,typescript"]
-    )
-    assert result.exit_code == 0
+def test_init_agent_definitions_have_model(python_project: Path) -> None:
+    """Agent definitions should specify a model."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
 
-    config_content = (python_project / ".ade" / "config.yaml").read_text()
-    assert "python" in config_content
-    assert "typescript" in config_content
+    backend = (python_project / ".claude" / "agents" / "backend-coder.md").read_text()
+    assert "model:" in backend
+    assert "sonnet" in backend
 
-
-def test_init_node_project_includes_eslint(node_project: Path) -> None:
-    result = runner.invoke(app, ["init", "--project-dir", str(node_project)])
-    assert result.exit_code == 0
-
-    precommit = (node_project / ".pre-commit-config.yaml").read_text()
-    assert "eslint" in precommit
-    assert "prettier" in precommit
+    test_runner = (python_project / ".claude" / "agents" / "test-runner.md").read_text()
+    assert "haiku" in test_runner
 
 
-def test_init_python_project_excludes_eslint(python_project: Path) -> None:
-    result = runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    assert result.exit_code == 0
+def test_init_skills_have_phase_content(python_project: Path) -> None:
+    """Skills should contain phase instructions."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
 
-    precommit = (python_project / ".pre-commit-config.yaml").read_text()
-    assert "ruff" in precommit
-    assert "eslint" not in precommit
+    full = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
+    assert "Phase 0" in full
+    assert "Phase 10" in full or "RETROSPECTIVE" in full
+    assert "Circuit Breaker" in full or "circuit breaker" in full.lower()
+
+    plan = (python_project / ".claude" / "skills" / "ade" / "ade-plan.md").read_text()
+    assert "PLAN" in plan or "plan" in plan
 
 
 def test_doctor_reports_missing_tools() -> None:
-    """Doctor should report when tools are not found."""
     with patch("ade.cli._check_command", return_value=False):
         result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 1
-    assert "FAIL" in result.output or "not found" in result.output.lower()
+    assert "FAIL" in result.output
 
 
 def test_doctor_reports_all_ok() -> None:
-    """Doctor should report success when all tools are present."""
-    with (
-        patch("ade.cli._check_command", return_value=True),
-        patch("ade.cli._check_ollama_models", return_value=[]),
-    ):
+    with patch("ade.cli._check_command", return_value=True):
         result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
-    assert "ok" in result.output.lower() or "pass" in result.output.lower()
 
 
-def test_doctor_warns_missing_models() -> None:
-    """Doctor should warn (not fail) when Ollama models are missing."""
-    with (
-        patch("ade.cli._check_command", return_value=True),
-        patch("ade.cli._check_ollama_models", return_value=["gemma4:31b"]),
-    ):
-        result = runner.invoke(app, ["doctor"])
-    # Missing models are warnings, not failures — exit code 0
+def test_status_no_tasks(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    result = runner.invoke(app, ["status", "--project-dir", str(python_project)])
     assert result.exit_code == 0
-    assert "gemma4:31b" in result.output
+    assert "No" in result.output
+
+
+def test_status_with_tasks(python_project: Path) -> None:
+    tasks_dir = python_project / ".ade" / "tasks" / "test-task"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "status.md").write_text("Phase 4/10 - Implementing\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["status", "--project-dir", str(python_project)])
+    assert result.exit_code == 0
+    assert "test-task" in result.output

@@ -1,0 +1,10 @@
+Run ADE coding phases (Design Check + Implement + Quality Gate) for: $ARGUMENTS
+
+If a plan exists in `.ade/tasks/`, use it. Otherwise, run /ade-plan first.
+
+1. Phase 3 — Create stubs via Sonnet subagent in worktree
+2. Phase 4 — Implement via 1-3 Sonnet subagents (file ownership, no overlap)
+3. Phase 5 — Quality gate: Haiku runs build+tests, Sonnet fixes failures (max 3x)
+
+The orchestrator NEVER writes code — only dispatches subagents.
+Update `.ade/tasks/<task-id>/status.md` at each phase transition.

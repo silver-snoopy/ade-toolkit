@@ -1,0 +1,11 @@
+Run ADE planning phases (Intent + Research + Plan) for: $ARGUMENTS
+
+Follow Phases 0-2 of the ADE workflow:
+1. Extract intent (type, goal, acceptance criteria, scope)
+2. Research the codebase (up to 3 parallel Explore agents)
+3. Present findings and get user approval (USER GATE)
+4. Write implementation plan to `.ade/tasks/<task-id>/plan.md`
+5. Verify plan completeness (PLAN GATE)
+
+Save all artifacts to `.ade/tasks/<task-id>/`.
+Update `.ade/tasks/<task-id>/status.md` at each phase transition.

@@ -2,63 +2,52 @@
 
 ## Project Overview
 
-ADE (Agentic Development Environment) is a portable toolkit that adds AI-agent-driven SDLC capabilities to any project. It consists of:
+ADE (Agentic Development Environment) is a thin Python bootstrapper that scaffolds AI-driven SDLC skills and subagent definitions for Claude Code.
 
-1. **`ade` CLI** — A scaffolding tool (`ade init`, `ade doctor`) that generates config files for any project
-2. **CrewAI runner** — Local agent definitions that execute coding/testing via Ollama
-3. **Config templates** — CLAUDE.md sections, custom commands, pre-commit configs, agent definitions
+`ade init` generates `.claude/agents/`, `.claude/skills/ade/`, and `.claude/commands/` — everything Claude Code needs to run a structured 10-phase development workflow with Opus as orchestrator and Sonnet/Haiku as workers.
 
-## Architecture
+## Architecture (v4)
 
-- **Orchestrator**: Claude Code (Max Pro subscription) — not a custom Python CLI
-- **Local agents**: CrewAI + Ollama (Gemma 4 31B for coding, Qwen 2.5 Coder 14B for tests)
-- **Scanning**: Pre-commit framework (Semgrep, Ruff, ESLint, Prettier)
-- **Isolation**: Git worktrees per task
-- **State**: File-based in `.ade/tasks/`
-
-See `docs/ade-architecture-design.md` for full specification.
-
-## Tech Stack
-
-- Python 3.12+
-- CrewAI (agent framework)
-- Ollama (local LLM runtime)
-- Pre-commit (scanning orchestration)
-- Click or Typer (CLI framework)
+- **No runtime framework** — no CrewAI, no Ollama, no custom agent runtime
+- **Skills are Markdown** — `.claude/skills/ade/*.md` define the SDLC phases
+- **Agents are Markdown** — `.claude/agents/*.md` define subagent roles and model assignments
+- **The bootstrapper only scaffolds** — it doesn't run agents, execute code, or manage state
+- **Claude Code IS the runtime** — subagents, worktrees, Edit/Write/Bash are all native
 
 ## Project Structure
 
 ```
 ade-toolkit/
-├── src/ade/              # Core package
-│   ├── cli.py            # CLI entry points (init, doctor)
-│   ├── crew/             # CrewAI agent definitions and runner
-│   ├── tools/            # Safe agent tools (SafeShellTool, SafeFileTool)
+├── src/ade/
+│   ├── cli.py            # CLI: init, doctor, status
 │   ├── detect.py         # Project stack auto-detection
-│   ├── config.py         # Config generation and management
-│   └── templates/        # Jinja2 templates for generated files
-├── docs/                 # Architecture spec and research
-├── tests/                # Test suite
-└── pyproject.toml        # Package definition
+│   └── templates/
+│       ├── agents/       # Subagent definition templates
+│       ├── skills/       # SDLC skill templates
+│       ├── commands/     # Slash command templates
+│       ├── claude_md_section.md.j2
+│       └── ade_gitignore.j2
+├── docs/
+│   ├── orchestrator-invariants.md
+│   ├── ade-architecture-design.md  # v3 spec (historical)
+│   └── ade-research-findings.md    # v3 research (historical)
+├── tests/
+└── pyproject.toml
 ```
 
 ## Development Commands
 
 ```bash
-# Install in dev mode
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Lint
-ruff check src/ tests/
-ruff format src/ tests/
+pip install -e ".[dev]"   # Install in dev mode
+pytest                     # Run tests
+ruff check src/ tests/     # Lint
+ruff format src/ tests/    # Format
 ```
 
 ## Conventions
 
-- Use `ruff` for linting and formatting
+- Python 3.11+
+- Ruff for linting and formatting (line-length 99)
 - Type hints on all public functions
 - Tests in `tests/` mirroring `src/` structure
 - Conventional commits
