@@ -1,0 +1,82 @@
+Run the complete ADE SDLC cycle for: $ARGUMENTS
+
+Follow the 10-phase ADE workflow:
+
+## Phase 0 — INTENT
+Extract structured requirements: type (feature/bugfix/refactor), goal, acceptance criteria, affected areas, estimated scope (S/M/L).
+Save to `.ade/tasks/<task-id>/intent.md`.
+
+## Phase 1 — RESEARCH
+Launch up to 3 Explore agents in parallel to investigate:
+1. Existing implementation — files, functions, execution paths
+2. Related patterns — how similar features work elsewhere
+3. Reusable utilities — shared helpers, hooks, components
+
+## ◆ USER GATE
+STOP. Present research findings and proposed approach.
+Get explicit approval before proceeding.
+
+## Phase 2 — PLAN
+Write implementation plan to `.ade/tasks/<task-id>/plan.md` with:
+1. Context — why this change is being made
+2. Ordered task list — dependency-aware
+3. Files to create/modify — table with paths and descriptions
+4. Dependencies — new packages, env vars
+5. Test strategy
+6. Risk areas
+
+## ◆ PLAN GATE
+Verify plan is complete. Do NOT proceed if incomplete.
+
+## Phase 3 — DESIGN CHECK
+Dispatch a Sonnet subagent in a worktree to create file stubs:
+`Agent(model="sonnet", isolation="worktree", prompt="Create stubs based on plan...")`
+Review stubs for plan alignment.
+
+## Phase 4 — IMPLEMENT
+Dispatch 1-3 Sonnet subagents in the worktree. Each agent owns specific files — no overlap.
+Enforce build order: shared types → backend → frontend.
+
+## Phase 5 — QUALITY GATE
+Dispatch a Haiku subagent to run build + tests.
+If failures, dispatch a Sonnet fixer subagent (max 3 attempts).
+
+## Phase 6 — REVIEW
+Launch 3 parallel Sonnet review subagents:
+1. Logic: errors, edge cases, null handling, race conditions
+2. Conventions: project patterns, naming, structure (from CLAUDE.md)
+3. Security: OWASP top 10, injection, auth bypass, secrets
+
+Classify findings: HIGH (blocking) / MEDIUM (fix before merge) / LOW (advisory).
+Fix all HIGH and MEDIUM before proceeding.
+
+## Phase 7 — VERIFY
+Run the full test suite. For UI changes, capture screenshots.
+Verify each acceptance criterion from Phase 0.
+
+## Phase 8 — DOCUMENTATION
+Update affected docs: product capabilities, architecture, API docs.
+
+## Phase 9 — COMMIT & PR
+Stage files, commit with conventional message, push, open PR.
+
+## ◆ MERGE GATE
+Present PR to user for review and merge decision.
+
+## Phase 10 — RETROSPECTIVE
+Record: cycle time per phase, iteration counts, what worked, what didn't.
+Save to `.ade/tasks/<task-id>/retro.json`.
+Clean up worktree after merge.
+
+## Circuit Breakers
+- Design check: max 2 iterations
+- Code→review loop: max 3 cycles
+- QA fix: max 3 iterations
+- Verify→review: max 2 cycles
+After any limit, escalate to user. Do NOT retry silently.
+
+## Orchestrator Rules
+- The orchestrator NEVER writes application code — only dispatches subagents
+- All code changes flow through subagents
+- Verify subagent output independently — don't trust self-reports
+- Update `.ade/tasks/<task-id>/status.md` at each phase transition

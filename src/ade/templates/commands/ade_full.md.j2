@@ -1,19 +1,2 @@
-Run the complete ADE SDLC cycle for the following task: $ARGUMENTS
-
-Follow the ADE workflow defined in CLAUDE.md (10 phases):
-0. Extract intent (type, goal, acceptance criteria, scope)
-1. Research the codebase (3 parallel exploration scopes)
-   ◆ USER GATE — present findings, get approval
-2. Write implementation plan (6 mandatory sections)
-   ◆ PLAN GATE — verify plan completeness
-3. Design check with local agents (stubs + validation)
-4. Implement in git worktree via CrewAI
-5. Quality gate (pre-commit + tests + gap analysis)
-6. 3-lens code review (logic, conventions, security)
-7. Live verification with evidence
-8. Update affected documentation
-9. Commit & PR
-   ◆ MERGE GATE — present PR for human review
-10. Retrospective (metrics + cleanup)
-
-Track progress in .ade/tasks/ and report status at each phase transition.
+Run the complete ADE SDLC cycle for: $ARGUMENTS
+Follow the ADE workflow defined in CLAUDE.md and the ade-full skill.

@@ -1,0 +1,13 @@
+Run ADE review phases (Review + Verify + Documentation) for: $ARGUMENTS
+
+1. Phase 6 — 3-lens parallel review via Sonnet subagents:
+   - Logic: errors, edge cases, correctness
+   - Conventions: project patterns from CLAUDE.md
+   - Security: OWASP top 10
+   Report: APPROVED / MINOR_FIXES / MAJOR_ISSUES
+
+2. Phase 7 — Verify: run full test suite, capture evidence
+
+3. Phase 8 — Update affected documentation
+
+Update `.ade/tasks/<task-id>/status.md` at each phase transition.

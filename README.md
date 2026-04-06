@@ -1,207 +1,134 @@
-# ADE Toolkit
+# ADE — Agentic Development Environment
 
-**Agentic Development Environment** — a portable toolkit that adds AI-agent-driven SDLC capabilities to any project.
+A thin bootstrapper that scaffolds AI-driven SDLC skills for [Claude Code](https://claude.com/claude-code).
 
-ADE combines [Claude Code](https://docs.anthropic.com/en/docs/claude-code) as the orchestrator with local LLMs ([Ollama](https://ollama.com/)) for high-throughput coding, using [CrewAI](https://www.crewai.com/) for the local agent network. Run `ade init` in any project and get a complete AI-assisted development workflow.
+ADE turns Claude Code into a structured development pipeline: 10 phases from intent capture to merged PR, with human gates, circuit breakers, and parallel subagent dispatch.
 
-## How It Works
+## What it does
 
-```
-You describe a task
-        |
-        v
-  Claude Code (orchestrator)
-  Plans, reviews, finalizes
-        |
-        v
-  CrewAI + Ollama (local agents)
-  Code, test, fix — in isolated git worktrees
-        |
-        v
-  Pre-commit (scanners)
-  Semgrep, Ruff, ESLint, Prettier
-        |
-        v
-  PR ready for human review
-```
-
-**6-phase SDLC:** Plan → Design Check → Code → Quality Gate → Review → Finalize
-
-**Human checkpoints:** after plan approval and before PR merge. Everything else is autonomous.
-
-## Requirements
-
-| Component | Purpose |
-|-----------|---------|
-| Python 3.11+ | ADE toolkit runtime |
-| [Ollama](https://ollama.com/) | Local LLM inference |
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Orchestrator (Max Pro subscription) |
-| [Pre-commit](https://pre-commit.com/) | Scanning framework |
-| Git | Version control |
-| **GPU:** NVIDIA with 24+ GB VRAM | Model inference (tested on RTX 5090 32GB) |
-
-## Installation
-
-```bash
-# 1. Install ADE toolkit
-pip install ade-toolkit
-
-# 2. Install Ollama models
-ollama pull gemma4:31b              # Primary coder (~18GB)
-ollama pull qwen2.5-coder:14b      # Test generator (~10GB)
-ollama pull qwen2.5-coder:32b      # Fallback model (~20GB)
-
-# 3. Install scanning tools
-pip install pre-commit ruff semgrep
-npm install -g eslint prettier      # If working with JS/TS projects
-```
-
-## Quick Start
-
-```bash
-cd my-project
-ade init                # Auto-detect stack, generate all configs
-ade doctor              # Verify dependencies are installed
-pre-commit install      # Activate git hooks
-
-# Start using ADE
-claude                  # Launch Claude Code
-> /ade-full Add JWT authentication    # Run complete SDLC cycle
-> /ade-plan Refactor user service     # Plan only
-> /ade-status                         # Check task status
-```
-
-## What `ade init` Generates
-
-ADE auto-detects your project's languages and generates all configuration:
+`ade init` generates everything you need:
 
 ```
-my-project/
-├── CLAUDE.md                        # ADE workflow section (appended)
+your-project/
 ├── .claude/
-│   ├── commands/
-│   │   ├── ade-full.md              # /ade-full — complete SDLC cycle
-│   │   ├── ade-plan.md              # /ade-plan — planning phase only
-│   │   ├── ade-code.md              # /ade-code — design + code + QA
-│   │   ├── ade-review.md            # /ade-review — code review phase
-│   │   └── ade-status.md            # /ade-status — task status
-│   └── settings.json                # Claude Code permissions
-├── .pre-commit-config.yaml          # Scanning tools for your stack
+│   ├── agents/              # Subagent definitions
+│   │   ├── backend-coder.md   # Sonnet — implements backend code
+│   │   ├── frontend-coder.md  # Sonnet — implements UI code
+│   │   ├── code-reviewer.md   # Sonnet — logic review (read-only)
+│   │   ├── security-reviewer.md # Sonnet — OWASP review (read-only)
+│   │   └── test-runner.md     # Haiku — runs build + tests
+│   ├── skills/ade/          # SDLC workflow skills
+│   │   ├── ade-full.md        # Complete 10-phase cycle
+│   │   ├── ade-plan.md        # Phases 0-2 (intent + research + plan)
+│   │   ├── ade-code.md        # Phases 3-5 (design + implement + QA)
+│   │   ├── ade-review.md      # Phases 6-8 (review + verify + docs)
+│   │   ├── ade-ship.md        # Phases 9-10 (commit + retro)
+│   │   └── ade-status.md      # Task dashboard
+│   └── commands/            # Slash commands (/ade-full, /ade-plan, etc.)
 ├── .ade/
-│   ├── config.yaml                  # ADE settings and model config
-│   ├── crew/                        # CrewAI agent definitions
-│   │   ├── architect.yaml
-│   │   ├── coder.yaml
-│   │   ├── tester.yaml
-│   │   └── fixer.yaml
-│   └── modelfiles/                  # Ollama model configurations
-│       ├── Modelfile.gemma4-ade
-│       ├── Modelfile.qwen-test-ade
-│       └── Modelfile.qwen-fallback-ade
-```
-
-**Language detection:** Python (`pyproject.toml`, `setup.py`), TypeScript/JavaScript (`package.json`, `tsconfig.json`), Go (`go.mod`), Rust (`Cargo.toml`).
-
-**Smart defaults:** Ruff for Python projects, ESLint + Prettier for JS/TS projects, Semgrep and detect-secrets for all projects.
-
-## Commands
-
-### `ade init`
-
-Initialize ADE in the current project. Auto-detects languages, test commands, and existing linter configs.
-
-```bash
-ade init                              # Auto-detect everything
-ade init --language python,typescript # Override language detection
-ade init --project-dir /path/to/proj  # Initialize a specific directory
-```
-
-### `ade doctor`
-
-Verify all dependencies are installed and configured.
-
-```
-$ ade doctor
-ADE Doctor — Checking dependencies
-
-  PASS  Ollama (local LLM runtime)
-  PASS  Claude Code CLI
-  PASS  Pre-commit framework
-  PASS  Git
-  PASS  Ruff (Python linting)
-  WARN  Semgrep (SAST scanning) — 'semgrep' not found (optional)
-  PASS  All required Ollama models available
-
-All required dependencies found.
+│   └── tasks/               # Runtime state (gitignored)
+└── CLAUDE.md                # ADE workflow section appended
 ```
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│              Claude Code (Max Pro)                        │
-│              THE ORCHESTRATOR                             │
-│  Plans, reviews, finalizes, dispatches agents            │
-└────────────┬─────────────────────┬───────────────────────┘
-             │ subprocess          │ hooks
-             v                    v
-┌────────────────────┐  ┌─────────────────────────────────┐
-│  CrewAI + Ollama   │  │  Pre-commit Framework           │
-│  (Local Agents)    │  │  (Deterministic Scanning)       │
-│                    │  │                                  │
-│  Coder: Gemma 4    │  │  Semgrep · Ruff · ESLint        │
-│  Tester: Qwen 2.5  │  │  Prettier · detect-secrets      │
-│  in git worktrees  │  │                                  │
-└────────────────────┘  └─────────────────────────────────┘
+Claude Opus (orchestrator)
+├── Plans, reviews, verifies, ships
+├── Dispatches subagents for parallel work
+└── Never writes application code
+
+Claude Sonnet (subagents)
+├── Implements code in git worktrees
+├── Reviews code (3-lens: logic, conventions, security)
+└── Each agent owns specific files — no overlap
+
+Claude Haiku (subagents)
+├── Runs build + test commands
+└── Fast, cheap verification
 ```
 
-**Models (hot-swap mode — one model at a time for full context):**
+No CrewAI. No Ollama. No custom agent runtime. Just Claude Code skills and subagent definitions — Markdown files that leverage Claude Code's native capabilities.
 
-| Model | Role | VRAM | Context |
-|-------|------|------|---------|
-| Gemma 4 31B | Coding, architecture, fixing | ~18GB | 128K |
-| Qwen 2.5 Coder 14B | Test generation | ~10GB | 64K |
-| Qwen 2.5 Coder 32B | Fallback | ~20GB | 32K |
-
-## Development
+## Install
 
 ```bash
-# Clone and install
-git clone https://github.com/silver-snoopy/ade-toolkit.git
-cd ade-toolkit
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Lint
-ruff check src/ tests/
-ruff format src/ tests/
+pip install ade-toolkit
 ```
 
-### Project Structure
+## Quick start
 
-```
-ade-toolkit/
-├── src/ade/
-│   ├── cli.py              # CLI entry points (init, doctor)
-│   ├── detect.py            # Project stack auto-detection
-│   ├── config.py            # Pydantic config models
-│   └── templates/           # Jinja2 templates for generated files
-├── tests/                   # Test suite (25 tests)
-├── docs/
-│   ├── ade-architecture-design.md   # Full architecture specification
-│   └── ade-research-findings.md     # Market research and analysis
-└── pyproject.toml
+```bash
+cd your-project
+ade init              # Scaffold ADE skills and agents
+ade doctor            # Verify prerequisites (Claude Code, git)
+claude                # Start Claude Code
+/ade-full add auth    # Run the full SDLC cycle
 ```
 
-## Roadmap
+## The 10-phase SDLC
 
-- [x] **v0.1** — Core CLI: `ade init`, `ade doctor`, project detection, config generation
-- [x] **v0.2** — CrewAI runner: sandboxed agent tools, phase dispatch, progress reporting
-- [x] **v0.3** — End-to-end SDLC: task lifecycle, worktree management, circuit breakers
-- [x] **v1.0** — Production-ready: state safety, crash recovery, config migration, structured logging
-- [ ] **v1.1** — Model tooling: `ade models benchmark`, `ade models check`, `ade models create`
+| Phase | Actor | Model | What happens |
+|-------|-------|-------|-------------|
+| 0. Intent | Orchestrator | Opus | Extract requirements |
+| 1. Research | 3 parallel subagents | Sonnet | Explore codebase |
+| 2. Plan | Orchestrator | Opus | Write implementation plan |
+| 3. Design check | Subagent (worktree) | Sonnet | Create file stubs |
+| 4. Implement | 1-3 subagents (worktree) | Sonnet | Write code |
+| 5. Quality gate | Subagent | Haiku | Build + test |
+| 6. Review | 3 parallel subagents | Sonnet | Logic + conventions + security |
+| 7. Verify | Orchestrator | Opus | Run tests, capture evidence |
+| 8. Docs | Subagent | Sonnet | Update documentation |
+| 9. Ship | Orchestrator | Opus | Commit, PR |
+| 10. Retro | Orchestrator | Opus | Metrics, learnings, cleanup |
+
+Human gates after research (Phase 1), plan (Phase 2), and merge (Phase 9).
+
+Circuit breakers: max 2 design iterations, max 3 code-review cycles, max 3 QA fixes.
+
+## Orchestrator rules
+
+1. The orchestrator **never writes application code** — only dispatches subagents
+2. The orchestrator owns the plan, not the code
+3. The orchestrator gates quality — reviews findings, dispatches fixes, never fixes silently
+4. Subagents own specific files — no two agents edit the same file
+5. Circuit breakers are hard limits — escalate to human, don't retry
+
+## Prerequisites
+
+- [Claude Code](https://claude.com/claude-code) CLI
+- Git
+- Python 3.11+ (for the bootstrapper only)
+
+## CLI commands
+
+| Command | Description |
+|---------|-------------|
+| `ade init` | Scaffold ADE into current project |
+| `ade doctor` | Check prerequisites |
+| `ade status` | Show active task status |
+
+## Design influences
+
+- [gstack](https://github.com/garrytan/gstack) — skills-only architecture, process > tools
+- [Octobots](https://github.com/arozumenko/octobots) — external state, session isolation
+- [Metaswarm](https://github.com/dsifry/metaswarm) — independent validation, knowledge priming
+- [Claude Code Agent Teams](https://code.claude.com/docs/en/agent-teams) — native subagent dispatch
+
+## v3 → v4 migration
+
+v4 is a complete rewrite. If you used v3 (CrewAI + Ollama):
+
+| v3 | v4 |
+|----|-----|
+| `src/ade/crew/` (CrewAI runner) | Deleted — replaced by Claude Code subagents |
+| `.ade/crew/*.yaml` (agent configs) | `.claude/agents/*.md` (subagent definitions) |
+| `.ade/config.yaml` | No config needed — CLAUDE.md is enough |
+| Ollama + gemma4:31b | Claude Sonnet/Haiku (no local models) |
+| `python -m ade.crew run` | Claude Code Agent tool (native) |
+| SafeFileTool / SafeShellTool | Claude Code native Edit/Bash |
+
+Run `ade init` in your project to generate v4 files. v3 `.ade/crew/` directories can be deleted.
 
 ## License
 

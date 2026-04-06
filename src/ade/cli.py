@@ -3,32 +3,22 @@
 from __future__ import annotations
 
 import shutil
-import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from jinja2 import Environment, PackageLoader
 from rich import print as rprint
+from rich.table import Table
 
-from ade.config import ConfigMigrationError, build_config, migrate_config
 from ade.detect import detect_project, normalize_language
-from ade.logging_setup import setup_logging
-from ade.recovery import determine_resume_point
-from ade.tasks import TaskStatus, list_tasks
 
 app = typer.Typer(
     name="ade",
     help="ADE — Agentic Development Environment toolkit",
     no_args_is_help=True,
 )
-
-
-@app.callback()
-def main() -> None:
-    """ADE — Agentic Development Environment toolkit."""
-    setup_logging()
-
 
 ADE_SECTION_MARKER = "## ADE — Agentic Development Environment"
 
@@ -62,9 +52,7 @@ def _update_claude_md(project_dir: Path, ade_section: str) -> None:
     if claude_md.exists():
         existing = claude_md.read_text(encoding="utf-8")
         if ADE_SECTION_MARKER in existing:
-            # Already has ADE section — skip
             return
-        # Append ADE section
         content = existing.rstrip() + "\n\n" + ade_section
     else:
         content = ade_section
@@ -77,70 +65,22 @@ def _check_command(name: str) -> bool:
     return shutil.which(name) is not None
 
 
-def _check_ollama_models(required: list[str]) -> list[str]:
-    """Check which required Ollama models are missing. Returns missing model names."""
-    try:
-        result = subprocess.run(["ollama", "list"], capture_output=True, text=True, timeout=10)
-        if result.returncode != 0:
-            return required
-        # Parse model names from first column of ollama list output
-        installed_models = set()
-        for line in result.stdout.strip().splitlines()[1:]:  # Skip header
-            if line.strip():
-                installed_models.add(line.split()[0])
-        return [m for m in required if m not in installed_models]
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return required
-
-
-@app.command()
-def doctor() -> None:
-    """Check that all ADE dependencies are available."""
-    all_ok = True
-
-    required_tools = {
-        "ollama": "Ollama (local LLM runtime)",
-        "claude": "Claude Code CLI",
-        "pre-commit": "Pre-commit framework",
-        "git": "Git",
-    }
-
-    optional_tools = {
-        "ruff": "Ruff (Python linting)",
-        "semgrep": "Semgrep (SAST scanning)",
-    }
-
-    rprint("[bold]ADE Doctor — Checking dependencies[/bold]\n")
-
-    for cmd, description in required_tools.items():
-        if _check_command(cmd):
-            rprint(f"  [green]PASS[/green]  {description}")
-        else:
-            rprint(f"  [red]FAIL[/red]  {description} — '{cmd}' not found")
-            all_ok = False
-
-    for cmd, description in optional_tools.items():
-        if _check_command(cmd):
-            rprint(f"  [green]PASS[/green]  {description}")
-        else:
-            rprint(f"  [yellow]WARN[/yellow]  {description} — '{cmd}' not found (optional)")
-
-    # Check Ollama models
-    required_models = ["gemma4:31b", "qwen2.5-coder:14b", "qwen2.5-coder:32b"]
-    missing = _check_ollama_models(required_models)
-    if missing:
-        rprint(f"\n  [yellow]WARN[/yellow]  Missing Ollama models: {', '.join(missing)}")
-        rprint("    Install with: " + " && ".join(f"ollama pull {m}" for m in missing))
-    else:
-        rprint("  [green]PASS[/green]  All required Ollama models available")
-
-    if all_ok:
-        rprint("\n[green]All required dependencies found.[/green]")
-    else:
-        rprint(
-            "\n[red]Some required dependencies are missing. Install them before using ADE.[/red]"
-        )
-        raise typer.Exit(1)
+def _render_template_dir(
+    env: Environment,
+    template_prefix: str,
+    dest_dir: Path,
+    context: dict,
+    suffix: str = ".j2",
+) -> None:
+    """Render all templates under a prefix directory to a destination."""
+    for template_name in env.loader.list_templates():
+        if template_name.startswith(template_prefix) and template_name.endswith(suffix):
+            relative = template_name[len(template_prefix) :]
+            # Strip .j2 suffix from output filename
+            dest_name = relative[: -len(suffix)] if relative.endswith(suffix) else relative
+            # Convert underscores to dashes for Claude Code conventions
+            dest_name = dest_name.replace("_", "-")
+            _render_and_write(env, template_name, dest_dir / dest_name, context)
 
 
 @app.command()
@@ -170,56 +110,71 @@ def init(
     rprint(f"  Detected languages: {', '.join(info.languages) or 'none'}")
     rprint(f"  Project name: {info.project_name}")
 
-    # Build config
-    import sys
-
-    config = build_config(info)
     env = _get_template_env()
-    ctx = {"config": config, "info": info, "is_windows": sys.platform == "win32"}
+    ctx = {"info": info}
 
-    # Generate .ade/ directory
+    # Generate .ade/.gitignore
     ade_dir = project_dir / ".ade"
-    _write_file(ade_dir / "config.yaml", config.to_yaml())
     _render_and_write(env, "ade_gitignore.j2", ade_dir / ".gitignore", ctx)
 
-    # Generate CrewAI agent definitions
-    for agent in ["architect", "coder", "tester", "fixer", "researcher", "reviewer"]:
-        _render_and_write(env, f"crew/{agent}.yaml.j2", ade_dir / "crew" / f"{agent}.yaml", ctx)
+    # Generate .claude/agents/*.md (from templates/agents/)
+    _render_template_dir(env, "agents/", project_dir / ".claude" / "agents", ctx)
 
-    # Generate Ollama Modelfiles
-    for mf in ["gemma4_ade", "qwen_test_ade", "qwen_fallback_ade"]:
-        _render_and_write(
-            env,
-            f"modelfiles/{mf}.j2",
-            ade_dir / "modelfiles" / f"Modelfile.{mf.replace('_', '-')}",
-            ctx,
-        )
+    # Generate .claude/skills/ade/ (from templates/skills/)
+    _render_template_dir(env, "skills/", project_dir / ".claude" / "skills" / "ade", ctx)
 
-    # Generate .pre-commit-config.yaml
-    _render_and_write(
-        env, "pre_commit_config.yaml.j2", project_dir / ".pre-commit-config.yaml", ctx
-    )
-
-    # Generate .claude/ commands
+    # Generate .claude/commands/*.md (from templates/commands/)
     commands_dir = project_dir / ".claude" / "commands"
-    for cmd in ["ade_full", "ade_plan", "ade_code", "ade_review", "ade_status", "ade_ship"]:
-        dest_name = cmd.replace("_", "-") + ".md"
-        _render_and_write(env, f"commands/{cmd}.md.j2", commands_dir / dest_name, ctx)
+    _render_template_dir(env, "commands/", commands_dir, ctx)
 
-    # Generate .claude/settings.json
-    _render_and_write(env, "settings_json.j2", project_dir / ".claude" / "settings.json", ctx)
-
-    # Update CLAUDE.md
+    # Update CLAUDE.md with ADE section
     ade_section_template = env.get_template("claude_md_section.md.j2")
     ade_section = ade_section_template.render(**ctx)
     _update_claude_md(project_dir, ade_section)
 
     rprint("\n[green]ADE initialized successfully![/green]")
     rprint("  Next steps:")
-    rprint("    1. pre-commit install")
-    rprint("    2. ade doctor          # Verify dependencies")
-    rprint("    3. claude              # Start Claude Code")
-    rprint("    4. /ade-full <task>    # Run a full SDLC cycle")
+    rprint("    1. ade doctor          # Verify prerequisites")
+    rprint("    2. claude              # Start Claude Code")
+    rprint("    3. /ade-full <task>    # Run a full SDLC cycle")
+
+
+@app.command()
+def doctor() -> None:
+    """Check that all ADE prerequisites are available."""
+    all_ok = True
+
+    required_tools = {
+        "claude": "Claude Code CLI",
+        "git": "Git",
+    }
+
+    optional_tools = {
+        "pre-commit": "Pre-commit framework",
+    }
+
+    rprint("[bold]ADE Doctor — Checking prerequisites[/bold]\n")
+
+    for cmd, description in required_tools.items():
+        if _check_command(cmd):
+            rprint(f"  [green]PASS[/green]  {description}")
+        else:
+            rprint(f"  [red]FAIL[/red]  {description} — '{cmd}' not found")
+            all_ok = False
+
+    for cmd, description in optional_tools.items():
+        if _check_command(cmd):
+            rprint(f"  [green]PASS[/green]  {description}")
+        else:
+            rprint(f"  [yellow]WARN[/yellow]  {description} — '{cmd}' not found (optional)")
+
+    if all_ok:
+        rprint("\n[green]All required prerequisites found.[/green]")
+    else:
+        rprint(
+            "\n[red]Some required prerequisites are missing. Install them before using ADE.[/red]"
+        )
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -228,83 +183,45 @@ def status(
 ) -> None:
     """Show the status of ADE tasks."""
     project_dir = project_dir.resolve()
-    ade_dir = project_dir / ".ade"
+    tasks_dir = project_dir / ".ade" / "tasks"
 
-    if not ade_dir.exists():
-        rprint("[yellow]No .ade directory found. Run 'ade init' first.[/yellow]")
+    if not tasks_dir.exists():
+        rprint("[yellow]No .ade/tasks directory found. Run 'ade init' first.[/yellow]")
         return
 
-    tasks = list_tasks(ade_dir=ade_dir)
+    task_dirs = sorted(
+        [d for d in tasks_dir.iterdir() if d.is_dir()],
+        key=lambda d: d.stat().st_mtime,
+        reverse=True,
+    )
 
-    if not tasks:
+    if not task_dirs:
         rprint("No active tasks.")
         return
 
-    for task in tasks:
-        status_color = {
-            TaskStatus.COMPLETED: "green",
-            TaskStatus.FAILED: "red",
-            TaskStatus.HUMAN_ESCALATION: "red",
-        }.get(task.status, "cyan")
+    table = Table(title="ADE Tasks")
+    table.add_column("Task ID", style="bold")
+    table.add_column("Phase")
+    table.add_column("Last Updated")
 
-        rprint(f"\n[bold]{task.task_id}[/bold] — {task.description}")
-        rprint(
-            f"  Status:  [{status_color}]{task.status.value}[/{status_color}]"
-            f"  (phase {task.current_phase})"
+    for task_dir in task_dirs:
+        task_id = task_dir.name
+        status_file = task_dir / "status.md"
+
+        phase = "unknown"
+        last_updated = datetime.fromtimestamp(task_dir.stat().st_mtime, tz=UTC).strftime(
+            "%Y-%m-%d %H:%M"
         )
 
-        if task.worktree:
-            rprint(f"  Worktree: {task.worktree}  (branch: {task.branch})")
+        if status_file.exists():
+            content = status_file.read_text(encoding="utf-8").strip()
+            # Extract phase from first non-empty line
+            for line in content.splitlines():
+                line = line.strip()
+                if line:
+                    phase = line
+                    break
 
-        iters = task.iterations
-        if iters.design_check or iters.code_review or iters.qa_fix or iters.verify_reject:
-            rprint(
-                f"  Iterations: design_check: {iters.design_check},"
-                f" code_review: {iters.code_review}, qa_fix: {iters.qa_fix},"
-                f" verify_reject: {iters.verify_reject}"
-            )
+        table.add_row(task_id, phase, last_updated)
 
-        if task.timestamps.get("created"):
-            rprint(f"  Created: {task.timestamps['created']}")
-
-
-@app.command()
-def update(
-    project_dir: Annotated[Path, typer.Option(help="Project directory")] = Path("."),
-) -> None:
-    """Update ADE config to the latest version."""
-    project_dir = project_dir.resolve()
-    ade_dir = project_dir / ".ade"
-    config_path = ade_dir / "config.yaml"
-
-    if not config_path.exists():
-        rprint("[red]No .ade/config.yaml found. Run 'ade init' first.[/red]")
-        raise typer.Exit(1)
-
-    try:
-        config, migrated = migrate_config(config_path)
-    except ConfigMigrationError as exc:
-        rprint(f"[red]Config migration failed: {exc}[/red]")
-        raise typer.Exit(1) from None
-    if migrated:
-        config_path.write_text(config.to_yaml(), encoding="utf-8")
-        rprint("[green]Config migrated to latest version. Backup saved as config.yaml.bak[/green]")
-    else:
-        rprint("Config is already up to date.")
-
-
-@app.command()
-def resume(
-    task_id: Annotated[str, typer.Argument(help="Task ID to resume")],
-    project_dir: Annotated[Path, typer.Option(help="Project directory")] = Path("."),
-) -> None:
-    """Show resume point for an interrupted task."""
-    project_dir = project_dir.resolve()
-    ade_dir = project_dir / ".ade"
-
-    if not ade_dir.exists():
-        rprint("[red]No .ade directory found. Run 'ade init' first.[/red]")
-        raise typer.Exit(1)
-
-    status, message = determine_resume_point(ade_dir=ade_dir, task_id=task_id)
-    rprint(f"\n[bold]{task_id}[/bold] — {message}")
+    rprint(table)

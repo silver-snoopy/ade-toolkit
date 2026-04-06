@@ -1,0 +1,15 @@
+Run ADE shipping phases (Commit & PR + Retrospective) for: $ARGUMENTS
+
+1. Phase 9 — Commit & PR:
+   - Stage relevant files (not .env, credentials, or unrelated changes)
+   - Commit with conventional message (imperative mood, max 72 chars)
+   - Push to feature branch
+   - Open PR with summary, acceptance criteria, test plan
+
+2. ◆ MERGE GATE — Present PR to user for review and merge decision
+
+3. Phase 10 — Retrospective:
+   - Record cycle time per phase, iteration counts
+   - What worked, what didn't
+   - Save to `.ade/tasks/<task-id>/retro.json`
+   - Clean up worktree after merge
