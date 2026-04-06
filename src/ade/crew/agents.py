@@ -56,5 +56,5 @@ def create_agent(
         llm=llm,
         verbose=config.get("verbose", False),
         allow_delegation=False,
-        max_iter=config.get("max_iter", 10),
+        max_iter=config.get("max_iterations", config.get("max_iter", 25)),
     )
