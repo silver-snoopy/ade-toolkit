@@ -210,9 +210,16 @@ def _build_task_description(phase: str, task_dir: Path, plan_files: list[str]) -
 
     # Tool usage instructions (local LLMs need explicit guidance)
     tool_guidance = (
-        "\n\nIMPORTANT: You MUST use the file_tool to create files. "
-        "For each file, call file_tool with mode='write', the file path, and the content. "
-        "Do NOT just describe what to create — actually call file_tool to write each file."
+        "\n\nIMPORTANT TOOL USAGE RULES:\n"
+        "You MUST use file_tool to create and modify files. Do NOT just describe changes.\n\n"
+        "For NEW files: file_tool(path='src/new.ts', mode='write', content='full content here')\n\n"
+        "For EXISTING files: NEVER use mode='write' — it destroys the file. Instead:\n"
+        "1. Read the file: file_tool(path='src/existing.ts', mode='read')\n"
+        "2. Edit it: file_tool(path='src/existing.ts', mode='edit', "
+        "old_string='exact text to replace', new_string='replacement text')\n"
+        "3. You can make multiple edits to the same file by calling edit multiple times.\n\n"
+        "The old_string MUST match exactly (including whitespace and newlines). "
+        "If it doesn't match, you'll get an error — read the file again and retry."
     )
 
     if plan_content:
