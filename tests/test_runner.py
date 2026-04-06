@@ -13,7 +13,9 @@ from ade.crew.runner import (
     EXIT_PARTIAL,
     EXIT_SUCCESS,
     PHASE_AGENT_MAP,
+    _check_worktree_changes,
     _load_plan_files,
+    _setup_worktree_task_dir,
     run,
 )
 
@@ -275,3 +277,86 @@ def test_run_success_writes_handoff_report(
     assert data["status"] == "success"
     assert data["phase"] == "code"
     assert data["agent_name"] == "coder"
+
+
+def test_load_plan_files_falls_back_to_implementation_plan(tmp_path: Path) -> None:
+    """Bug 9: When plan.md has few files, try implementation-plan.md."""
+    task_dir = tmp_path / "task"
+    task_dir.mkdir()
+    # plan.md with only 2 files
+    (task_dir / "plan.md").write_text("""# Plan
+| `src/a.ts` | Purpose |
+| `src/b.ts` | Purpose |
+""")
+    # implementation-plan.md with many files
+    (task_dir / "implementation-plan.md").write_text("""# Detailed Plan
+| `packages/shared/src/types/a.ts` | Types |
+| `packages/backend/src/services/b.ts` | Service |
+| `packages/backend/src/routes/c.ts` | Routes |
+| `packages/backend/src/db/d.ts` | Queries |
+| `packages/frontend/src/components/e.tsx` | UI |
+| `packages/frontend/src/hooks/f.ts` | Hooks |
+""")
+    files = _load_plan_files(task_dir)
+    # Should use implementation-plan.md since plan.md has < 5 files
+    assert len(files) == 6
+    assert "packages/shared/src/types/a.ts" in files
+
+
+def test_check_worktree_changes_ignores_ade_dir(tmp_path: Path) -> None:
+    """Bug 8: .ade/ files should not count as agent output."""
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            stdout="?? .ade/\n?? .ade/crew/architect.yaml\n"
+        )
+        assert _check_worktree_changes(tmp_path) is False
+
+
+def test_check_worktree_changes_detects_source_files(tmp_path: Path) -> None:
+    """Source file changes should be detected even alongside .ade/ changes."""
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            stdout="?? .ade/\n?? src/new-file.ts\n"
+        )
+        assert _check_worktree_changes(tmp_path) is True
+
+
+def test_check_worktree_changes_empty(tmp_path: Path) -> None:
+    """No changes at all should return False."""
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout="")
+        assert _check_worktree_changes(tmp_path) is False
+
+
+def test_setup_worktree_copies_crew_configs(tmp_path: Path) -> None:
+    """Bug 7: Crew YAML configs must be copied to worktree."""
+    # Set up main project .ade structure
+    main = tmp_path / "main"
+    main_ade = main / ".ade"
+    (main_ade / "crew").mkdir(parents=True)
+    (main_ade / "crew" / "architect.yaml").write_text("model: ollama/gemma4:31b")
+    (main_ade / "crew" / "coder.yaml").write_text("model: ollama/gemma4:31b")
+    (main_ade / "config.yaml").write_text("version: '3.0'")
+
+    # Task files
+    main_task = main_ade / "tasks" / "my-task"
+    main_task.mkdir(parents=True)
+    (main_task / "plan.md").write_text("# Plan")
+    (main_task / "implementation-plan.md").write_text("# Impl Plan")
+    (main_task / "intent.md").write_text("# Intent")
+
+    # Worktree task dir (empty — fresh worktree)
+    worktree_task = tmp_path / "worktree" / ".ade" / "tasks" / "my-task"
+
+    _setup_worktree_task_dir(worktree_task, "my-task", main)
+
+    # Verify crew configs copied
+    worktree_ade = tmp_path / "worktree" / ".ade"
+    assert (worktree_ade / "crew" / "architect.yaml").exists()
+    assert (worktree_ade / "crew" / "coder.yaml").exists()
+    assert (worktree_ade / "config.yaml").exists()
+
+    # Verify all .md files copied
+    assert (worktree_task / "plan.md").exists()
+    assert (worktree_task / "implementation-plan.md").exists()
+    assert (worktree_task / "intent.md").exists()

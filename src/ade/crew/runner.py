@@ -45,23 +45,43 @@ PHASE_DESCRIPTIONS: dict[str, str] = {
 }
 
 
-def _load_plan_files(task_dir: Path) -> list[str]:
-    """Extract file list from plan.md — supports bullet lists, tables, and inline backticks."""
-    plan_path = task_dir / "plan.md"
-    if not plan_path.exists():
-        return []
-
+def _extract_file_paths_from_md(path: Path) -> list[str]:
+    """Extract backtick-quoted file paths from a markdown file."""
     files: list[str] = []
-    for line in plan_path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if "`" not in stripped:
             continue
-        # Extract all backtick-quoted strings and check if they look like file paths
         parts = stripped.split("`")
         for i in range(1, len(parts), 2):  # odd indices are inside backticks
             candidate = parts[i].strip()
             if "/" in candidate and "." in candidate.split("/")[-1]:
                 files.append(candidate)
+    return files
+
+
+def _load_plan_files(task_dir: Path) -> list[str]:
+    """Extract file list from plan documents.
+
+    Checks plan.md first, then falls back to implementation-plan.md if
+    plan.md yields fewer than 5 files. This handles the common case where
+    a high-level plan.md has few paths but a detailed implementation plan
+    lists all files.
+    """
+    files: list[str] = []
+
+    plan_path = task_dir / "plan.md"
+    if plan_path.exists():
+        files = _extract_file_paths_from_md(plan_path)
+
+    # If plan.md yielded few files, try implementation-plan.md
+    if len(files) < 5:
+        impl_path = task_dir / "implementation-plan.md"
+        if impl_path.exists():
+            impl_files = _extract_file_paths_from_md(impl_path)
+            if len(impl_files) > len(files):
+                files = impl_files
+
     return list(dict.fromkeys(files))  # deduplicate preserving order
 
 
@@ -93,7 +113,7 @@ def _resolve_fallback_model(config_path: str) -> str | None:
 
 
 def _check_worktree_changes(worktree_path: Path) -> bool:
-    """Check if the worktree has uncommitted changes (new or modified files)."""
+    """Check if the worktree has source file changes (ignoring .ade/ bootstrapped files)."""
     import subprocess
 
     result = subprocess.run(
@@ -103,30 +123,64 @@ def _check_worktree_changes(worktree_path: Path) -> bool:
         text=True,
         timeout=30,
     )
-    return bool(result.stdout.strip())
+    if not result.stdout.strip():
+        return False
+    # Filter out .ade/ paths — those are bootstrapped config, not agent output
+    for line in result.stdout.strip().splitlines():
+        # porcelain format: "XY path" or "XY path -> path"
+        file_path = line[3:].split(" -> ")[0]
+        if not file_path.startswith(".ade/") and not file_path.startswith(".ade\\"):
+            return True
+    return False
 
 
 def _setup_worktree_task_dir(
     task_dir: Path, task_id: str, main_project_dir: Path | None = None
 ) -> None:
-    """Ensure the task directory exists in the worktree, copying plan from main if needed."""
+    """Ensure the worktree has all .ade/ files needed for agent execution.
+
+    Copies from main project:
+    - .ade/crew/*.yaml (agent configs with model names)
+    - .ade/config.yaml (project config with fallback models)
+    - .ade/tasks/<id>/*.md (plan, intent, and other task docs)
+    """
+    import shutil
+
     task_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy plan.md from main project .ade if it exists and worktree doesn't have it
-    if main_project_dir and not (task_dir / "plan.md").exists():
-        main_plan = main_project_dir / ".ade" / "tasks" / task_id / "plan.md"
-        if main_plan.exists():
-            import shutil
+    if not main_project_dir:
+        return
 
-            shutil.copy2(main_plan, task_dir / "plan.md")
+    main_ade = main_project_dir / ".ade"
+    if not main_ade.exists():
+        return
 
-    # Copy intent.md similarly
-    if main_project_dir and not (task_dir / "intent.md").exists():
-        main_intent = main_project_dir / ".ade" / "tasks" / task_id / "intent.md"
-        if main_intent.exists():
-            import shutil
+    # The worktree's .ade root (two levels up from task_dir: .ade/tasks/<id>)
+    worktree_ade = task_dir.parent.parent
 
-            shutil.copy2(main_intent, task_dir / "intent.md")
+    # Copy crew agent configs (required for model resolution)
+    main_crew = main_ade / "crew"
+    if main_crew.is_dir():
+        worktree_crew = worktree_ade / "crew"
+        worktree_crew.mkdir(parents=True, exist_ok=True)
+        for yaml_file in main_crew.glob("*.yaml"):
+            dest = worktree_crew / yaml_file.name
+            if not dest.exists():
+                shutil.copy2(yaml_file, dest)
+
+    # Copy project config
+    main_config = main_ade / "config.yaml"
+    worktree_config = worktree_ade / "config.yaml"
+    if main_config.exists() and not worktree_config.exists():
+        shutil.copy2(main_config, worktree_config)
+
+    # Copy all .md files from the task directory (plan, intent, implementation-plan, etc.)
+    main_task = main_ade / "tasks" / task_id
+    if main_task.is_dir():
+        for md_file in main_task.glob("*.md"):
+            dest = task_dir / md_file.name
+            if not dest.exists():
+                shutil.copy2(md_file, dest)
 
 
 def run(
