@@ -34,7 +34,13 @@ PHASE_AGENT_MAP: dict[str, str] = {
 
 # Phase-specific task descriptions
 PHASE_DESCRIPTIONS: dict[str, str] = {
-    "stubs": "Create file stubs and module structure based on the plan",
+    "stubs": (
+        "Create file stubs and module structure based on the plan. "
+        "For NEW files that don't exist yet, use mode='write' to create them with skeleton code. "
+        "For EXISTING files that need modification, use mode='read' first, then mode='edit' "
+        "with old_string/new_string to add imports or register new modules. "
+        "NEVER use mode='write' on a file that already exists — it destroys the content."
+    ),
     "code": "Implement the code according to the plan and stubs",
     "test": "Write comprehensive tests for the implemented code",
     "fix": "Fix failing tests and code issues identified by the test phase",
