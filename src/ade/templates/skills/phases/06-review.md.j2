@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Perform a structured 3-lens code review of all changes in the task branch. The review
-catches issues that automated checks cannot: logic errors, convention violations, and
-security vulnerabilities.
+Perform a structured code review of all changes in the task branch. The review catches
+issues that automated checks cannot: logic errors, convention violations, security
+vulnerabilities, test gaps, type design flaws, and comment accuracy.
 
 ## Review Scope
 
@@ -15,7 +15,19 @@ git diff main...ade/<task-id>
 
 Review every changed file. Do not skip files because they "look fine" or are "just tests."
 
-## Three Review Lenses
+## Review Mechanism
+
+**Preferred mechanism:** Invoke `pr-review-toolkit:review-pr` with aspects:
+code, errors, tests, types, comments (exclude simplify).
+
+This dispatches up to 5 specialized agents based on what changed:
+- **code-reviewer** — logic errors, convention violations, CLAUDE.md compliance, security
+- **silent-failure-hunter** — catch blocks, error suppression, inadequate logging
+- **pr-test-analyzer** — test coverage gaps, missing edge cases, test quality
+- **type-design-analyzer** — type encapsulation, invariant expression (only if types changed)
+- **comment-analyzer** — comment accuracy vs code, documentation completeness (only if comments changed)
+
+**Allowed fallback:** Launch 3 parallel Sonnet review subagents covering the same ground:
 
 ### Lens 1: Logic
 
@@ -62,71 +74,99 @@ Focus on OWASP Top 10 and application-specific security concerns.
 - **Secrets in code** — hardcoded API keys, tokens, or credentials
 - **Input validation** — are all user inputs validated before use?
 
-## Finding Severity Levels
+## Severity Classification
 
-### HIGH (blocking — must fix before merge)
+Both the preferred mechanism and fallback use the same severity taxonomy:
+
+### Critical (blocks merge — must fix immediately)
 - SQL injection vulnerability
 - Authentication/authorization bypass
 - Data loss or corruption possibility
 - Unhandled error that crashes the server
 - Secret or credential exposed in code
+- Silent failure that masks data corruption
 
-### MEDIUM (fix before merge — not emergency)
+### Important (fix before merge — can batch)
 - Missing input validation on user-facing endpoint
 - Incorrect error message misleading users
 - Convention violation that makes code hard to maintain
 - Missing test for a critical code path
 - Race condition that could cause incorrect data display
+- Catch block that swallows errors without logging
+- Type that fails to express its invariants
 
-### LOW (advisory — fix if convenient)
+### Suggestions (fix if file already open)
 - Minor naming inconsistency
 - Missing JSDoc on internal function
 - Slightly verbose code that could be simplified
 - Test that works but doesn't follow best practices
+- Comment that is accurate but could be clearer
+
+### Positive (informational — no action required)
+- Well-designed type with strong invariants
+- Thorough test coverage for edge cases
+- Clean error handling that preserves context
+- Code that follows established patterns effectively
 
 ## Handling Findings
 
-1. **HIGH findings** — Fix immediately. Do not proceed to verify phase.
-2. **MEDIUM findings** — Fix before merge. Can batch multiple MEDIUM fixes together.
-3. **LOW findings** — Note in review output. Fix if the file is already being changed.
+1. **Critical findings** — Fix immediately. Do not proceed to verify phase.
+2. **Important findings** — Fix before merge. Can batch multiple Important fixes together.
+3. **Suggestions** — Note in review output. Fix if the file is already being changed.
    Otherwise, leave for a future cleanup task.
+4. **Positive** — Include in review output. No action needed.
 
-After fixing HIGH or MEDIUM findings:
-- Re-run the full quality gate (Phase 5)
-- Re-review the fixes (abbreviated — focus on the changed areas)
+## Review-Fix Cycle
+
+After each review pass:
+
+1. If Critical or Important findings exist → fix them
+2. Invoke `code-simplifier` on changed files (polish pass)
+3. Re-run Phase 5 (Quality Gate) to validate fixes and simplifications
+4. Re-review (abbreviated — focus on changed areas)
+
+On review pass (no Critical/Important findings):
+
+1. Invoke `code-simplifier` — final polish pass
+2. Re-run Phase 5 (Quality Gate) to validate
+3. Proceed to Phase 7
 
 ## Review Output Format
 
 ```markdown
 ## Code Review: <task-id>
 
-### Lens 1: Logic
-| # | Severity | File | Line | Finding | Recommendation |
-|---|----------|------|------|---------|----------------|
-| 1 | HIGH | routes/export.ts | 42 | No null check on query result | Add null guard |
-| 2 | MEDIUM | hooks/useExport.ts | 18 | Missing error state reset | Reset error on retry |
+### Critical Issues
+| # | File | Line | Finding | Recommendation |
+|---|------|------|---------|----------------|
+| 1 | routes/export.ts | 42 | No null check on query result | Add null guard |
 
-### Lens 2: Conventions
-| # | Severity | File | Line | Finding | Recommendation |
-|---|----------|------|------|---------|----------------|
-| 3 | MEDIUM | types/export.ts | 5 | Uses `type` instead of `interface` | Change to interface |
+### Important Issues
+| # | File | Line | Finding | Recommendation |
+|---|------|------|---------|----------------|
+| 2 | hooks/useExport.ts | 18 | Missing error state reset | Reset error on retry |
+| 3 | types/export.ts | 5 | Uses `type` instead of `interface` | Change to interface |
 
-### Lens 3: Security
-| # | Severity | File | Line | Finding | Recommendation |
-|---|----------|------|------|---------|----------------|
-| 4 | LOW | routes/export.ts | 30 | Rate limiting not configured | Add to backlog |
+### Suggestions
+| # | File | Line | Finding | Recommendation |
+|---|------|------|---------|----------------|
+| 4 | routes/export.ts | 30 | Rate limiting not configured | Add to backlog |
+
+### Positive Observations
+- Clean parameterized query pattern in `queries/measurements.ts`
+- Thorough date validation in export hook
 
 ### Summary
-- HIGH: 1 (must fix)
-- MEDIUM: 2 (fix before merge)
-- LOW: 1 (advisory)
+- Critical: 1 (must fix)
+- Important: 2 (fix before merge)
+- Suggestions: 1 (advisory)
 
 **Verdict:** NEEDS FIXES — resolve #1, #2, #3 before proceeding.
 ```
 
 ## Iteration Limit
 
-- **Maximum 3 code-to-review cycles.**
+- **Maximum 3 review-fix cycles.**
 - If findings keep appearing after 3 rounds, escalate to the user.
-- Each cycle should reduce findings, not introduce new ones. If new HIGH findings appear
+- Each cycle should reduce findings, not introduce new ones. If new Critical findings appear
   in cycle 3 that weren't in cycle 1, something is fundamentally wrong — escalate.

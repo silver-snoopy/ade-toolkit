@@ -200,23 +200,44 @@ For detailed instructions, see [phases/05-quality-gate.md](phases/05-quality-gat
 
 Multi-lens code review to catch issues before verification.
 
-**Hard requirement:** Review the change across logic, conventions, and security. Resolve all HIGH and MEDIUM findings.
-**Preferred mechanism:** Launch 3 parallel Sonnet review subagents:
+**Hard requirement:** Review the change across logic, conventions, and security. Resolve all Critical and Important findings.
+**Preferred mechanism:** Invoke `pr-review-toolkit:review-pr` with aspects: code, errors, tests, types, comments (exclude simplify).
+  - Scope: `git diff main...ade/<task-id>` (not default HEAD diff)
+  - ADE iteration limit (max 3 cycles) governs the review-fix loop
+**Allowed fallback:** Launch 3 parallel Sonnet review subagents:
 1. **Logic** — errors, edge cases, null handling, race conditions
 2. **Conventions** — project patterns from CLAUDE.md, naming, structure
 3. **Security** — OWASP top 10, injection, auth bypass, secrets
-**Allowed fallback:** Perform structured self-review using the same three lenses.
 
-Classify findings: HIGH (blocking) | MEDIUM (fix before merge) | LOW (advisory).
-Fix all HIGH and MEDIUM before proceeding. Skip LOW unless trivial.
+### Severity Classification (both mechanisms use this)
 
-After fixes: re-run build to confirm no regressions.
+| Level | Meaning | Action |
+|-------|---------|--------|
+| **Critical** | Blocks merge — security, data loss, crashes | Must fix immediately |
+| **Important** | Correctness, conventions, maintainability | Fix before merge, can batch |
+| **Suggestions** | Minor style, verbose code | Fix if file already open |
+| **Positive** | What's done well | Informational |
+
+### Review-Fix Cycle (max 3 iterations)
+
+1. Run review (preferred or fallback mechanism)
+2. If Critical/Important findings → fix them
+3. Invoke `code-simplifier` on changed files
+4. Re-run Phase 5 (Quality Gate) to validate
+5. Re-review (abbreviated — focus on changed areas)
+6. If cycle 3 still has Critical findings → escalate to user
+
+### On Review Pass (no Critical/Important)
+
+1. Invoke `code-simplifier` — final polish pass
+2. Re-run Phase 5 (Quality Gate) to validate
+3. Proceed to Phase 7
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 6/10 — Review [APPROVED|FIXING]`
 
 For detailed instructions, see [phases/06-review.md](phases/06-review.md).
 
-**Exit criteria:** No unresolved HIGH/MEDIUM findings. Build still passes.
+**Exit criteria:** No unresolved Critical/Important findings. Build still passes. Simplification pass complete.
 
 ---
 

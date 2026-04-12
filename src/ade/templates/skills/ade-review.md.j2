@@ -1,17 +1,30 @@
 Run ADE review phases (Review + Verify + Documentation) for: $ARGUMENTS
 
 ## Phase 6 — REVIEW
-Launch 3 parallel Sonnet review subagents:
+
+**Hard requirement:** No unresolved Critical/Important findings.
+**Preferred mechanism:** Invoke `pr-review-toolkit:review-pr` with aspects:
+code, errors, tests, types, comments (exclude simplify).
+  - Scope: `git diff main...ade/<task-id>`
+  - ADE iteration limit (max 3 cycles) governs the review-fix loop
+**Allowed fallback:** Launch 3 parallel Sonnet review subagents:
 1. Logic: errors, edge cases, null handling, race conditions
 2. Conventions: project patterns from CLAUDE.md
 3. Security: OWASP top 10, injection, auth bypass, secrets
 
-Classify: HIGH (blocking) | MEDIUM (fix before merge) | LOW (advisory).
-Fix all HIGH and MEDIUM. Re-run build after fixes.
+Classify: Critical (blocking) | Important (fix before merge) | Suggestions (advisory) | Positive (informational).
+Fix all Critical and Important. Re-run build after fixes.
 
-**Hard requirement:** No unresolved HIGH/MEDIUM findings.
-**Allowed fallback:** Structured self-review using same three lenses.
-**Exit criteria:** No HIGH/MEDIUM findings. Build passes.
+### Review-Fix Cycle (max 3 iterations)
+1. Run review (preferred or fallback mechanism)
+2. If Critical/Important findings → fix them
+3. Invoke `code-simplifier` on changed files
+4. Re-run Phase 5 (Quality Gate) to validate
+5. Re-review (abbreviated — focus on changed areas)
+
+On review pass: invoke `code-simplifier` final polish → re-run Phase 5 → proceed.
+
+**Exit criteria:** No Critical/Important findings. Build passes. Simplification pass complete.
 
 ## Phase 7 — VERIFY (MANDATORY — NO EXEMPTIONS)
 Live verification with evidence for ALL changes (frontend, backend, refactors, anything).
