@@ -1,0 +1,76 @@
+Run the ADE GitHub PR review-and-fix loop for: $ARGUMENTS
+
+The orchestrator never edits code itself. It dispatches the `pr-reviewer` agent
+to inspect the PR, then dispatches `backend-coder` / `frontend-coder` agents to
+apply fixes inside the PR's worktree, then re-reviews until clean or the
+iteration cap is hit.
+
+## Resolve the PR
+
+If $ARGUMENTS is a PR number or URL → use it.
+Otherwise auto-detect:
+- Preferred: `mcp__github__list_pull_requests` filtered by `headRefName`
+- Fallback: `gh pr view --json number,headRefName,baseRefName,url`
+
+Fail fast with a clear message if no open PR matches the current branch.
+
+## Phase A — Review (dispatch `pr-reviewer`)
+
+Invoke the `pr-reviewer` subagent with the PR identifier. It must:
+1. Fetch PR metadata + full diff (MCP preferred, `gh` fallback)
+2. Run the three lenses (Logic / Conventions / Security)
+3. Post **one** consolidated review to the PR
+4. Return the JSON summary defined in the agent spec
+
+**Exit criteria:** review posted, JSON summary returned.
+
+## Phase B — Fix loop (max 3 iterations)
+
+While `verdict == NEEDS_FIXES` and `iteration < 3`:
+
+1. Check out the PR branch into a worktree:
+   ```bash
+   gh pr checkout <PR> --recurse-submodules
+   git worktree add .ade/worktrees/pr-<PR> HEAD
+   ```
+2. Group `actionable` findings by file. For each group, dispatch one coder
+   subagent (`backend-coder` for server/lib code, `frontend-coder` for UI).
+   Each agent owns its files — no overlap.
+3. Re-run Phase 5 (Quality Gate) via the `test-runner` agent inside the worktree.
+4. If quality gate passes → push to the PR branch:
+   ```bash
+   git push origin HEAD:<headRefName>
+   ```
+5. Re-dispatch `pr-reviewer` (abbreviated — focus on changed areas).
+6. If a new Critical finding appears that wasn't in cycle 1 → escalate to user.
+   Do NOT silently retry.
+
+## Phase C — Resolve threads & summarize
+
+When `verdict in {ADVISORY, LGTM}`:
+
+1. Resolve the review threads we addressed:
+   - Preferred: `mcp__github__resolve_review_thread`
+   - Fallback: leave a reply via `gh pr comment` linking the resolving commit
+2. Post a final summary comment with:
+   - Cycles run
+   - Findings fixed (counts by severity)
+   - Commits added
+   - Final verdict
+3. Update `.ade/tasks/<task-id>/status.md` with `Phase PR-Review complete`.
+
+## Circuit breakers
+
+- Max **3** review-fix cycles. After that, escalate.
+- Never force-push. Never amend commits already on the PR.
+- Never `--request-changes` on someone else's PR without explicit user approval.
+- Never auto-merge. The MERGE GATE in Phase 9 still applies.
+
+## Optional: subscribe to PR activity
+
+If the user wants Claude to keep watching the PR after this skill completes:
+```
+mcp__github__subscribe_pr_activity  (pr: <number>)
+```
+The orchestrator can then react to incoming review comments and CI failures
+without polling.
