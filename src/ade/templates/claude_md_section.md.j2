@@ -55,11 +55,20 @@ acceptance criterion from Phase 0.
 **Phase 10 — RETROSPECTIVE**: Record metrics and learnings.
 Save to `.ade/tasks/<task-id>/retro.json`. Clean up worktree.
 
+### Post-merge: GitHub PR review-and-fix loop
+
+After the PR exists (or for any external PR), `/ade-pr-review [pr]` runs the
+`ade-pr-review` skill: dispatches the `pr-reviewer` agent to inspect the PR
+through the GitHub MCP server (or `gh` CLI fallback), then dispatches coder
+subagents to apply fixes inside the PR's worktree, then re-reviews. Bounded to
+3 cycles. Never auto-merges; never force-pushes.
+
 ### Circuit Breaker
 - Design check: max 2 iterations
 - Code→review loop: max 3 cycles
 - QA fix: max 3 iterations
 - Verify→review reject: max 2 cycles
+- PR review-fix loop: max 3 cycles
 After any limit, escalate to user. Do NOT retry silently.
 
 ### Orchestrator Rules

@@ -150,3 +150,28 @@ def test_init_full_skill_has_live_verification(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     content = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
     assert "no exemptions" in content.lower() or "NO EXEMPTIONS" in content
+
+
+def test_init_generates_pr_reviewer_agent(python_project: Path) -> None:
+    """The github PR reviewer agent should be scaffolded."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agent_path = python_project / ".claude" / "agents" / "pr-reviewer.md"
+    assert agent_path.exists()
+    content = agent_path.read_text()
+    assert "model:" in content
+    assert "sonnet" in content
+    assert "mcp__github__pull_request_read" in content
+    assert "gh pr" in content
+
+
+def test_init_generates_pr_review_command_and_skill(python_project: Path) -> None:
+    """The /ade-pr-review command and its backing skill should be scaffolded."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    cmd = python_project / ".claude" / "commands" / "ade-pr-review.md"
+    skill = python_project / ".claude" / "skills" / "ade" / "ade-pr-review.md"
+    assert cmd.exists()
+    assert skill.exists()
+    assert "$ARGUMENTS" in cmd.read_text()
+    skill_content = skill.read_text()
+    assert "pr-reviewer" in skill_content
+    assert "max 3" in skill_content.lower() or "max **3**" in skill_content.lower()
