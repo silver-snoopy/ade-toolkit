@@ -70,33 +70,39 @@ For detailed instructions, see [phases/qa-verify-bug.md](phases/qa-verify-bug.md
 
 ## Phase 1 — RESEARCH
 
-Investigate the codebase before planning.
+Produce a verified, durable spec in five sub-steps (R1–R5). The phase accumulates three project artifacts: the permanent spec, an updated domain glossary (`CONTEXT.md`), and zero-or-more ADRs under `docs/adr/`.
 
-**Hard requirement:** Research the existing implementation, similar patterns, and reusable utilities well enough to propose an implementation approach.
-**Preferred mechanism:** Launch up to 3 Explore agents in parallel:
-1. **Existing implementation** — files, functions, execution paths involved
-2. **Related patterns** — how similar features work elsewhere in the codebase
-3. **Reusable utilities** — shared helpers, hooks, components that can be reused
-**Allowed fallback:** Manual investigation covering the same three scopes with detailed file paths.
+**Hard requirement:** Produce a finalized spec at `docs/specs/{YYYY-MM-DD}_{slug}.spec.md` that has been (a) grounded in codebase + optional web research, (b) refined against the project's domain language via `grill-with-docs`, and (c) verified by Chain-of-Verification with independent-context spec-verifier subagents.
+
+**Preferred mechanism:**
+
+- **R2.1 Code scouting (iterative retrieval, max 3 cycles)**: dispatch `scout` subagents in parallel — `current-state` + `available-surface`. Evaluate returns against 0.8/0.5/0.2 relevance thresholds. If stop criterion not met (≥3 high-relevance findings AND no critical gaps AND no terminology mismatch), refine with codebase vocabulary and re-dispatch. Hard cap: 3 cycles.
+- **R2.2 Confidence check**: orchestrator decides whether web research is needed based on scout `open_questions[]`. Required when user opted in OR scouts referenced external concepts not in CONTEXT.md. Write the decision (with justification) to `.ade/tasks/<task-id>/research/r2.2-decision.md`.
+- **R2.3 Web research (conditional)**: dispatch `web-researcher` subagents (1 per topic, parallel). Tier 0 by default (WebSearch + WebFetch + Context7). Tier 1 (Tavily/Exa) only if env vars set or `--deep` flag. IPI hardening enforced in agent definition.
+- **R3.1 Synthesizer draft**: `synthesizer` Role A consolidates research bundles into a draft spec at `docs/specs/{YYYY-MM-DD}_{slug}.spec.md`.
+- **R3.2 Orchestrator interview**: scan draft against the 10-category ambiguity taxonomy (Functional Scope, Data Model, UX Flow, Non-Functional, Integration, Edge Cases, Constraints, Terminology, Completion Signals, Misc). One question at a time; multi-choice preferred (recommended + 1 alternative); **hard cap: 5 questions**; update spec atomically after each answer.
+- **R4 Refine**: invoke vendored `grill-with-docs` against the spec. Updates CONTEXT.md inline; creates ADRs sparingly. Always runs (trivial when spec already aligned).
+- **R5 Verify (CoVe factor+revise)**: extract 8–15 verification claims from the spec. Dispatch `spec-verifier` subagents in parallel — **each receives ONE claim only, never the spec text** (structural guarantee). Synthesizer Role B revises spec for material discrepancies.
+
+**Allowed fallback:** If subagent dispatch fails, the orchestrator may run R2.1 / R2.3 inline using Read/Grep/Glob / WebSearch / WebFetch directly. The iterative-retrieval discipline, citation invariants, ambiguity taxonomy, and CoVe verifier-isolation rule still apply.
 
 For detailed instructions, see [phases/01-research.md](phases/01-research.md).
 
-**Exit criteria:** Present findings to user with proposed implementation approach.
+**Exit criteria:** Spec file finalized at `docs/specs/{date}_{slug}.spec.md`. CONTEXT.md and `docs/adr/` reflect any new domain knowledge. User confirmed readiness to proceed.
 
 ---
 
-## ◆ USER GATE ◆
+## ◆ READY-FOR-DEVELOPMENT GATE ◆
 
-**STOP HERE.** Present research findings and proposed approach to the user.
-Get explicit approval before proceeding.
+**STOP HERE.** Summarize for the user:
+- Path to the finalized spec
+- New CONTEXT.md entries (count + topics)
+- New ADRs (count + titles)
+- Any verifier findings noted-but-not-revised (with rationale)
 
-Include:
-- Summary of research findings
-- Proposed approach (files to create/modify)
-- Design decisions that need user input
-- Estimated scope (S/M/L)
+Confirm: **ready to proceed to Plan (D1)?**
 
-**Do NOT proceed to Phase 2 until the user explicitly approves.**
+The spec is now the contract for Development. **Do NOT proceed to Phase 2 until the user explicitly confirms.**
 
 ---
 
@@ -105,10 +111,12 @@ Include:
 Write a detailed implementation plan.
 
 **Hard requirement:** Produce a concrete written plan specific enough to execute without ambiguity.
-**Preferred mechanism:** Launch a Plan agent with all research context and user feedback.
+**Preferred mechanism:** Launch a Plan agent with the finalized spec (`docs/specs/{date}_{slug}.spec.md`) as primary input, plus CONTEXT.md and relevant ADRs as supporting context.
 **Allowed fallback:** Write the plan directly.
 
 Plan file: `.ade/tasks/<task-id>/plan.md`
+
+Primary input: `docs/specs/{date}_{slug}.spec.md` (the Research-phase output).
 
 Required sections:
 1. **Context** — why this change is being made

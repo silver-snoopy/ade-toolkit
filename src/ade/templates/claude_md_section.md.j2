@@ -13,17 +13,44 @@ When asked to implement a feature or fix a bug using the ADE workflow
 - Estimated scope: S (< 3 files) | M (3-10 files) | L (> 10 files)
 - Save to `.ade/tasks/<task-id>/intent.md`
 
-**Phase 1 — RESEARCH**: Launch up to 3 Explore agents in parallel:
-1. Existing implementation — files, functions, execution paths involved
-2. Related patterns — how similar features work elsewhere in the codebase
-3. Reusable utilities — shared helpers, hooks, components that can be reused
+**Phase 1 — RESEARCH**: Produce a verified, durable spec in five sub-steps (R1–R5).
+The phase accumulates three project artifacts: a permanent spec, an updated domain
+glossary (`CONTEXT.md`), and zero-or-more ADRs under `docs/adr/`.
 
-**◆ USER GATE ◆**: STOP. Present research findings and proposed approach.
-Get explicit approval before proceeding.
+- **R1 Intent**: from Phase 0. Scope estimate (S/M/L) is informational, not routing.
+- **R2 Investigate**:
+  - R2.1 Code scouting with **iterative retrieval** (max 3 cycles). Dispatch
+    `scout` subagents in parallel: `current-state` + `available-surface`.
+    Evaluate against relevance scoring (0.8 high / 0.5 medium / 0.2 low).
+    Refine terminology and re-dispatch if stop criterion not met.
+  - R2.2 Orchestrator **confidence check**: decide if web research is needed.
+    Spawn web research only if user opted in OR scout open_questions reference
+    external concepts not in CONTEXT.md. Justify the decision in writing.
+  - R2.3 Web research (conditional): dispatch `web-researcher` subagents per
+    topic. Tier 0 default (WebSearch + WebFetch + Context7). IPI hardening
+    enforced in agent definition.
+- **R3 Specify**:
+  - R3.1 `synthesizer` subagent drafts spec from research bundles.
+  - R3.2 Orchestrator interviews user using the **10-category ambiguity taxonomy**:
+    Functional Scope, Data Model, UX Flow, Non-Functional, Integration, Edge Cases,
+    Constraints, Terminology, Completion Signals, Misc. **One question at a time**,
+    multi-choice preferred (recommended + 1 alternative), **hard cap: 5 questions**.
+  - Spec written to `docs/specs/{YYYY-MM-DD}_{slug}.spec.md` (permanent).
+- **R4 Refine**: invoke vendored `grill-with-docs` against the spec. Always runs;
+  trivial when spec uses existing CONTEXT.md vocabulary. Updates CONTEXT.md inline
+  and creates ADRs sparingly (3-criteria gate: hard-to-reverse, surprising, real trade-off).
+- **R5 Verify (Chain of Verification, factor+revise)**: extract 8–15 verification
+  claims from the spec; dispatch `spec-verifier` subagents in parallel — **each
+  receives ONE claim only, never the spec text** (structural guarantee of factor+revise).
+  Synthesizer Role B revises spec for material discrepancies.
+
+**◆ READY-FOR-DEVELOPMENT GATE ◆**: Present finalized spec + new CONTEXT.md entries +
+new ADRs to user. Confirm before proceeding to Phase 2.
 
 **Phase 2 — PLAN**: Write implementation plan to `.ade/tasks/<task-id>/plan.md`
 with 6 mandatory sections: Context, Ordered task list, Files to create/modify,
-Dependencies, Test strategy, Risk areas.
+Dependencies, Test strategy, Risk areas. The plan consumes the spec at
+`docs/specs/{date}_{slug}.spec.md` as its primary input.
 
 **◆ PLAN GATE ◆**: Verify plan completeness before proceeding.
 
@@ -46,7 +73,14 @@ Fix all HIGH and MEDIUM findings before proceeding.
 **Phase 7 — VERIFY**: Run full test suite. Capture evidence for each
 acceptance criterion from Phase 0.
 
-**Phase 8 — DOCUMENTATION**: Update affected project documentation.
+**Phase 8 — DOCUMENTATION**: Update docs triggered by code changes:
+- New service/provider → update file tree in architecture doc
+- New API route → update endpoints table in architecture doc
+- New DB table/migration → update data model table in architecture doc
+- New shared interface/type → update package description in architecture doc
+- New user-facing feature → update `docs/product-capabilities.md`
+- Removed dependency/pattern → note removal in architecture doc
+- New convention/command/env var → update CLAUDE.md
 
 **Phase 9 — COMMIT & PR**: Stage, commit, push, open PR.
 

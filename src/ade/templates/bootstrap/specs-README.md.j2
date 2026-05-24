@@ -1,0 +1,13 @@
+# Specifications
+
+This directory holds permanent specifications produced by ADE's Research phase.
+
+## Naming convention
+
+`{YYYY-MM-DD}_{slug}.spec.md` — date-prefixed for chronological ordering. The slug is a 2–4 word kebab-case summary of the intent. On same-day collisions, an auto-incrementing suffix is added: `..._2.spec.md`, `..._3.spec.md`.
+
+## Lifecycle
+
+Each spec is created by R3 (Specify) — synthesizer drafts from research bundles, orchestrator interviews the user one question at a time using a 10-category ambiguity taxonomy with a cap of 5 questions. The draft is then refined by R4 (`grill-with-docs`) against the project's CONTEXT.md and ADRs, and verified by R5 (Chain-of-Verification factor+revise) before being handed off to the Development phase.
+
+Specs are durable artifacts. They are not deleted when a task completes — they remain as reference material for future tasks that touch the same area.

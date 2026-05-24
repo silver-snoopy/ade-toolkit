@@ -2,35 +2,51 @@
 
 ## Project Overview
 
-ADE (Agentic Development Environment) is a thin Python bootstrapper that scaffolds AI-driven SDLC skills and subagent definitions for Claude Code.
+ADE (Agentic Development Environment) is a Python bootstrapper that scaffolds AI-driven SDLC skills and subagent definitions for Claude Code.
 
-`ade init` generates `.claude/agents/`, `.claude/skills/ade/`, and `.claude/commands/` — everything Claude Code needs to run a structured 10-phase development workflow with Opus as orchestrator and Sonnet/Haiku as workers.
+`ade init` generates `.claude/agents/`, `.claude/skills/ade/`, `.claude/commands/`, and seeds project documentation artifacts (`CONTEXT.md`, `docs/adr/`, `docs/specs/`) — everything Claude Code needs to run a structured 10-phase development workflow with Opus as orchestrator and Sonnet/Haiku as worker subagents.
 
-## Architecture (v4)
+## Architecture
 
 - **No runtime framework** — no CrewAI, no Ollama, no custom agent runtime
 - **Skills are Markdown** — `.claude/skills/ade/*.md` define the SDLC phases
 - **Agents are Markdown** — `.claude/agents/*.md` define subagent roles and model assignments
 - **The bootstrapper only scaffolds** — it doesn't run agents, execute code, or manage state
 - **Claude Code IS the runtime** — subagents, worktrees, Edit/Write/Bash are all native
+- **External skills are vendored with attribution** under `src/ade/templates/skills/vendored/` (currently `mattpocock-grill-with-docs`, MIT)
+
+## Research phase (Phase 1) at a glance
+
+The most rigorous part of the pipeline. Five sub-steps producing three permanent artifacts (spec, glossary entries, ADRs):
+
+- **R1** Intent (from Phase 0)
+- **R2** Investigate — R2.1 parallel scouts with iterative retrieval (max 3 cycles); R2.2 orchestrator confidence check; R2.3 conditional web research (Tier 0 by default)
+- **R3** Specify — synthesizer drafts; orchestrator interviews user with 10-category ambiguity taxonomy (cap: 5 questions)
+- **R4** Refine — vendored `grill-with-docs` against the spec
+- **R5** Verify — Chain-of-Verification (factor+revise) with `spec-verifier` subagents that never see the spec
+
+See [`docs/ade-architecture-design.md`](docs/ade-architecture-design.md) for the full architecture.
 
 ## Project Structure
 
 ```
 ade-toolkit/
 ├── src/ade/
-│   ├── cli.py            # CLI: init, doctor, status
-│   ├── detect.py         # Project stack auto-detection
+│   ├── cli.py                          # CLI: init, doctor, status
+│   ├── detect.py                       # Project stack auto-detection
 │   └── templates/
-│       ├── agents/       # Subagent definition templates
-│       ├── skills/       # SDLC skill templates
-│       ├── commands/     # Slash command templates
+│       ├── agents/                     # Subagent definition templates
+│       ├── skills/
+│       │   ├── phases/                 # Per-phase skill templates (00-intent … 10-retro)
+│       │   ├── ade-*.md.j2             # Composite workflow skills
+│       │   └── vendored/               # External skills with original LICENSE preserved
+│       ├── commands/                   # Slash command templates
+│       ├── bootstrap/                  # User-owned seeds (CONTEXT.md, ADR-0001, specs/README)
 │       ├── claude_md_section.md.j2
 │       └── ade_gitignore.j2
 ├── docs/
-│   ├── orchestrator-invariants.md
-│   ├── ade-architecture-design.md  # v3 spec (historical)
-│   └── ade-research-findings.md    # v3 research (historical)
+│   ├── ade-architecture-design.md      # Current architecture (this generation)
+│   └── theme-metaphor-research.md      # Parking doc for future thread
 ├── tests/
 └── pyproject.toml
 ```
@@ -51,3 +67,4 @@ ruff format src/ tests/    # Format
 - Type hints on all public functions
 - Tests in `tests/` mirroring `src/` structure
 - Conventional commits
+- User-owned project artifacts (`CONTEXT.md`, `docs/adr/`, `docs/specs/`) are seeded once by `ade init` and never overwritten thereafter — see `_render_and_write_if_missing` in `cli.py`
