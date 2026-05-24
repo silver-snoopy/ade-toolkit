@@ -9,22 +9,28 @@ For bugs: also run QA Verify — reproduce on live system with evidence.
 **Exit criteria:** Goal and acceptance criteria clearly stated.
 
 ## Phase 1 — RESEARCH
-Launch up to 3 Explore agents in parallel:
-1. Existing implementation — files, functions, execution paths
-2. Related patterns — how similar features work elsewhere
-3. Reusable utilities — shared helpers, hooks, components
 
-**Hard requirement:** Research well enough to propose an approach.
-**Preferred mechanism:** 3 parallel Explore agents.
-**Allowed fallback:** Manual investigation covering same scopes.
-**Exit criteria:** Findings presented to user with proposed approach.
+Produce a verified, durable spec via five sub-steps:
 
-## ◆ USER GATE
-STOP. Present findings. Get explicit approval before proceeding.
+- **R2.1 Code scouting (iterative retrieval, max 3 cycles)**: parallel `scout` subagents on `current-state` + `available-surface`. Evaluate against 0.8/0.5/0.2 relevance thresholds; refine and re-dispatch if stop criterion not met.
+- **R2.2 Confidence check**: orchestrator decides whether web research is needed; justifies the decision in writing.
+- **R2.3 Web research (conditional)**: parallel `web-researcher` subagents per topic. Tier 0 by default. IPI-hardened.
+- **R3 Specify**: `synthesizer` drafts spec; orchestrator interviews user using the 10-category ambiguity taxonomy. One question at a time; recommended + 1 alternative; hard cap 5 questions. Spec written to `docs/specs/{YYYY-MM-DD}_{slug}.spec.md`.
+- **R4 Refine**: invoke vendored `grill-with-docs` against the spec — updates CONTEXT.md, creates ADRs sparingly.
+- **R5 Verify (CoVe factor+revise)**: dispatch `spec-verifier` subagents per claim — verifiers never receive the spec. Synthesizer Role B revises for material discrepancies.
+
+**Hard requirement:** Finalized spec at `docs/specs/{date}_{slug}.spec.md`; CONTEXT.md and `docs/adr/` reflect any new domain knowledge.
+**Preferred mechanism:** parallel subagent dispatch per sub-step above.
+**Allowed fallback:** orchestrator runs sub-steps inline; iterative-retrieval discipline, citation invariants, ambiguity taxonomy, and CoVe verifier-isolation rule still apply.
+
+## ◆ READY-FOR-DEVELOPMENT GATE
+STOP. Summarize spec path, new CONTEXT.md entries, new ADRs, and unresolved verifier findings. Confirm before proceeding.
 
 ## Phase 2 — PLAN
 Write implementation plan to `.ade/tasks/<task-id>/plan.md` with 6 sections:
 Context, Ordered task list, Files to create/modify, Dependencies, Test strategy, Risk areas.
+
+Primary input: `docs/specs/{date}_{slug}.spec.md` (Research-phase output).
 
 **Hard requirement:** Plan specific enough to execute without ambiguity.
 **Exit criteria:** Plan file written with all 6 sections.

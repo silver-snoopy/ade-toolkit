@@ -90,17 +90,43 @@ def test_init_skills_have_phase_content(python_project: Path) -> None:
     assert "PLAN" in plan or "plan" in plan
 
 
-def test_doctor_reports_missing_tools() -> None:
+def test_doctor_reports_missing_tools(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
     with patch("ade.cli._check_command", return_value=False):
-        result = runner.invoke(app, ["doctor"])
+        result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
     assert result.exit_code == 1
     assert "FAIL" in result.output
 
 
-def test_doctor_reports_all_ok() -> None:
+def test_doctor_reports_all_ok(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
     with patch("ade.cli._check_command", return_value=True):
-        result = runner.invoke(app, ["doctor"])
+        result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
     assert result.exit_code == 0
+
+
+def test_doctor_flags_uninitialized_project(python_project: Path) -> None:
+    """Doctor must FAIL on a project where `ade init` hasn't been run."""
+    with patch("ade.cli._check_command", return_value=True):
+        result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
+    assert result.exit_code == 1
+    assert "FAIL" in result.output
+    # Should hint at the recovery command
+    assert "ade init" in result.output
+
+
+def test_doctor_warns_on_missing_bootstrap_artifacts(python_project: Path) -> None:
+    """Doctor should pass but warn when user-owned bootstrap files are removed."""
+    import shutil
+
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    # Remove the seeded docs/specs/ directory to simulate user cleanup
+    shutil.rmtree(python_project / "docs" / "specs")
+
+    with patch("ade.cli._check_command", return_value=True):
+        result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
+    assert result.exit_code == 0
+    assert "WARN" in result.output
 
 
 def test_status_no_tasks(python_project: Path) -> None:
