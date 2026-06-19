@@ -1,7 +1,7 @@
 # Design — G1 + G2: Author-separated TDD & a deterministic hook layer
 
 **Date:** 2026-06-19
-**Status:** Approved (design); pending implementation plan
+**Status:** Implemented (2026-06-19, branch `ade/g1-g2-tdd-hooks`)
 **Scope:** ADE toolkit (`src/ade/`) — closes gaps G1 and G2 from `docs/ade-sdlc-gap-analysis.html`.
 
 ## 1. Context & motivation

@@ -380,9 +380,7 @@ def doctor(
         else:
             rprint("[green]All checks pass.[/green]")
     else:
-        rprint(
-            "[red]Required checks failed. Fix issues above before running ADE workflows.[/red]"
-        )
+        rprint("[red]Required checks failed. Fix issues above before running ADE workflows.[/red]")
         raise typer.Exit(1)
 
 

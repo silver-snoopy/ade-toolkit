@@ -21,9 +21,7 @@ def _render_hooks(dest: Path) -> None:
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["git", *args], cwd=repo, capture_output=True, text=True, check=False
-    )
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=False)
 
 
 @pytest.fixture
@@ -93,7 +91,11 @@ def test_block_mixed_commit_marker_bypass(hook_repo: Path) -> None:
     env = dict(os.environ, PRE_COMMIT_COMMIT_MSG_FILENAME=str(msg))
     result = subprocess.run(
         [sys.executable, str(hook_repo / ".claude" / "hooks" / "block-mixed-commit.py")],
-        cwd=hook_repo, capture_output=True, text=True, check=False, env=env,
+        cwd=hook_repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
     )
     assert result.returncode == 0, result.stderr
 
@@ -137,7 +139,11 @@ def test_hooks_stdin_json_mode(hook_repo: Path) -> None:
     hook = hook_repo / ".claude" / "hooks" / "block-mixed-commit.py"
     result = subprocess.run(
         [sys.executable, str(hook), "--stdin-json"],
-        cwd=hook_repo, input=payload, capture_output=True, text=True, check=False,
+        cwd=hook_repo,
+        input=payload,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert result.returncode == 2, result.stderr
 
@@ -148,7 +154,11 @@ def test_hooks_stdin_json_ignores_non_commit(hook_repo: Path) -> None:
     hook = hook_repo / ".claude" / "hooks" / "check-leftover-stub.py"
     result = subprocess.run(
         [sys.executable, str(hook), "--stdin-json"],
-        cwd=hook_repo, input=payload, capture_output=True, text=True, check=False,
+        cwd=hook_repo,
+        input=payload,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert result.returncode == 0, result.stderr
 
@@ -160,6 +170,10 @@ def test_check_leftover_stub_stdin_json_mode(hook_repo: Path) -> None:
     hook = hook_repo / ".claude" / "hooks" / "check-leftover-stub.py"
     result = subprocess.run(
         [sys.executable, str(hook), "--stdin-json"],
-        cwd=hook_repo, input=payload, capture_output=True, text=True, check=False,
+        cwd=hook_repo,
+        input=payload,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert result.returncode == 2, result.stderr
