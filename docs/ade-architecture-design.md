@@ -39,7 +39,7 @@ CLAUDE.md         → ADE workflow section appended on init
 | 1 — Research | Produce verified durable spec | R1–R5 (see below) | `docs/specs/{date}_{slug}.spec.md`, `CONTEXT.md` updates, `docs/adr/NNNN-*.md` |
 | 2 — Plan | Write implementation plan | Orchestrator | `.ade/tasks/<id>/plan.md` (6 mandatory sections) |
 | 3 — Design check | Generate stubs in worktree | Sonnet subagent | Stub files matching plan |
-| 4 — Implement | Write code from plan | 1–3 Sonnet subagents | Code in worktree |
+| 4 — Implement | Author-separated TDD: write failing tests then drive them to green | `test-writer` (RED) → 1–3 implementer subagents (GREEN) | Tests + code in worktree |
 | 5 — Quality gate | Lint, format, build, tests | Haiku subagent | Pass/fail with fix loop (max 3) |
 | 6 — Review | Multi-aspect code review | `pr-review-toolkit` (preferred) or 3 parallel Sonnet subagents (fallback) | Findings table (Critical / Important / Suggestions / Positive) |
 | 7 — Verify | Live evidence per acceptance criterion | Orchestrator | `.ade/tasks/<id>/verification/` |
@@ -202,13 +202,35 @@ These phases retain the structure that predates the v5 Research rewrite. They ar
 
 - **Phase 2 — Plan**: 6 mandatory sections (Context, Ordered task list, Files, Dependencies, Test strategy, Risk areas). Primary input: the spec from R5.
 - **Phase 3 — Design check**: Subagent in worktree generates file stubs from plan. Max 2 iterations.
-- **Phase 4 — Implement**: 1–3 subagents own non-overlapping files. Build order: shared → backend → frontend.
+- **Phase 4 — Implement**: Author-separated TDD. Phase 4a: `test-writer` writes failing tests covering the plan's acceptance criteria and commits them alone (RED). Phase 4b: 1–3 implementer subagents (`backend-coder`, `frontend-coder`) drive those tests to GREEN, never editing test files. Build order: shared → backend → frontend. The `block-mixed-commit` hook enforces the commit boundary between phases.
 - **Phase 5 — Quality gate**: Lint, format, build, tests. Fix loop max 3.
 - **Phase 6 — Review**: `pr-review-toolkit` preferred; fallback is 3 parallel subagents (Logic / Conventions / Security). Findings classified Critical / Important / Suggestions / Positive. Review-fix cycle max 3.
 - **Phase 7 — Verify**: Live evidence per acceptance criterion. Max 2 verify-reject cycles.
 - **Phase 8 — Docs**: Architecture, capabilities, API docs, CLAUDE.md updates.
 - **Phase 9 — Ship**: Commit, push, open PR. Human gate.
 - **Phase 10 — Retro**: Metrics, learnings, worktree cleanup.
+
+## Deterministic hook layer (G2)
+
+Two Python scripts committed under `.claude/hooks/` act as a hard gate on commit integrity. Because they live inside the repository (not in gitignored `.ade/`), they are present inside every git worktree without any extra setup step.
+
+### Checks
+
+- **`block-mixed-commit.py`** — rejects any commit that contains both test files and non-test source files in the same changeset. This enforces the Phase 4a/4b author separation at the VCS level. Bypass: include `[test-refactor]` in the commit message for the narrow case of a refactor that must touch both together.
+- **`check-leftover-stub.py`** — rejects committed non-test source files that still contain stub markers (`NotImplementedError`, `TODO: implement`, or `Not implemented`). This prevents stubs from being accidentally shipped as real implementation.
+
+Both scripts share common detection logic via `_hooklib.py` (also in `.claude/hooks/`), so they work identically regardless of which substrate wires them.
+
+### Wiring — `ade init --agent {claude,copilot}`
+
+The hook substrate is selected once at project initialization:
+
+- **`--agent claude`** (default): writes `.claude/settings.json` with PreToolUse(Bash) hook entries, merged idempotently into any pre-existing settings file. Claude Code runs the checks before each relevant Bash tool call.
+- **`--agent copilot`**: seeds `.pre-commit-config.yaml` with pre-commit hook entries. After init, run `pre-commit install --hook-type pre-commit --hook-type commit-msg` to activate. Git runs the checks at commit time.
+
+### Failure behavior
+
+Both hooks are a **hard gate**: a violation rejects the commit with a human-readable explanation. The orchestrator does not retry past a hook failure — the violation must be corrected before the commit is retried.
 
 ## Subagent catalog
 
@@ -220,8 +242,9 @@ All subagents are defined as Markdown files under `.claude/agents/` with YAML fr
 | `web-researcher` | sonnet | WebSearch, WebFetch, Read | R2.3 |
 | `synthesizer` | sonnet | Read, Write | R3.1, R5.3 |
 | `spec-verifier` | sonnet | Read, Grep, Glob | R5.2 |
-| `backend-coder` | sonnet | Read, Write, Edit, Bash, Glob, Grep | Phase 4 |
-| `frontend-coder` | sonnet | Read, Write, Edit, Bash, Glob, Grep | Phase 4 |
+| `test-writer` | sonnet | Read, Write, Edit, Bash, Glob, Grep | Phase 4a |
+| `backend-coder` | sonnet | Read, Write, Edit, Bash, Glob, Grep | Phase 4b |
+| `frontend-coder` | sonnet | Read, Write, Edit, Bash, Glob, Grep | Phase 4b |
 | `code-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `security-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `test-runner` | haiku | Read, Bash | Phase 5 |
@@ -290,6 +313,7 @@ These rules govern the orchestrator's behavior. Violations break the architectur
 7. **The R5 `spec-verifier` never receives the spec text.** This is a structural guarantee enforced by the agent definition (the agent flags spec leakage in `Concerns` rather than answering).
 8. **The R2.1 iterative retrieval loop has a hard cap of 3 cycles.** Past 3, proceed with best-available findings and flag remaining gaps — do not loop indefinitely on terminology mismatch.
 9. **The R3.2 interview has a hard cap of 5 questions.** Stop early when no high-impact gaps remain.
+10. **The Phase-4 implementer never receives the test-writer's reasoning, and never edits test files.** The `block-mixed-commit` hook enforces that tests and implementation land in separate commits.
 
 ## Circuit breakers (consolidated)
 
@@ -301,6 +325,7 @@ These rules govern the orchestrator's behavior. Violations break the architectur
 | Phase 4–6 code → review loop | 3 cycles | Escalate to user |
 | Phase 5 QA fix loop | 3 iterations | Escalate to user |
 | Phase 7 verify → review reject | 2 cycles | Escalate to user |
+| Phase 4 commit hooks (`block-mixed-commit`, `check-leftover-stub`) | N/A (hard gate) | Reject commit; orchestrator must correct before retry |
 
 ## CLI surface
 
