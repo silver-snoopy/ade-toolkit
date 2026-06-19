@@ -1,0 +1,99 @@
+"""Shared helpers for ADE deterministic commit hooks.
+
+Runs under two substrates with one exit-code contract (0 = pass, 2 = reject):
+- git / pre-commit: staged filenames arrive as argv; the commit message (when a stage
+  provides it) is read from $PRE_COMMIT_COMMIT_MSG_FILENAME.
+- Claude Code PreToolUse(Bash): invoked with `--stdin-json`; the tool payload is read
+  from stdin, the command is confirmed to be a `git commit`, and any -m message is
+  parsed. Staged files come from `git diff --cached`.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+
+BLOCK = 2  # Claude Code treats exit 2 as a hard block; non-zero fails a git commit.
+
+_TEST_PATTERNS = (
+    re.compile(r"(^|/)(tests?|specs?|e2e|__tests__)/", re.I),
+    re.compile(r"(^|/)test_[^/]+$", re.I),
+    re.compile(r"_test\.[a-z0-9]+$", re.I),
+    re.compile(r"\.(test|spec)\.[a-z0-9]+$", re.I),
+)
+
+_SOURCE_EXTS = {
+    ".py", ".pyi", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+    ".go", ".rs", ".java", ".kt", ".kts", ".swift", ".rb", ".cs",
+    ".cpp", ".cc", ".c", ".h", ".hpp", ".php", ".scala",
+}
+
+_STUB_PATTERNS = (
+    re.compile(r"NotImplementedError"),
+    re.compile(r"\bnot implemented\b", re.I),
+    re.compile(r"(TODO|FIXME)\s*:?\s*implement", re.I),
+    re.compile(r"""throw new Error\(\s*['"][^'"]*not implemented""", re.I),
+    re.compile(r"\btodo!\s*\("),
+    re.compile(r"\bunimplemented!\s*\("),
+)
+
+
+def is_test_file(path: str) -> bool:
+    p = path.replace("\\", "/")
+    return any(rx.search(p) for rx in _TEST_PATTERNS)
+
+
+def is_source_file(path: str) -> bool:
+    return os.path.splitext(path)[1].lower() in _SOURCE_EXTS
+
+
+def has_stub(text: str) -> bool:
+    return any(rx.search(text) for rx in _STUB_PATTERNS)
+
+
+def staged_files() -> list[str]:
+    out = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+        capture_output=True, text=True, check=False,
+    ).stdout
+    return [line.strip() for line in out.splitlines() if line.strip()]
+
+
+def staged_content(path: str) -> str:
+    out = subprocess.run(
+        ["git", "show", f":{path}"], capture_output=True, text=True, check=False
+    )
+    if out.returncode == 0:
+        return out.stdout
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except OSError:
+        return ""
+
+
+def _read(path: str) -> str:
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except OSError:
+        return ""
+
+
+def gather() -> tuple[list[str], str]:
+    """Return (changed_files, commit_message) for either substrate."""
+    if "--stdin-json" in sys.argv:
+        raw = sys.stdin.read().strip()
+        payload = json.loads(raw) if raw else {}
+        command = str(payload.get("tool_input", {}).get("command", ""))
+        if "git commit" not in command:
+            return [], ""
+        m = re.search(r"-m\s+(['\"])(.*?)\1", command, re.S)
+        return staged_files(), (m.group(2) if m else "")
+    msg_file = os.environ.get("PRE_COMMIT_COMMIT_MSG_FILENAME")
+    if msg_file and os.path.exists(msg_file):
+        return staged_files(), _read(msg_file)
+    argv = [a for a in sys.argv[1:] if not a.startswith("-")]
+    return (argv or staged_files()), ""

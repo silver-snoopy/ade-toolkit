@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Reject committed non-test source still containing unfilled stub markers (ADE G2).
+
+Phase 3 writes stubs (NotImplementedError / 'TODO: implement' / 'Not implemented') on
+purpose; this hook ensures they are gone from non-test source by commit time.
+"""
+from __future__ import annotations
+
+import sys
+
+import _hooklib as h
+
+
+def main() -> int:
+    files, _ = h.gather()
+    offenders = [
+        f for f in files
+        if h.is_source_file(f) and not h.is_test_file(f) and h.has_stub(h.staged_content(f))
+    ]
+    if offenders:
+        sys.stderr.write(
+            "ADE hook: unfilled stub markers in committed source:\n  "
+            + "\n  ".join(offenders)
+            + "\nImplement the stub before committing "
+            "(NotImplementedError / 'TODO: implement' / 'Not implemented').\n"
+        )
+        return h.BLOCK
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

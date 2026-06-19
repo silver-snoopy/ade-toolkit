@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""Reject a commit that mixes test files with non-test source files (ADE G1).
+
+The test-writer commits tests alone; the implementer commits code alone. A single
+commit must not contain both. Bypass with a `[test-refactor]` marker in the commit
+message for the legitimate refactor-tests-with-code case.
+"""
+from __future__ import annotations
+
+import sys
+
+import _hooklib as h
+
+
+def main() -> int:
+    files, message = h.gather()
+    if "[test-refactor]" in message:
+        return 0
+    source = [f for f in files if h.is_source_file(f)]
+    tests = [f for f in source if h.is_test_file(f)]
+    impl = [f for f in source if not h.is_test_file(f)]
+    if tests and impl:
+        sys.stderr.write(
+            "ADE hook: commit mixes test and implementation files.\n"
+            f"  tests: {', '.join(tests)}\n"
+            f"  impl:  {', '.join(impl)}\n"
+            "Commit tests and implementation separately "
+            "(test-writer first, then implementer).\n"
+            "Intentional test+code refactor? Add [test-refactor] to the message.\n"
+        )
+        return h.BLOCK
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
