@@ -4,6 +4,10 @@
 The test-writer commits tests alone; the implementer commits code alone. A single
 commit must not contain both. Bypass with a `[test-refactor]` marker in the commit
 message for the legitimate refactor-tests-with-code case.
+
+Note: the [test-refactor] bypass is recognised only when the commit message is
+passed as -m "..." (Claude substrate) or via $PRE_COMMIT_COMMIT_MSG_FILENAME
+(git substrate). It is NOT available for `git commit -F <file>` in the Claude substrate.
 """
 from __future__ import annotations
 

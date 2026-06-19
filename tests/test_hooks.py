@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -89,8 +90,7 @@ def test_block_mixed_commit_marker_bypass(hook_repo: Path) -> None:
     _write_stage(hook_repo, "tests/test_feature.py", "def test_f():\n    assert True\n")
     msg = hook_repo / "MSG"
     msg.write_text("refactor: rename [test-refactor]\n", encoding="utf-8")
-    import os as _os
-    env = dict(_os.environ, PRE_COMMIT_COMMIT_MSG_FILENAME=str(msg))
+    env = dict(os.environ, PRE_COMMIT_COMMIT_MSG_FILENAME=str(msg))
     result = subprocess.run(
         [sys.executable, str(hook_repo / ".claude" / "hooks" / "block-mixed-commit.py")],
         cwd=hook_repo, capture_output=True, text=True, check=False, env=env,
@@ -151,3 +151,15 @@ def test_hooks_stdin_json_ignores_non_commit(hook_repo: Path) -> None:
         cwd=hook_repo, input=payload, capture_output=True, text=True, check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_check_leftover_stub_stdin_json_mode(hook_repo: Path) -> None:
+    """check-leftover-stub reads staged files (not argv) under --stdin-json."""
+    _write_stage(hook_repo, "src/feature.py", "def f():\n    raise NotImplementedError\n")
+    payload = '{"tool_input": {"command": "git commit -m \\"feat: x\\""}}'
+    hook = hook_repo / ".claude" / "hooks" / "check-leftover-stub.py"
+    result = subprocess.run(
+        [sys.executable, str(hook), "--stdin-json"],
+        cwd=hook_repo, input=payload, capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 2, result.stderr

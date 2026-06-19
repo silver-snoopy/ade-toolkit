@@ -20,6 +20,7 @@ BLOCK = 2  # Claude Code treats exit 2 as a hard block; non-zero fails a git com
 _TEST_PATTERNS = (
     re.compile(r"(^|/)(tests?|specs?|e2e|__tests__)/", re.I),
     re.compile(r"(^|/)test_[^/]+$", re.I),
+    re.compile(r"(^|/)test\.[a-z0-9]+$", re.I),
     re.compile(r"_test\.[a-z0-9]+$", re.I),
     re.compile(r"\.(test|spec)\.[a-z0-9]+$", re.I),
 )
@@ -57,13 +58,16 @@ def staged_files() -> list[str]:
     out = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
         capture_output=True, text=True, check=False,
+        encoding="utf-8", errors="replace",
     ).stdout
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 
 def staged_content(path: str) -> str:
     out = subprocess.run(
-        ["git", "show", f":{path}"], capture_output=True, text=True, check=False
+        ["git", "show", f":0:{path}"],
+        capture_output=True, text=True, check=False,
+        encoding="utf-8", errors="replace",
     )
     if out.returncode == 0:
         return out.stdout
@@ -86,11 +90,15 @@ def gather() -> tuple[list[str], str]:
     """Return (changed_files, commit_message) for either substrate."""
     if "--stdin-json" in sys.argv:
         raw = sys.stdin.read().strip()
-        payload = json.loads(raw) if raw else {}
+        try:
+            payload = json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            sys.stderr.write("ADE hook: could not parse --stdin-json payload; skipping.\n")
+            return [], ""
         command = str(payload.get("tool_input", {}).get("command", ""))
         if "git commit" not in command:
             return [], ""
-        m = re.search(r"-m\s+(['\"])(.*?)\1", command, re.S)
+        m = re.search(r"-m\s+(['\"])((?:\\.|[^\\])*?)\1", command, re.S)
         return staged_files(), (m.group(2) if m else "")
     msg_file = os.environ.get("PRE_COMMIT_COMMIT_MSG_FILENAME")
     if msg_file and os.path.exists(msg_file):
