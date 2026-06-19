@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -237,7 +238,6 @@ def test_init_rejects_unknown_agent(python_project: Path) -> None:
 def test_init_settings_merge_is_idempotent(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    import json
     settings = json.loads((python_project / ".claude" / "settings.json").read_text())
     cmds = [
         h["command"]
@@ -248,7 +248,6 @@ def test_init_settings_merge_is_idempotent(python_project: Path) -> None:
 
 
 def test_init_settings_merge_preserves_existing(python_project: Path) -> None:
-    import json
     settings_path = python_project / ".claude" / "settings.json"
     settings_path.parent.mkdir(parents=True, exist_ok=True)
     settings_path.write_text(json.dumps({"permissions": {"allow": ["Bash(ls)"]}}))

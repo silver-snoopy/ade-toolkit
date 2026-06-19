@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import shutil
 from datetime import UTC, datetime
@@ -111,7 +112,7 @@ def _render_hooks(env: Environment, hooks_dir: Path, context: dict) -> None:
 
 def _merge_hooks(current: dict, ade: dict) -> dict:
     """Idempotently merge ADE PreToolUse hook commands into an existing settings dict."""
-    merged = dict(current)
+    merged = copy.deepcopy(current)
     hooks = merged.setdefault("hooks", {})
     for event, blocks in ade.get("hooks", {}).items():
         existing_blocks = hooks.setdefault(event, [])
@@ -138,6 +139,8 @@ def _emit_claude_hooks(env: Environment, project_dir: Path, context: dict) -> st
     if dest.exists():
         try:
             current = json.loads(dest.read_text(encoding="utf-8"))
+            if not isinstance(current, dict):
+                current = {}
         except json.JSONDecodeError:
             current = {}
         merged = _merge_hooks(current, ade_settings)
@@ -168,6 +171,10 @@ def init(
         rprint(f"[red]Error: {project_dir} is not a directory[/red]")
         raise typer.Exit(1)
 
+    if agent not in {"claude", "copilot"}:
+        rprint(f"[red]Error: --agent must be 'claude' or 'copilot', got '{agent}'[/red]")
+        raise typer.Exit(1)
+
     rprint(f"[bold]Initializing ADE in {project_dir}[/bold]")
 
     # Detect project
@@ -179,10 +186,6 @@ def init(
 
     rprint(f"  Detected languages: {', '.join(info.languages) or 'none'}")
     rprint(f"  Project name: {info.project_name}")
-
-    if agent not in {"claude", "copilot"}:
-        rprint(f"[red]Error: --agent must be 'claude' or 'copilot', got '{agent}'[/red]")
-        raise typer.Exit(1)
 
     env = _get_template_env()
     ctx = {"info": info}
