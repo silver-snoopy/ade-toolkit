@@ -90,9 +90,14 @@ invariants") and to the Phase 4 skill.
 ### 3.2 The check scripts (G2 "Core two")
 
 Two Python scripts, language-agnostic, emitted to the **version-controlled**
-`.ade/hooks/` directory (`.ade/.gitignore` ignores only `tasks/` and `worktrees/`,
-so `hooks/` is committed — this is required so the checks run for Copilot, CI, and
-humans, not just locally).
+`.claude/hooks/` directory. This location is load-bearing: the scripts must be
+committed so they (a) run for Copilot, CI, and humans — not just locally — and
+(b) are present inside the Phase-3/4 git worktree at `.ade/worktrees/<id>/`, where
+ADE actually commits. `.ade/` is gitignored, so scripts placed there would be absent
+in the worktree and the hook invocation would fail; `.claude/` is committed (it holds
+the agents/skills), so `.claude/hooks/` is checked out into every worktree. The hook
+commands therefore use the repo-relative path `python .claude/hooks/<script>.py`,
+which resolves from the main tree and from any worktree.
 
 **`block-mixed-commit.py`** — G1's structural enforcer.
 - Collects the changed source files (see 3.4 for how inputs arrive per substrate).
@@ -134,7 +139,7 @@ commit, so a write/edit-time stub check would wrongly block Phase 3. Anchoring b
 hooks to the commit boundary also makes the two substrates semantically identical
 (same checks, same staged-file inputs, same exit-code contract).
 
-The `.ade/hooks/*.py` scripts are emitted in **both** modes; only the wiring differs.
+The `.claude/hooks/*.py` scripts are emitted in **both** modes; only the wiring differs.
 Rationale for `claude` default: it is the zero-install "starter" the operator
 requested. `copilot` is the agent-agnostic git backstop and is opt-in.
 
@@ -155,13 +160,13 @@ Mode is detected by: presence of stdin JSON with a `tool_input` → Claude mode;
 otherwise → git mode (argv or `git diff --cached`). A small shared helper (`_hooklib`)
 holds the file-classification patterns, the stub patterns, the staged-file/message
 gathering, and the exit-code contract so both scripts stay thin. The helper is emitted
-alongside the scripts in `.ade/hooks/`.
+alongside the scripts in `.claude/hooks/`.
 
 ### 3.5 Idempotent wiring emission
 
 - **`.claude/settings.json` (claude mode):** commonly pre-exists (permissions, env).
   ADE **merges**: parse existing JSON, insert the ADE hook entries keyed by their
-  `.ade/hooks/...` command so re-running `ade init` does not duplicate them, write
+  `.claude/hooks/...` command so re-running `ade init` does not duplicate them, write
   back. If the file is absent, create it. Hooks ADE manages are recognizable by their
   command path, making the merge idempotent.
 - **`.pre-commit-config.yaml` (copilot mode):** YAML merge is fragile, so this is
@@ -171,10 +176,10 @@ alongside the scripts in `.ade/hooks/`.
 
 ### 3.6 CLI, doctor, and docs
 
-- **`cli.py`:** add the `--agent` option; render `.ade/hooks/` (always); emit/merge
+- **`cli.py`:** add the `--agent` option; render `.claude/hooks/` (always); emit/merge
   the mode-specific wiring artifact; print what was created/merged/kept.
 - **`doctor`:** mode-aware. Detect whichever wiring file exists; verify the
-  `.ade/hooks/*.py` scripts are present; if `.pre-commit-config.yaml` exists, nudge
+  `.claude/hooks/*.py` scripts are present; if `.pre-commit-config.yaml` exists, nudge
   `pre-commit install` (the `pre-commit` optional-tool check already exists).
 - **Docs:** update `docs/ade-architecture-design.md` (Phase 4 description, subagent
   catalog +`test-writer`, orchestrator invariants +author-separation, circuit-breaker
@@ -211,7 +216,7 @@ alongside the scripts in `.ade/hooks/`.
   test files, passes clean impl.
 - Both scripts under git-argv invocation and Claude-stdin invocation.
 - `cli.py`: `--agent claude` emits/merges `settings.json`; `--agent copilot` seeds
-  `.pre-commit-config.yaml`; both emit `.ade/hooks/`; settings.json merge is
+  `.pre-commit-config.yaml`; both emit `.claude/hooks/`; settings.json merge is
   idempotent across two inits; pre-commit config seed-if-missing preserves an existing
   file.
 
