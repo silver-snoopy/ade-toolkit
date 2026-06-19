@@ -262,3 +262,18 @@ def test_init_copilot_seed_if_missing_preserves_existing(python_project: Path) -
     cfg.write_text("repos: []  # user owned\n")
     runner.invoke(app, ["init", "--project-dir", str(python_project), "--agent", "copilot"])
     assert "user owned" in cfg.read_text()
+
+
+def test_doctor_checks_hook_scripts(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    with patch("ade.cli._check_command", return_value=True):
+        ok = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
+    assert ok.exit_code == 0
+    assert "hook" in ok.output.lower()
+
+    # Removing a hook script should make doctor FAIL.
+    (python_project / ".claude" / "hooks" / "block-mixed-commit.py").unlink()
+    with patch("ade.cli._check_command", return_value=True):
+        bad = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
+    assert bad.exit_code == 1
+    assert "FAIL" in bad.output
