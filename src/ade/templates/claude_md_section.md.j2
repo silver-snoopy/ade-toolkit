@@ -57,8 +57,9 @@ Dependencies, Test strategy, Risk areas. The plan consumes the spec at
 **Phase 3 — DESIGN CHECK**: Dispatch a Sonnet subagent in a worktree to
 create file stubs. Review for plan alignment (max 2 iterations).
 
-**Phase 4 — IMPLEMENT**: Dispatch 1-3 Sonnet subagents in the worktree.
-Each agent owns specific files — no overlap.
+**Phase 4 — IMPLEMENT**: test-writer (RED) → implementer (GREEN), author-separated.
+Step 4a: `test-writer` subagent writes FAILING tests, commits them alone (`test:`).
+Step 4b: `backend-coder`/`frontend-coder` make tests GREEN, commit alone (`feat:`/`fix:`).
 Enforce build order: shared types → backend → frontend.
 
 **Phase 5 — QUALITY GATE**: Dispatch Haiku subagent to run build + tests.

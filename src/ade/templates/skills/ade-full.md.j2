@@ -160,22 +160,32 @@ For detailed instructions, see [phases/03-design-check.md](phases/03-design-chec
 
 ---
 
-## Phase 4 — IMPLEMENT
+## Phase 4 — IMPLEMENT (author-separated TDD)
 
-Write the code following the plan and project conventions from CLAUDE.md.
+Turn the spec into working code using author-separated TDD. Two ordered sub-steps:
 
-**Hard requirement:** Implement the approved plan. Code compiles successfully.
-**Preferred mechanism:** Dispatch 1-3 Sonnet subagents in the worktree. Each agent owns specific files — no two agents edit the same file.
+**Step 4a — test-writer (RED):** Dispatch the `test-writer` subagent. It writes FAILING
+tests against the spec's acceptance criteria and Phase-3 stubs, confirms the suite is RED
+for the right reason (assertion failures, not import errors), then commits a test-only
+commit (`test: add failing tests for <task-id>`).
+
+**Step 4b — implementer (GREEN):** Dispatch `backend-coder` / `frontend-coder` subagents.
+They receive the spec, the committed failing tests, and the stubs — but NOT the
+test-writer's reasoning (structural generator≠verifier separation). They write the
+minimum code to turn the suite GREEN, leaving no stub markers in committed source.
 Enforce build order: shared types → backend → frontend.
-**Allowed fallback:** Implement directly if subagent dispatch fails. Build order and file ownership rules still apply.
 
-After each significant change, run the build command to verify compilation.
+**Hard requirement:** Tests start RED (4a), end GREEN (4b). No stub markers remain. The
+`block-mixed-commit` hook enforces separate commits for tests and implementation.
+**Allowed fallback:** If subagent dispatch fails, the orchestrator may write tests and
+implementation inline — but must still commit them separately (test commit first, then
+impl commit) and the RED→GREEN discipline still applies.
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 4/10 — Implementing`
 
 For detailed instructions, see [phases/04-implement.md](phases/04-implement.md).
 
-**Exit criteria:** All code changes compile. Build passes.
+**Exit criteria:** All tests pass. Build passes. No stub markers in committed source.
 
 ---
 

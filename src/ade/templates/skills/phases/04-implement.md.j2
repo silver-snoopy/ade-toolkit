@@ -2,8 +2,34 @@
 
 ## Purpose
 
-Write the actual implementation code in the worktree, replacing stubs with working logic.
-This phase may involve multiple subagents working in parallel on independent tasks.
+Turn the spec into working code using **author-separated TDD**. Phase 4 runs in two
+ordered sub-steps inside the worktree created during Design Check
+(`.ade/worktrees/<task-id>`). The Phase-3 stubs define the shape; the tests define the
+behavior; the implementer makes the tests pass.
+
+## 4a — Test-writer (RED)
+
+Dispatch the `test-writer` subagent. It:
+- Reads the spec's acceptance criteria and the Phase-3 stub signatures.
+- Writes FAILING tests (test files only).
+- Confirms the suite is RED for the right reason (assertion failures, not import errors).
+- Commits a **test-only** commit: `test: add failing tests for <task-id>`.
+
+## 4b — Implementer (GREEN)
+
+Dispatch the implementer subagent(s) (`backend-coder` / `frontend-coder`). They:
+- Receive the spec, the committed failing tests, and the stubs.
+- Write the minimum code to turn the suite GREEN.
+- Must NOT create or edit test files, and must leave no stub markers in committed source.
+- Commit an **implementation-only** commit: `feat:` / `fix:`.
+
+## Author-separation invariant
+
+The orchestrator dispatches 4b **without** passing the test-writer's reasoning — the
+implementer sees only the spec, the failing tests on disk, and the stubs. The
+`block-mixed-commit` hook rejects any commit that mixes tests with implementation
+(bypass only with a `[test-refactor]` marker, used in the optional refactor step). This
+makes the generator≠verifier separation structural, not advisory.
 
 ## Worktree
 

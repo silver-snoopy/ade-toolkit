@@ -277,3 +277,28 @@ def test_doctor_checks_hook_scripts(python_project: Path) -> None:
         bad = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
     assert bad.exit_code == 1
     assert "FAIL" in bad.output
+
+
+def test_init_generates_test_writer_agent(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agent = python_project / ".claude" / "agents" / "test-writer.md"
+    assert agent.exists()
+    content = agent.read_text()
+    assert "model:" in content and "sonnet" in content
+    assert "failing" in content.lower()
+    assert "never" in content.lower() and "implementation" in content.lower()
+
+
+def test_coders_forbidden_from_test_files(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    backend = (python_project / ".claude" / "agents" / "backend-coder.md").read_text()
+    assert "test file" in backend.lower()
+
+
+def test_phase4_skill_describes_author_separation(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    phases_dir = python_project / ".claude" / "skills" / "ade" / "phases"
+    phase4 = (phases_dir / "04-implement.md").read_text()
+    assert "test-writer" in phase4
+    assert "RED" in phase4 or "failing test" in phase4.lower()
+    assert "author separation" in phase4.lower() or "separate" in phase4.lower()
