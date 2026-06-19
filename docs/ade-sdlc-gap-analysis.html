@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADE vs. the Field — Agentic SDLC Compatibility &amp; Gap Analysis</title>
+<style>
+  :root {
+    --bg: #0c0e14;
+    --bg-2: #11141d;
+    --panel: #161a26;
+    --panel-2: #1c2130;
+    --line: #262d3d;
+    --line-2: #333c52;
+    --ink: #dde3ee;
+    --ink-dim: #9aa6bd;
+    --ink-faint: #6b7589;
+    --accent: #6ea8fe;
+    --accent-2: #7ee0c0;
+    --warn: #ffb454;
+    --bad: #ff6b6b;
+    --good: #5ad19a;
+    --purple: #c08cf0;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .layout { display: grid; grid-template-columns: 270px 1fr; max-width: 1500px; margin: 0 auto; }
+  /* Sidebar */
+  nav.toc {
+    position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    border-right: 1px solid var(--line); padding: 28px 18px 60px; background: var(--bg-2);
+  }
+  nav.toc .brand { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
+  nav.toc .brandsub { font-size: 12px; color: var(--ink-faint); margin-bottom: 22px; }
+  nav.toc a { display: block; color: var(--ink-dim); text-decoration: none; font-size: 13.5px; padding: 5px 10px; border-radius: 6px; border-left: 2px solid transparent; }
+  nav.toc a:hover { color: var(--ink); background: var(--panel); }
+  nav.toc a.sub { padding-left: 22px; font-size: 12.5px; color: var(--ink-faint); }
+  nav.toc .grp { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--ink-faint); text-transform: uppercase; margin: 20px 0 6px 10px; }
+  /* Main */
+  main { padding: 46px 56px 120px; min-width: 0; }
+  section { margin-bottom: 64px; scroll-margin-top: 24px; }
+  h1 { font-size: 34px; line-height: 1.18; margin: 0 0 10px; letter-spacing: -.02em; font-weight: 700; }
+  h2 { font-size: 23px; margin: 0 0 18px; padding-bottom: 10px; border-bottom: 1px solid var(--line); letter-spacing: -.01em; font-weight: 650; }
+  h2 .num { font-family: var(--mono); font-size: 14px; color: var(--accent); margin-right: 12px; }
+  h3 { font-size: 17px; margin: 30px 0 10px; color: #fff; font-weight: 600; }
+  h4 { font-size: 14px; margin: 20px 0 8px; color: var(--accent-2); font-family: var(--mono); letter-spacing: .03em; text-transform: uppercase; }
+  p { margin: 0 0 14px; color: var(--ink); }
+  a { color: var(--accent); }
+  strong { color: #fff; font-weight: 650; }
+  em { color: var(--accent-2); font-style: normal; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--panel-2); padding: 1.5px 6px; border-radius: 4px; color: #c9d3e6; border: 1px solid var(--line); }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin-bottom: 7px; }
+  .lede { font-size: 17px; color: var(--ink-dim); max-width: 80ch; }
+  .hero-meta { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); margin-top: 18px; display: flex; gap: 22px; flex-wrap: wrap; }
+  .hero-meta b { color: var(--accent-2); font-weight: 500; }
+  /* Callouts */
+  .call { border: 1px solid var(--line-2); border-left: 3px solid var(--accent); background: var(--panel); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+  .call.key { border-left-color: var(--accent-2); }
+  .call.warn { border-left-color: var(--warn); }
+  .call.gap { border-left-color: var(--bad); }
+  .call .tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: 6px; }
+  .call.key .tag { color: var(--accent-2); }
+  .call.warn .tag { color: var(--warn); }
+  .call.gap .tag { color: var(--bad); }
+  .call p:last-child { margin-bottom: 0; }
+  /* Tables */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin: 18px 0; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { background: var(--panel-2); color: var(--ink-dim); font-family: var(--mono); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; font-weight: 500; position: sticky; top: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(110,168,254,.045); }
+  td.sys, th.sys { font-weight: 600; color: #fff; white-space: nowrap; }
+  .pill { font-family: var(--mono); font-size: 10.5px; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--line-2); color: var(--ink-dim); white-space: nowrap; display: inline-block; }
+  .pill.role { color: #ffd9a0; border-color: #5a4524; background: #2a1f0e; }
+  .pill.lang { color: #a9d6ff; border-color: #24405a; background: #0e1d2a; }
+  .pill.skill { color: #b7f0d8; border-color: #1f5040; background: #0c211a; }
+  .pill.phase { color: #d8b6f5; border-color: #46306a; background: #1c1226; }
+  .pill.hybrid { color: #ffc0c8; border-color: #5a2832; background: #2a0e14; }
+  .y { color: var(--good); font-weight: 600; }
+  .n { color: var(--ink-faint); }
+  .part { color: var(--warn); }
+  .lead-cell { color: var(--accent-2); }
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px,1fr)); gap: 16px; margin: 18px 0; }
+  .card { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 18px 20px; }
+  .card h3 { margin: 0 0 2px; font-size: 15.5px; font-family: var(--mono); }
+  .card .repo { font-size: 11.5px; color: var(--ink-faint); font-family: var(--mono); word-break: break-all; margin-bottom: 10px; }
+  .card .one { font-size: 13px; color: var(--ink-dim); margin-bottom: 12px; }
+  .card .row { font-size: 12px; margin-bottom: 7px; }
+  .card .row b { color: var(--accent-2); font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; display: block; color: var(--ink-faint); margin-bottom: 2px; }
+  /* Pipeline strip */
+  .pipe { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+  .pipe .stage { flex: 1 1 130px; border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; background: var(--panel); position: relative; }
+  .pipe .stage .n { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+  .pipe .stage .t { font-weight: 600; font-size: 13px; margin: 2px 0 3px; }
+  .pipe .stage .d { font-size: 11px; color: var(--ink-faint); }
+  .pipe .stage .cov { margin-top: 7px; font-family: var(--mono); font-size: 10px; color: var(--good); }
+  .pipe .stage.weak { border-color: #5a2832; }
+  .pipe .stage.weak .cov { color: var(--bad); }
+  /* scorecard */
+  .score { display: grid; grid-template-columns: repeat(auto-fit,minmax(155px,1fr)); gap: 12px; margin: 20px 0; }
+  .score .s { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--panel); }
+  .score .s .v { font-size: 26px; font-weight: 700; font-family: var(--mono); }
+  .score .s .v.g { color: var(--good); } .score .s .v.w { color: var(--warn); } .score .s .v.b { color: var(--bad); }
+  .score .s .l { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+  /* footnotes */
+  .src { font-size: 12px; color: var(--ink-faint); }
+  .src a { color: var(--ink-dim); }
+  sup.ref { font-size: 10px; color: var(--accent); font-family: var(--mono); }
+  hr { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 1080px){ .layout{ grid-template-columns: 1fr;} nav.toc{ position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line);} main{ padding: 32px 22px 80px;} .twocol{ grid-template-columns: 1fr;} }
+  .tag-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--ink-faint); margin: 8px 0 0;}
+  .footer { border-top:1px solid var(--line); margin-top:50px; padding-top:20px; font-size:12px; color:var(--ink-faint); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc">
+    <div class="brand">ADE&nbsp;//&nbsp;Field Study</div>
+    <div class="brandsub">Agentic SDLC gap analysis</div>
+    <a href="#summary">Executive summary</a>
+    <a href="#method">Method &amp; corpus</a>
+    <div class="grp">The landscape</div>
+    <a href="#systems">Systems at a glance</a>
+    <a href="#pipeline">The canonical dev pipeline</a>
+    <a href="#internals">Internal-step deep dive</a>
+    <div class="grp">The architecture question</div>
+    <a href="#taxonomy">Role vs language vs skill vs phase</a>
+    <a href="#patterns">Recurring patterns &amp; best practices</a>
+    <div class="grp">ADE positioning</div>
+    <a href="#matrix">Compatibility matrix</a>
+    <a href="#gaps">Gap analysis</a>
+    <a href="#recs">Recommendations</a>
+    <div class="grp">Reference</div>
+    <a href="#cards">System cards</a>
+    <a href="#sources">Sources</a>
+  </nav>
+
+  <main>
+  <section id="summary">
+    <h1>ADE vs. the Field</h1>
+    <p class="lede">A compatibility &amp; gap analysis of the ADE toolkit's 10-phase agentic SDLC against nine other Claude-Code-era development systems — focused on the <em>development core</em>: the internal steps between "approved spec" and "merged PR", and on how each system organizes its agents.</p>
+    <div class="hero-meta">
+      <span>Systems compared&nbsp; <b>9</b></span>
+      <span>Primary sources&nbsp; <b>repos + ADRs + skill files</b></span>
+      <span>Research agents&nbsp; <b>19</b></span>
+      <span>Verification&nbsp; <b>3-vote adversarial</b></span>
+      <span>Date&nbsp; <b>2026-06-19</b></span>
+    </div>
+
+    <div class="call key">
+      <span class="tag">Bottom line</span>
+      <p>ADE is <strong>already in the top tier on verification rigor</strong> — its blind <code>spec-verifier</code> (Chain-of-Verification, factor+revise) and its research phase (iterative retrieval → grill → CoVe) are matched only by LeRisque among the ten systems. But on the <strong>dev core</strong> it carries five structural gaps that the field has converged away from: (1) <strong>no author-separation in implementation</strong> — ADE writes code stub-first, where the field now mandates test-writer ≠ implementer; (2) <strong>no deterministic hook layer</strong> — ADE spends agent tokens on checks competitors absorb with greppable hooks; (3) <strong>a weak "compound" step</strong> — ADE's retro is ephemeral while the field codifies every task into reusable knowledge; (4) <strong>no blast-radius routing</strong> — ADE runs the full heavyweight flow for a one-line change; and (5) <strong>a portability claim its dev phases don't honor</strong> — Phases 3–7 hardcode a JS/TS monorepo.</p>
+    </div>
+
+    <div class="score">
+      <div class="s"><div class="v g">2 / 10</div><div class="l">Systems with blind/CoVe spec verification (ADE + LeRisque) — ADE leads here</div></div>
+      <div class="s"><div class="v b">1 / 10</div><div class="l">…that don't enforce TDD author-separation in impl. ADE is the one.</div></div>
+      <div class="s"><div class="v w">7 / 10</div><div class="l">Systems classified <b>hybrid</b> (no pure role/language design survives)</div></div>
+      <div class="s"><div class="v g">9 / 10</div><div class="l">Systems with a durable spec/plan artifact (all but pure-runtime octobots persist it)</div></div>
+      <div class="s"><div class="v b">2 / 10</div><div class="l">Systems with <b>no</b> compound/learn loop. ADE's retro is one of them.</div></div>
+    </div>
+  </section>
+
+  <section id="method">
+    <h2><span class="num">00</span>Method &amp; corpus</h2>
+    <p>The study compares <strong>ADE</strong> (read directly from this repository's phase skills and architecture doc) and <strong>LeRisque</strong> (your own private <code>PetroczyP/LeRisque</code> repo, whose <code>.claude/skills/sdlc</code> + ADR-0009 you flagged) against the <strong>seven repositories in your <code>ai-sdlc</code> GitHub stars list</strong>. Each starred repo was investigated as a <em>primary source</em>: a dedicated agent read the README, file tree, and the actual agent/skill/command files via authenticated <code>gh</code>. Five web-research agents covered the cross-cutting concepts (compound engineering, spec-driven development, role-vs-skill architectures, agentic-SDLC patterns, code-review/verification). Every architecture classification was then re-checked by an independent adversarial verifier instructed to <em>refute</em> it — all nine held, with only minor count/path corrections.</p>
+    <div class="tag-legend">
+      <span>Architecture tags:</span>
+      <span class="pill role">role-based</span>
+      <span class="pill lang">language-based</span>
+      <span class="pill skill">skill-based</span>
+      <span class="pill phase">phase-based</span>
+      <span class="pill hybrid">hybrid</span>
+    </div>
+  </section>
+
+  <section id="systems">
+    <h2><span class="num">01</span>The ten systems at a glance</h2>
+    <p>Two of your own systems (ADE, LeRisque) plus the seven starred repos. The "primitive" column is the organizing unit a contributor actually invokes; "architecture" is the verified classification of the agent layer.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th class="sys">System</th><th>What it is</th><th>Architecture</th><th>Dev-core spine</th></tr></thead>
+        <tbody>
+          <tr><td class="sys">ADE <span style="color:var(--ink-faint);font-weight:400">(this repo)</span></td><td>Python scaffolder emitting a 10-phase Claude-Code SDLC; Opus orchestrator + Sonnet/Haiku workers</td><td><span class="pill hybrid">hybrid</span> <span class="src">phase + layer-coder + skill</span></td><td>Plan → stub → implement → quality-gate → review → live-verify → ship</td></tr>
+          <tr><td class="sys">LeRisque <span style="color:var(--ink-faint);font-weight:400">(your repo)</span></td><td>7-stage adversarial pipeline w/ calibrated Opus Judge; built on cited research (ADR-0009)</td><td><span class="pill role">role-based</span> <span class="pill lang">+stack TDD</span></td><td>Architect → plan-review → TDD(author-split) → review-fan → Judge → PR</td></tr>
+          <tr><td class="sys">gstack</td><td>Garry Tan's "virtual eng team": 23 persona slash-skills + a nested 7-agent Review Army</td><td><span class="pill role">role-based</span></td><td>Office-hours → autoplan → build → review(army) → qa → ship → reflect</td></tr>
+          <tr><td class="sys">compound-engineering</td><td>Every Inc's "each task makes the next easier" loop; ~38 skills / 43 agents, cross-harness</td><td><span class="pill hybrid">hybrid</span> <span class="src">skill-phase + reviewer personas</span></td><td>strategy → brainstorm → plan → work → simplify → review → compound</td></tr>
+          <tr><td class="sys">workos/case</td><td>"Reliability layer for agent-authored PRs"; deterministic TS pipeline, 7 fixed roles</td><td><span class="pill role">role-based</span></td><td>scout → implement → verify → review → close → retrospective</td></tr>
+          <tr><td class="sys">arozumenko/sdlc-skills</td><td>Install-anywhere "content layer": named personas + composable skills, multi-IDE</td><td><span class="pill hybrid">hybrid</span> <span class="src">personas + skills + lang devs</span></td><td>BA → tech-lead plan → PM route → lang-dev TDD → review → QA → PM merge</td></tr>
+          <tr><td class="sys">affaan-m/ECC</td><td>"Agent OS": 67 agents / 271 skills / hooks; PRP + GAN build loops, cross-harness</td><td><span class="pill hybrid">hybrid</span> <span class="src">role+lang+skill+phase (4 axes)</span></td><td>research → plan(GATE1) → TDD → 5-level verify / GAN loop → commit(GATE2)</td></tr>
+          <tr><td class="sys">arozumenko/octobots</td><td>Multi-instance "AI dev team" in tmux; SQLite taskbox, Telegram-driven, session-per-ticket</td><td><span class="pill hybrid">hybrid</span> <span class="src">role+lang+skill, runtime layer</span></td><td>BA → tech-lead → PM → lang-dev TDD → tech-lead review → QA</td></tr>
+          <tr><td class="sys">gsd (get-shit-done)</td><td>Context-engineering / anti-context-rot framework; 34 phase-function agents, fresh-context</td><td><span class="pill hybrid">hybrid</span> <span class="src">phase-function + skill namespaces</span></td><td>discuss → research → plan → plan-check → wave-execute → UAT → ship</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="call">
+      <span class="tag">Read this column carefully</span>
+      <p>Notice the <strong>dev-core spine</strong> is nearly identical across all ten — the differences are in <em>which steps are load-bearing</em> and <em>how each step is enforced</em>, not in the sequence. That convergence is the headline finding, and the rest of this study dissects it.</p>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <h2><span class="num">02</span>The canonical agentic-dev pipeline</h2>
+    <p>Collapsing all ten systems (plus the web-research on Spec Kit / Kiro / BMAD / Agent OS) yields a 12-stage union. The coverage figure under each stage = how many of the ten implement it as a distinct, enforced step. Stages where <strong>ADE is weak or absent</strong> are outlined in red.</p>
+
+    <div class="pipe">
+      <div class="stage"><div class="n">01</div><div class="t">Intent / Discuss</div><div class="d">Clarify &amp; lock decisions before planning</div><div class="cov">10 / 10</div></div>
+      <div class="stage"><div class="n">02</div><div class="t">Scout / Research</div><div class="d">Codebase recon + (conditional) web</div><div class="cov">10 / 10</div></div>
+      <div class="stage"><div class="n">03</div><div class="t">Spec / Requirements</div><div class="d">Durable WHAT, testable criteria</div><div class="cov">9 / 10</div></div>
+      <div class="stage"><div class="n">04</div><div class="t">Plan</div><div class="d">Durable HOW, dependency-ordered tasks</div><div class="cov">10 / 10</div></div>
+      <div class="stage"><div class="n">05</div><div class="t">Plan review</div><div class="d">Adversarial check before any code</div><div class="cov">7 / 10</div></div>
+      <div class="stage"><div class="n">06</div><div class="t">Scaffold / Stub</div><div class="d">Skeleton or vertical slice first</div><div class="cov">5 / 10</div></div>
+      <div class="stage weak"><div class="n">07</div><div class="t">Implement (TDD)</div><div class="d">Test-first, author-separated</div><div class="cov">7 / 10 — ADE stub-only</div></div>
+      <div class="stage weak"><div class="n">08</div><div class="t">Static gate (hooks)</div><div class="d">Lint/build/test as deterministic gate</div><div class="cov">6 / 10 — ADE uses an agent</div></div>
+      <div class="stage"><div class="n">09</div><div class="t">Review fan</div><div class="d">Parallel multi-aspect, fresh context</div><div class="cov">10 / 10</div></div>
+      <div class="stage"><div class="n">10</div><div class="t">Verify (evidence)</div><div class="d">Live proof per acceptance criterion</div><div class="cov">9 / 10</div></div>
+      <div class="stage weak"><div class="n">11</div><div class="t">Ship + route</div><div class="d">PR; ceremony scaled to blast radius</div><div class="cov">10 / 10 — ADE no routing</div></div>
+      <div class="stage weak"><div class="n">12</div><div class="t">Compound / Learn</div><div class="d">Codify the task into reusable knowledge</div><div class="cov">8 / 10 — ADE retro ephemeral</div></div>
+    </div>
+
+    <p>Mapping ADE's own phases onto this spine: Intent=P0, Research=P1 (R2–R5, the most rigorous in the set), Spec=P1 output, Plan=P2, Plan-review=P2 human gate, Scaffold=P3 (stubs), Implement=P4, Static-gate=P5, Review=P6, Verify=P7, Ship=P9, Compound=P8 docs + P10 retro. ADE covers <strong>every stage</strong> — the gaps are in <em>how four of them are realized</em>, not in their presence.</p>
+  </section>
+
+  <section id="internals">
+    <h2><span class="num">03</span>Internal-step deep dive</h2>
+    <p>The four stages where the field has converged on a specific technique that ADE implements differently.</p>
+
+    <h3>07 · Implementation discipline — TDD with author separation</h3>
+    <p>This is the single sharpest divergence. <strong>Seven of ten</strong> systems make implementation <em>test-first</em>, and the strongest ones make it <em>author-separated</em>: the agent that writes the failing test is structurally distinct (fresh context) from the agent that writes the code to green.</p>
+    <ul>
+      <li><strong>LeRisque</strong> splits Stage 2 into four separate sub-agent invocations — test-writer → test-quality-reviewer → implementer (fresh context) → optional refactor — and a pre-commit hook <em>structurally blocks</em> mixed test+impl commits. Its ADR cites <em>TDD-Bench Verified</em> (best LLM fail-to-pass only 23.6%) and <em>Self-Correction Bench</em> (same-agent plan+review fails 64.5%) as the reason.<sup class="ref">[L,1,2]</sup></li>
+      <li><strong>case</strong> writes a failing test then makes it pass, AST-grep-gates the commit, and squashes; <strong>ECC</strong> drives every task through a <code>tdd-guide</code> agent with an ≥80% coverage gate; <strong>sdlc-skills/octobots</strong> bake "write failing tests (red) first" into the 8-step implement skill; <strong>gsd</strong> enforces a RED-commit before implementation under <code>--tdd</code>.</li>
+      <li><strong>ADE</strong> is the outlier: Phase 3 generates <em>stubs</em> (signatures that throw), Phase 4 fills them in and "write unit tests alongside the implementation." Tests and implementation are authored by the <em>same</em> subagent, in the same pass — exactly the configuration the research flags as the dominant silent-failure mode (the model rewrites the test to match the code).</li>
+    </ul>
+    <div class="call gap">
+      <span class="tag">Gap G1</span>
+      <p>ADE's stub-first + same-agent-tests approach is the riskiest implementation pattern in the corpus. Author separation (test-writer ≠ implementer, fresh context, enforced by a commit hook) is the field's load-bearing invariant and ADE lacks it.</p>
+    </div>
+
+    <h3>08 · The static gate — hooks vs. an agent</h3>
+    <p>Cheap deterministic checks (lint, format, build, type-check, "no silent catch", "no stub left behind", file-size budget) are increasingly pushed <em>out</em> of the agent loop into <strong>continuous hooks</strong>.</p>
+    <ul>
+      <li><strong>LeRisque</strong> runs a "Continuous Layer" of greppable Python hooks (<code>check-silent-catch.py</code>, <code>check-stub-patterns.py</code>, <code>check-non-null-assertion.py</code>, <code>check-file-budget.py</code>…) that fire on every tool-use — no agent tokens, no model variance. <strong>case</strong> ships <code>ast-rules/</code> AST-grep rules enforced pre-commit. <strong>ECC</strong> codifies its greppable ANTIPATTERNS as hooks.</li>
+      <li><strong>ADE</strong> runs lint/format/build/test through a Haiku <code>test-runner</code> subagent (Phase 5) with a 3-iteration fixer loop. It works, but it spends model tokens on deterministic checks and inherits LLM non-determinism on a step that should be a hard gate. The research is explicit: <em>"defense-in-depth should include at least one deterministic enforcement layer whose policy evaluation does not depend on LLM reasoning."</em><sup class="ref">[5]</sup></li>
+    </ul>
+    <div class="call gap">
+      <span class="tag">Gap G2</span>
+      <p>ADE has no deterministic hook layer. The mechanical, greppable subset of its quality gate and review (silent-catch, leftover-stub, file-size, format) belongs in PreToolUse/PostToolUse hooks, freeing the review agents to do semantic work only.</p>
+    </div>
+
+    <h3>09 · Review fan — how many reviewers, and how blind?</h3>
+    <p>Two findings dominate. <strong>(a) Generator≠verifier:</strong> the reviewer must run in a fresh context that never saw the author's reasoning (anchoring/agreement bias otherwise inflates approval by up to 25pp<sup class="ref">[6]</sup>). <strong>(b) ~2 reviewers is the empirical optimum</strong> — marginal gain decays past two<sup class="ref">[3]</sup>, and deliberately <em>different</em> reviewers beat duplicates (one study: 93.4% of findings caught by exactly one of four reviewers<sup class="ref">[7]</sup>).</p>
+    <ul>
+      <li><strong>ADE</strong> already does (a) well — Phase 6's fresh-context lenses, and crucially the R5 <code>spec-verifier</code> that <em>never receives the spec text</em>. On (b) ADE runs three fixed lenses (logic/conventions/security) or pr-review-toolkit's up-to-5; defensible, but heavier than LeRisque's deliberate <em>2 reviewers + 1 calibrated Opus Judge</em>.</li>
+      <li><strong>gstack</strong> dispatches a 7-agent "Review Army" but gates which fire by hit-rate stats; <strong>compound-engineering</strong> runs 4 always-on + ~9 conditional personas with a JSON findings schema + dedup; <strong>LeRisque</strong>'s calibrated Judge targets exactly the ~20 finding-classes its post-PR bots historically raised.</li>
+    </ul>
+    <div class="call key">
+      <span class="tag">ADE strength</span>
+      <p>ADE's spec-blind verifier and CoVe factor+revise are <em>ahead</em> of the field here — only LeRisque's calibrated Judge is comparable. This is ADE's signature advantage; don't dilute it.</p>
+    </div>
+
+    <h3>12 · The compound step — does the task improve the next one?</h3>
+    <p>The biggest <em>conceptual</em> idea in the corpus is "compounding": each completed task must deposit durable, reloadable knowledge so the next task is cheaper. <strong>compound-engineering</strong> is built entirely around it (<code>ce-compound</code> writes <code>docs/solutions/</code> + seeds <code>CONCEPTS.md</code>); <strong>case</strong>'s retrospective appends learnings and stages harness amendments; <strong>ECC</strong> has <code>/learn</code> → auto-skill extraction; <strong>gstack</strong> has <code>/learn</code> + GBrain; <strong>LeRisque</strong> feeds every >10-comment PR back into the Judge's calibration corpus.</p>
+    <ul>
+      <li><strong>ADE</strong> has two partial pieces: <code>CONTEXT.md</code> (additive glossary, via grill-with-docs) and ADRs — genuinely strong for <em>terminology/decisions</em>. But Phase 10 retro emits <code>retro.json</code> that is <em>ephemeral</em> and per-task; nothing mines task learnings into reusable skills or a solutions corpus, and no metric feeds back to tune the gates.</li>
+    </ul>
+    <div class="call gap">
+      <span class="tag">Gap G3</span>
+      <p>ADE's retro doesn't compound. The CONTEXT.md + ADR machinery is the right substrate; it needs a durable <em>solutions/learnings</em> sink and a feedback metric (à la LeRisque's SLI → calibration) so the pipeline self-improves.</p>
+    </div>
+  </section>
+
+  <section id="taxonomy">
+    <h2><span class="num">04</span>The architecture question: role vs language vs skill vs phase</h2>
+    <p>You asked specifically about <strong>role-based vs language-based agents</strong>. The data says the binary is the wrong frame — the field has split into <em>four</em> organizing axes, and almost every mature system mixes them. Here is each axis, who uses it as their <em>primary</em> organizer, and what 2025–26 research says about it.</p>
+
+    <div class="cards">
+      <div class="card">
+        <h3 style="color:#ffd9a0">Role-based</h3>
+        <div class="repo">agents = job titles / personas</div>
+        <div class="one">Named human roles: CEO, Architect, QA Lead, Security Officer, Reviewer. The "virtual team" metaphor.</div>
+        <div class="row"><b>Primary in</b>gstack (23 personas), case (7 fixed roles), LeRisque (8 roles), sdlc-skills/octobots (named characters w/ SOUL.md)</div>
+        <div class="row"><b>Strength</b>Legible to humans; clean "Does-Not-Do" boundaries; maps to org separation-of-duties</div>
+        <div class="row"><b>Risk</b>Static roles can't adapt mid-task; persona ≠ capability; coordination overhead</div>
+      </div>
+      <div class="card">
+        <h3 style="color:#a9d6ff">Language-based</h3>
+        <div class="repo">agents = programming languages</div>
+        <div class="one">Specialists per stack: python-dev, react-reviewer, go-build-resolver, swift-ios-reviewer.</div>
+        <div class="row"><b>Primary in</b>Nobody, alone. Appears as a <em>thin slice</em>: ECC (lang reviewers + build-resolvers), sdlc-skills/octobots (lang devs), ADE (backend/frontend coders)</div>
+        <div class="row"><b>Strength</b>Stack-idiomatic conventions; targeted build-error recovery</div>
+        <div class="row"><b>Risk</b>Combinatorial explosion; mostly redundant with good context + skills</div>
+      </div>
+      <div class="card">
+        <h3 style="color:#b7f0d8">Skill-based</h3>
+        <div class="repo">agents = composable capabilities</div>
+        <div class="one">Behavior modules loaded on demand: tdd, code-review, plan-feature, deep-research. Personas become emergent.</div>
+        <div class="row"><b>Primary in</b>compound-engineering, ECC (271 skills), sdlc-skills (skills attached to roles), gsd (namespace meta-skills)</div>
+        <div class="row"><b>Strength</b>The 2026 consensus unit: "a skill changes behavior, a subagent protects context, an MCP adds capability"<sup class="ref">[4]</sup></div>
+        <div class="row"><b>Risk</b>Discovery/routing cost at scale (gsd solved via 2-stage namespace routing)</div>
+      </div>
+      <div class="card">
+        <h3 style="color:#d8b6f5">Phase-based</h3>
+        <div class="repo">agents = SDLC stages</div>
+        <div class="one">Single-purpose workers named by function: planner, executor, verifier, plan-checker.</div>
+        <div class="row"><b>Primary in</b>gsd (34 phase-function agents), case (roles map 1:1 to phases), <strong>ADE</strong> (scout/synthesizer/spec-verifier)</div>
+        <div class="row"><b>Strength</b>Maps cleanly to the pipeline; each agent has one job + one artifact; easy to gate</div>
+        <div class="row"><b>Risk</b>Can proliferate; needs an orchestrator to sequence</div>
+      </div>
+    </div>
+
+    <div class="call key">
+      <span class="tag">The verified consensus</span>
+      <p><strong>Pure role-based design is over.</strong> Cognition ("Don't Build Multi-Agents") and Microsoft's framework both argue a single agent with persona-switching satisfies role behavior without orchestration cost; you escalate to multiple agents only for context-isolation, hard security boundaries, or measured single-agent limits.<sup class="ref">[4,8]</sup> The decisive technical fact is <strong>read/write asymmetry</strong>: read-heavy work (research, review, security scan) parallelizes across isolated subagents and <em>wins</em>; write-heavy work (editing code) should stay single-threaded because parallel writers make conflicting implicit decisions.<sup class="ref">[4]</sup> Empirically, role specialization gives <em>task-dependent, often marginal</em> returns on SWE benchmarks — reasoning quality, tool integration, and context engineering matter more than agent count.<sup class="ref">[9]</sup></p>
+    </div>
+
+    <h3>Where ADE sits — and what it implies</h3>
+    <p>ADE is fundamentally <strong>phase-based</strong> (its subagents are pipeline functions) with a <strong>language-based</strong> slice (<code>backend-coder</code> / <code>frontend-coder</code>) and a <strong>skill-based</strong> seam (vendored <code>grill-with-docs</code>, referenced <code>pr-review-toolkit</code>). It uses <em>no</em> human-persona roles at all. That is, by the 2026 consensus, the <strong>correct and modern</strong> choice — ADE skipped the role-based fashion that gstack/case/LeRisque lean on, and landed on the phase+skill model the research endorses.</p>
+    <div class="call">
+      <span class="tag">Implication for ADE</span>
+      <p>Don't add CEO/QA personas — that would be moving <em>backward</em>. The growth move is the opposite: <strong>lean harder into skill-based composition</strong> (so behavior is reusable across phases) and <strong>collapse the language slice</strong> — <code>backend-coder</code>/<code>frontend-coder</code> are a portability liability (they bake in a JS/TS monorepo) and the research says a single coder + good context + a TDD skill outperforms language-named agents. Replace them with one <em>language-agnostic</em> <code>implementer</code> driven by a TDD skill.</p>
+    </div>
+  </section>
+
+  <section id="patterns">
+    <h2><span class="num">05</span>Recurring patterns &amp; best practices (the convergent core)</h2>
+    <p>Eleven patterns appear across a majority of the corpus. ADE's status on each:</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Pattern</th><th>What it means</th><th>Prevalence</th><th>ADE status</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Orchestrator + bounded workers</strong></td><td>One agent owns context &amp; the write path; ephemeral workers fan out for reads, return summaries</td><td>10/10</td><td class="y">Strong — Opus orchestrator, never writes code</td></tr>
+          <tr><td><strong>Model tiering</strong></td><td>Cheap model for mechanical steps, expensive for hard reasoning (biggest cost lever<sup class="ref">[10]</sup>)</td><td>9/10</td><td class="y">Strong — Opus/Sonnet/Haiku by role</td></tr>
+          <tr><td><strong>Generator ≠ verifier</strong></td><td>Reviewer runs in fresh context, never saw author's reasoning</td><td>10/10</td><td class="y">Strong — spec-verifier blind to spec (CoVe)</td></tr>
+          <tr><td><strong>Durable spec/plan artifact</strong></td><td>File-based WHAT/HOW that survives <code>/clear</code> and compounds across tasks</td><td>9/10</td><td class="y">Strong — versioned spec, CONTEXT.md, ADRs</td></tr>
+          <tr><td><strong>Bounded loops / circuit breakers</strong></td><td>Every fix/review loop has a hard cap → escalate, never silent-retry</td><td>9/10</td><td class="y">Strong — caps on every loop</td></tr>
+          <tr><td><strong>Human gates on irreversible acts</strong></td><td>Approval concentrated at plan-lock and merge, not every step</td><td>10/10</td><td class="y">Present — after R5, P2, P9</td></tr>
+          <tr><td><strong>Worktree isolation</strong></td><td>Each parallel agent in its own working dir; conflicts deferred to merge</td><td>7/10</td><td class="part">Partial — worktree per task, not per parallel agent</td></tr>
+          <tr><td><strong>TDD author-separation</strong></td><td>Test-writer ≠ implementer, fresh context, hook-enforced</td><td>7/10</td><td class="n">Absent — stub-first, same-agent tests (G1)</td></tr>
+          <tr><td><strong>Deterministic hook layer</strong></td><td>Greppable/AST checks as continuous hooks, off the agent loop</td><td>6/10</td><td class="n">Absent — checks run via a Haiku agent (G2)</td></tr>
+          <tr><td><strong>Blast-radius routing</strong></td><td>Size classifier masks which phases run; trivial work skips ceremony</td><td>8/10</td><td class="n">Absent — S/M/L is informational only (G4)</td></tr>
+          <tr><td><strong>Compounding knowledge loop</strong></td><td>Each task codifies reusable learnings/skills; a metric tunes the gates</td><td>8/10</td><td class="part">Partial — glossary+ADRs yes, learnings/SLI no (G3)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="matrix">
+    <h2><span class="num">06</span>Compatibility matrix — ADE vs. the field</h2>
+    <p>Dense scorecard across the dimensions that matter for the dev core. <span class="y">●</span> = strong/native, <span class="part">◐</span> = partial, <span class="n">○</span> = absent.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th class="sys">Dimension</th><th>ADE</th><th>LeRisque</th><th>gstack</th><th>compound-eng</th><th>case</th><th>sdlc-skills</th><th>ECC</th><th>octobots</th><th>gsd</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Durable spec artifact</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td></tr>
+          <tr><td>Rigorous research phase</td><td class="lead-cell">●●</td><td class="part">◐</td><td class="part">◐</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td></tr>
+          <tr><td>Blind / CoVe verification</td><td class="lead-cell">●●</td><td class="y">●</td><td class="n">○</td><td class="n">○</td><td class="part">◐</td><td class="n">○</td><td class="n">○</td><td class="n">○</td><td class="part">◐</td></tr>
+          <tr><td>TDD author-separation</td><td class="n">○</td><td class="lead-cell">●●</td><td class="part">◐</td><td class="part">◐</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
+          <tr><td>Deterministic hook layer</td><td class="n">○</td><td class="lead-cell">●●</td><td class="part">◐</td><td class="n">○</td><td class="y">●</td><td class="n">○</td><td class="y">●</td><td class="part">◐</td><td class="part">◐</td></tr>
+          <tr><td>Multi-aspect review fan</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
+          <tr><td>Evidence-based live verify</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td></tr>
+          <tr><td>Blast-radius routing</td><td class="n">○</td><td class="y">●</td><td class="part">◐</td><td class="part">◐</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td><td class="part">◐</td><td class="part">◐</td></tr>
+          <tr><td>Compounding knowledge loop</td><td class="part">◐</td><td class="y">●</td><td class="y">●</td><td class="lead-cell">●●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td></tr>
+          <tr><td>Model tiering</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td></tr>
+          <tr><td>Stack-agnostic / portable</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="lead-cell">●●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td></tr>
+          <tr><td>Cross-harness (not just CC)</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="src"><span class="lead-cell">●●</span> marks where a system is a clear leader of the set. ADE leads on research rigor and blind verification; it is alone in the <span class="n">○</span> column on TDD author-separation.</p>
+  </section>
+
+  <section id="gaps">
+    <h2><span class="num">07</span>Gap analysis — ADE's five structural gaps</h2>
+    <p>Ordered by leverage (impact on output quality × distance from current design).</p>
+
+    <h3>G1 · Implementation has no author separation <span class="pill hybrid" style="margin-left:8px">highest leverage</span></h3>
+    <p>ADE's stub-first → same-agent-implements-and-tests is the field's documented #1 silent-failure mode. The fix is well-trodden: split Phase 4 into a <code>test-writer</code> sub-agent (writes failing tests against the spec's acceptance criteria, commits them alone) and a fresh-context <code>implementer</code> (writes code to green, forbidden from editing the tests), with a pre-commit hook that blocks mixed test+impl commits. LeRisque's ADR-0009 is a ready-made blueprint you already own.</p>
+
+    <h3>G2 · No deterministic enforcement layer</h3>
+    <p>ADE routes mechanical checks through a Haiku agent. Move the greppable subset (format, leftover-stub detection, silent-catch, file-size budget, "no <code>// TODO: implement</code>") into Claude-Code PreToolUse/PostToolUse hooks. This makes the gate <em>deterministic</em>, frees the Phase 5/6 agents for semantic work, and removes a source of model-variance from a step that should be a hard wall.</p>
+
+    <h3>G3 · The retro doesn't compound</h3>
+    <p>ADE already persists terminology (CONTEXT.md) and decisions (ADRs) — better than most. What's missing is a <em>solutions/learnings</em> sink (a per-task durable doc the next task's research phase reads) and a <em>feedback metric</em>. Borrow LeRisque's SLI idea: count post-PR review-bot comments (or Phase 6 findings) and feed recurring classes back into the review prompts. That turns Phase 10 from a dead-end JSON into the engine that makes Phase 1 cheaper next time.</p>
+
+    <h3>G4 · No blast-radius routing</h3>
+    <p>ADE's architecture doc explicitly states the S/M/L scope estimate "does not route Phase 1" and the full flow runs regardless. Eight of ten competitors classify change size and <em>mask which phases run</em> (case's tiny-profile, ECC's tier classifier, LeRisque's trivial/standard/architecture routing, gsd's <code>--mvp</code>). A one-line doc fix shouldn't pay for stub-design + live Playwright verification. Add a router after Phase 0 that can skip Phases 3/6/7 for <code>trivial</code> changes — with security/public-API changes forced to at least <code>standard</code>.</p>
+
+    <h3>G5 · The portability claim vs. the JS/TS-coupled dev phases</h3>
+    <p>The architecture doc sells ADE as stack-agnostic, but Phases 3–7 hardcode <code>@vitals/shared</code>, <code>npm run build -w</code>, <code>packages/backend</code>, Playwright, and a "shared → backend → frontend" build order. Every truly portable competitor (sdlc-skills' command-translation tables, ECC's 12 ecosystems, gsd's multi-runtime installer) externalizes stack commands into a detected/config file. ADE's own <code>detect.py</code> already identifies the stack — wire that into the phase prompts instead of hardcoding the example project's conventions.</p>
+
+    <div class="call warn">
+      <span class="tag">Two deliberate non-gaps</span>
+      <p><strong>Cross-harness</strong> (Claude-Code-only) and <strong>multi-instance/messenger orchestration</strong> (octobots-style) are legitimate scope <em>choices</em>, not deficiencies — ADE is a single-session Claude-Code scaffolder by design. And ADE's <strong>Claude-only review</strong> (vs gstack/ECC's Codex/Gemini cross-model fan) is a genuine trade-off: cross-model diversity catches more (93.4% disjoint findings<sup class="ref">[7]</sup>), but LeRisque deliberately chose <em>calibration over diversity</em>. Treat cross-model review as optional, not a gap.</p>
+    </div>
+  </section>
+
+  <section id="recs">
+    <h2><span class="num">08</span>Recommendations</h2>
+    <p>Sequenced by leverage-to-effort. The first three are high-leverage and directly portable from designs you already own (LeRisque).</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>Move</th><th>Closes</th><th>Effort</th><th>Source you can copy</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><strong>Split Phase 4 into test-writer + fresh-context implementer</strong>, hook-block mixed commits</td><td>G1</td><td>Med</td><td>LeRisque ADR-0009 Stage 2; case implementer</td></tr>
+          <tr><td>2</td><td><strong>Add a deterministic hook layer</strong> for greppable checks; thin Phase 5 accordingly</td><td>G2</td><td>Low-Med</td><td>LeRisque <code>.claude/hooks/*.py</code>; case <code>ast-rules/</code></td></tr>
+          <tr><td>3</td><td><strong>Add a post-Phase-0 router</strong> (trivial/standard/architecture) that masks phases; force security→standard</td><td>G4</td><td>Low</td><td>ECC size classifier; LeRisque Stage 0; case profiles</td></tr>
+          <tr><td>4</td><td><strong>Replace <code>backend-coder</code>/<code>frontend-coder</code> with one language-agnostic <code>implementer</code> + TDD skill</strong></td><td>G5 / taxonomy</td><td>Med</td><td>gsd <code>gsd-executor</code>; the skill-over-persona consensus<sup class="ref">[4]</sup></td></tr>
+          <tr><td>5</td><td><strong>Externalize stack commands</strong> into detect.py-driven config; de-hardcode the JS/TS build order</td><td>G5</td><td>Med</td><td>sdlc-skills translation tables; gsd installer</td></tr>
+          <tr><td>6</td><td><strong>Promote Phase 10 to a compound step</strong>: durable solutions/learnings doc + a review-findings SLI that tunes Phase 6 prompts</td><td>G3</td><td>Med</td><td>compound-engineering <code>ce-compound</code>; LeRisque calibration corpus</td></tr>
+          <tr><td>7</td><td><em>(Optional)</em> Right-size the review fan toward <strong>2 strong reviewers + 1 calibrated judge</strong>; consider a cross-model second opinion</td><td>efficiency</td><td>Low</td><td>LeRisque Judge; gstack Dual-Voices/Codex</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="call key">
+      <span class="tag">Strategic framing</span>
+      <p>ADE's differentiator is <strong>rigor of specification and verification</strong> — the research phase and the spec-blind CoVe verifier are genuinely ahead of all seven starred repos. Protect that. The gaps are all in the <em>middle</em> of the pipeline (implement → gate → compound), and every fix already exists, fully designed and dogfooded, inside your own LeRisque repo. The highest-value next thread is not inventing anything — it's <strong>porting LeRisque's dev-core discipline (author-split TDD + hooks + routing) onto ADE's superior research-and-verify bookends.</strong></p>
+    </div>
+  </section>
+
+  <section id="cards">
+    <h2><span class="num">09</span>System reference cards</h2>
+    <div class="cards">
+      <div class="card">
+        <h3>LeRisque</h3><div class="repo">PetroczyP/LeRisque · .claude/skills/sdlc</div>
+        <div class="one">7-stage adversarial pipeline w/ calibrated Opus Judge, research-cited (ADR-0009).</div>
+        <div class="row"><b>Arch</b>Role-based (8 agents) + stack-specialized TDD (tdd-be/tdd-fe)</div>
+        <div class="row"><b>Signature</b>Author-separated TDD; greppable hooks; SLI = post-PR bot comments &lt;10; calibration corpus</div>
+        <div class="row"><b>Models</b>Sonnet workers, Opus Judge + orchestrator</div>
+      </div>
+      <div class="card">
+        <h3>gstack</h3><div class="repo">garrytan/gstack · MIT</div>
+        <div class="one">"Virtual engineering team" — 23 persona slash-skills + nested 7-agent Review Army.</div>
+        <div class="row"><b>Arch</b>Role-based (verified); skills generated from .tmpl via TS resolvers</div>
+        <div class="row"><b>Signature</b>Sprint-as-pipeline; Dual-Voices cross-model (Claude+Codex); confidence-scored findings; Conductor 10–15 parallel sprints</div>
+      </div>
+      <div class="card">
+        <h3>compound-engineering</h3><div class="repo">EveryInc/compound-engineering-plugin</div>
+        <div class="one">"Each task makes the next easier." 38 skills / 43 agents, cross-harness.</div>
+        <div class="row"><b>Arch</b>Hybrid — skill/phase orchestration + reviewer personas + thin lang slice</div>
+        <div class="row"><b>Signature</b>The compound loop (ce-compound → docs/solutions + CONCEPTS.md); 80/20 plan+review vs work; lfg autopilot</div>
+      </div>
+      <div class="card">
+        <h3>workos/case</h3><div class="repo">workos/case · TypeScript/Bun</div>
+        <div class="one">"Reliability layer for agent-authored PRs." Deterministic TS pipeline.</div>
+        <div class="row"><b>Arch</b>Role-based (7 roles) executed by a deterministic DAG runtime</div>
+        <div class="row"><b>Signature</b>Evidence markers on disk (tested/reviewed); per-repo evidenceStrategy; ast-grep rules; working-memory.json; self-improving harness amendments</div>
+      </div>
+      <div class="card">
+        <h3>arozumenko/sdlc-skills</h3><div class="repo">arozumenko/sdlc-skills · multi-IDE</div>
+        <div class="one">"Content layer" — named personas + composable skills, install anywhere.</div>
+        <div class="row"><b>Arch</b>Hybrid — role personas (SOUL.md) + skills + language devs</div>
+        <div class="row"><b>Signature</b>Linear BA→TechLead→PM→Dev→QA chain; one-dev-one-PR WIP limit; gh→glab/az command translation tables; vendored upstream skills</div>
+      </div>
+      <div class="card">
+        <h3>affaan-m/ECC</h3><div class="repo">affaan-m/ECC · MIT + paid Pro</div>
+        <div class="one">"Agent OS" — 67 agents / 271 skills / hooks, PRP + GAN loops.</div>
+        <div class="row"><b>Arch</b>Hybrid — role + language + skill + phase (4 axes simultaneously)</div>
+        <div class="row"><b>Signature</b>2 hard gates (post-plan, pre-commit); size classifier; research-first/reuse; GAN generator↔evaluator loop; 5-level verify; prompt-injection baseline</div>
+      </div>
+      <div class="card">
+        <h3>arozumenko/octobots</h3><div class="repo">arozumenko/octobots · runtime layer</div>
+        <div class="one">Multi-instance "AI dev team" in tmux; Telegram-driven, session-per-ticket.</div>
+        <div class="row"><b>Arch</b>Hybrid — role+lang+skill personas (pulled from sdlc-skills) over a runtime</div>
+        <div class="row"><b>Signature</b>SQLite taskbox queue; session-per-issue (/resume); worktree-per-task; board.md shared state; dynamic add/remove/clone roles</div>
+      </div>
+      <div class="card">
+        <h3>gsd (get-shit-done)</h3><div class="repo">gsd-build/get-shit-done → open-gsd/gsd-core</div>
+        <div class="one">Context-engineering framework; fights "context rot" via fresh-context subagents.</div>
+        <div class="row"><b>Arch</b>Hybrid — 34 phase-function agents + 6 namespace meta-skills</div>
+        <div class="row"><b>Signature</b>Wave-based parallel execution in worktrees; goal-backward verification; 4 gate types; per-agent model profiles; .planning/ survives /clear</div>
+      </div>
+      <div class="card" style="border-color:var(--line-2)">
+        <h3 style="color:var(--accent-2)">ADE (this repo)</h3><div class="repo">ade-toolkit · Python scaffolder</div>
+        <div class="one">10-phase Claude-Code SDLC; Opus orchestrator + Sonnet/Haiku workers.</div>
+        <div class="row"><b>Arch</b>Hybrid — phase-function agents + language coders + skill seam (no personas)</div>
+        <div class="row"><b>Leads on</b>Research rigor (iterative retrieval+grill+CoVe); spec-blind verifier; CONTEXT.md glossary + ADRs; circuit breakers everywhere</div>
+        <div class="row"><b>Gaps</b>TDD author-split · hook layer · compound loop · blast-radius routing · stack portability</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sources">
+    <h2><span class="num">10</span>Sources</h2>
+    <h4>Primary (repos &amp; ADRs, read directly)</h4>
+    <p class="src">[L] <a href="https://github.com/PetroczyP/LeRisque">PetroczyP/LeRisque</a> — <code>.claude/skills/sdlc/SKILL.md</code> &amp; <code>docs/explanation/adr/0009-sdlc-seven-stage-pipeline.md</code> · gstack <a href="https://github.com/garrytan/gstack">garrytan/gstack</a> · <a href="https://github.com/EveryInc/compound-engineering-plugin">EveryInc/compound-engineering-plugin</a> · <a href="https://github.com/workos/case">workos/case</a> · <a href="https://github.com/arozumenko/sdlc-skills">arozumenko/sdlc-skills</a> · <a href="https://github.com/affaan-m/ECC">affaan-m/ECC</a> · <a href="https://github.com/arozumenko/octobots">arozumenko/octobots</a> · <a href="https://github.com/gsd-build/get-shit-done">gsd-build/get-shit-done</a> → <a href="https://github.com/open-gsd/gsd-core">open-gsd/gsd-core</a> · ADE — this repository's <code>docs/ade-architecture-design.md</code> + phase skills.</p>
+    <h4>Research (cross-cutting concepts)</h4>
+    <p class="src">
+      [1] TDD-Bench Verified — <a href="https://arxiv.org/abs/2412.02883">arxiv 2412.02883</a> ·
+      [2] Self-Correction Bench — <a href="https://arxiv.org/pdf/2507.02778">arxiv 2507.02778</a> ·
+      [3] Multi-agent verification — <a href="https://arxiv.org/pdf/2511.16708">arxiv 2511.16708</a> ·
+      [4] Claude Code full-stack / skill-vs-subagent-vs-MCP — <a href="https://alexop.dev/posts/understanding-claude-code-full-stack/">alexop.dev</a>, <a href="https://cognition.ai/blog/dont-build-multi-agents">Cognition "Don't Build Multi-Agents"</a>, <a href="https://www.langchain.com/blog/how-and-when-to-build-multi-agent-systems">LangChain</a> ·
+      [5] Deterministic enforcement layer — <a href="https://arxiv.org/html/2603.12230v2">arxiv 2603.12230</a> ·
+      [6] Self-Grounded Verification / agreement bias — <a href="https://arxiv.org/abs/2507.11662">arxiv 2507.11662</a> ·
+      [7] Agentic code review catch-set disjointness — <a href="https://addyosmani.com/blog/agentic-code-review/">addyosmani.com</a> ·
+      [8] Single vs multiple agents — <a href="https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ai-agents/single-agent-multiple-agents">Microsoft CAF</a> ·
+      [9] Agent frameworks on SE tasks — <a href="https://arxiv.org/pdf/2511.00872">arxiv 2511.00872</a> ·
+      [10] LLM cost optimization / model tiering — <a href="https://www.morphllm.com/llm-cost-optimization">morphllm</a>, <a href="https://www.anthropic.com/engineering/built-multi-agent-research-system">Anthropic multi-agent research</a> ·
+      Spec-driven: <a href="https://github.com/github/spec-kit">GitHub Spec Kit</a>, <a href="https://kiro.dev/docs/specs/">AWS Kiro</a>, <a href="https://github.com/bmad-code-org/BMAD-METHOD">BMAD-METHOD</a>, <a href="https://buildermethods.com/agent-os">Agent OS</a> ·
+      Compound engineering — <a href="https://every.to/chain-of-thought/compound-engineering-how-every-codes-with-agents">Every.to</a> ·
+      CoVe — <a href="https://arxiv.org/pdf/2309.11495">arxiv 2309.11495</a> ·
+      Context engineering &amp; best practices — <a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Anthropic</a>, <a href="https://code.claude.com/docs/en/best-practices">Claude Code docs</a>.
+    </p>
+    <div class="footer">
+      Generated for the operator · ADE field study · 2026-06-19 · 9 systems · 19 research agents · all architecture classifications adversarially verified (3-vote).<br>
+      🤖 Compiled with Claude Code (Opus 4.8, 1M context).
+    </div>
+  </section>
+  </main>
+</div>
+</body>
+</html>
