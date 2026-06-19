@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -98,6 +99,56 @@ def _render_template_dir(
             _render_and_write(env, template_name, dest_dir / dest_name, context)
 
 
+def _render_hooks(env: Environment, hooks_dir: Path, context: dict) -> None:
+    """Render the deterministic hook scripts, preserving exact filenames.
+
+    Rendered explicitly (not via _render_template_dir) so the leading-underscore
+    helper `_hooklib.py` is not mangled into a dashed name.
+    """
+    for name in ("_hooklib.py", "block-mixed-commit.py", "check-leftover-stub.py"):
+        _render_and_write(env, f"hooks/{name}.j2", hooks_dir / name, context)
+
+
+def _merge_hooks(current: dict, ade: dict) -> dict:
+    """Idempotently merge ADE PreToolUse hook commands into an existing settings dict."""
+    merged = dict(current)
+    hooks = merged.setdefault("hooks", {})
+    for event, blocks in ade.get("hooks", {}).items():
+        existing_blocks = hooks.setdefault(event, [])
+        for ade_block in blocks:
+            target = next(
+                (b for b in existing_blocks if b.get("matcher") == ade_block.get("matcher")),
+                None,
+            )
+            if target is None:
+                existing_blocks.append(ade_block)
+                continue
+            target_hooks = target.setdefault("hooks", [])
+            seen = {h.get("command") for h in target_hooks}
+            for hook in ade_block.get("hooks", []):
+                if hook.get("command") not in seen:
+                    target_hooks.append(hook)
+    return merged
+
+
+def _emit_claude_hooks(env: Environment, project_dir: Path, context: dict) -> str:
+    """Create or idempotently merge .claude/settings.json hooks. Returns action word."""
+    dest = project_dir / ".claude" / "settings.json"
+    ade_settings = json.loads(env.get_template("claude_settings.json.j2").render(**context))
+    if dest.exists():
+        try:
+            current = json.loads(dest.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            current = {}
+        merged = _merge_hooks(current, ade_settings)
+        action = "Merged hooks into"
+    else:
+        merged = ade_settings
+        action = "Created"
+    _write_file(dest, json.dumps(merged, indent=2) + "\n")
+    return action
+
+
 @app.command()
 def init(
     project_dir: Annotated[Path, typer.Option(help="Project directory to initialize")] = Path("."),
@@ -105,6 +156,10 @@ def init(
         str | None,
         typer.Option(help="Override detected languages (comma-separated)"),
     ] = None,
+    agent: Annotated[
+        str,
+        typer.Option(help="Target agent for hook wiring: 'claude' or 'copilot'"),
+    ] = "claude",
 ) -> None:
     """Initialize ADE in the current project."""
     project_dir = project_dir.resolve()
@@ -125,6 +180,10 @@ def init(
     rprint(f"  Detected languages: {', '.join(info.languages) or 'none'}")
     rprint(f"  Project name: {info.project_name}")
 
+    if agent not in {"claude", "copilot"}:
+        rprint(f"[red]Error: --agent must be 'claude' or 'copilot', got '{agent}'[/red]")
+        raise typer.Exit(1)
+
     env = _get_template_env()
     ctx = {"info": info}
 
@@ -141,6 +200,27 @@ def init(
     # Generate .claude/commands/*.md (from templates/commands/)
     commands_dir = project_dir / ".claude" / "commands"
     _render_template_dir(env, "commands/", commands_dir, ctx)
+
+    # Deterministic commit hooks (G1/G2) — scripts always emitted to the committed
+    # .claude/hooks/ dir so they exist inside git worktrees; wiring is mode-specific.
+    _render_hooks(env, project_dir / ".claude" / "hooks", ctx)
+
+    if agent == "claude":
+        action = _emit_claude_hooks(env, project_dir, ctx)
+        rprint(f"  [green]+[/green] {action} .claude/settings.json (hook wiring)")
+    else:  # copilot
+        created = _render_and_write_if_missing(
+            env, "pre-commit-config.yaml.j2", project_dir / ".pre-commit-config.yaml", ctx
+        )
+        if created:
+            rprint("  [green]+[/green] Created .pre-commit-config.yaml")
+            rprint(
+                "    [dim]run: pre-commit install"
+                " --hook-type pre-commit --hook-type commit-msg[/dim]"
+            )
+        else:
+            rprint("  [dim]= Kept existing .pre-commit-config.yaml[/dim]")
+            rprint("    [dim]Add the ADE `repo: local` hooks block manually — see docs.[/dim]")
 
     # Update CLAUDE.md with ADE section
     ade_section_template = env.get_template("claude_md_section.md.j2")

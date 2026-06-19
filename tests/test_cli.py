@@ -25,14 +25,14 @@ def test_init_python_project(python_project: Path) -> None:
 
 
 def test_init_does_not_generate_v3_artifacts(python_project: Path) -> None:
-    """v4 should NOT generate CrewAI, Ollama, or pre-commit artifacts."""
+    """v4 should NOT generate CrewAI or Ollama artifacts."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
 
     assert not (python_project / ".ade" / "config.yaml").exists()
     assert not (python_project / ".ade" / "crew").exists()
     assert not (python_project / ".ade" / "modelfiles").exists()
+    # Default (claude) mode does not seed a pre-commit config; copilot mode does.
     assert not (python_project / ".pre-commit-config.yaml").exists()
-    assert not (python_project / ".claude" / "settings.json").exists()
 
 
 def test_init_creates_claude_md_with_ade_section(python_project: Path) -> None:
@@ -201,3 +201,65 @@ def test_init_generates_pr_review_command_and_skill(python_project: Path) -> Non
     skill_content = skill.read_text()
     assert "pr-reviewer" in skill_content
     assert "max 3" in skill_content.lower() or "max **3**" in skill_content.lower()
+
+
+def test_init_claude_mode_emits_settings_and_hooks(python_project: Path) -> None:
+    result = runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert result.exit_code == 0
+    settings = python_project / ".claude" / "settings.json"
+    assert settings.exists()
+    assert "block-mixed-commit.py" in settings.read_text()
+    assert (python_project / ".claude" / "hooks" / "_hooklib.py").exists()
+    assert (python_project / ".claude" / "hooks" / "block-mixed-commit.py").exists()
+    assert (python_project / ".claude" / "hooks" / "check-leftover-stub.py").exists()
+    assert not (python_project / ".pre-commit-config.yaml").exists()
+
+
+def test_init_copilot_mode_emits_precommit_config(python_project: Path) -> None:
+    result = runner.invoke(
+        app, ["init", "--project-dir", str(python_project), "--agent", "copilot"]
+    )
+    assert result.exit_code == 0
+    cfg = python_project / ".pre-commit-config.yaml"
+    assert cfg.exists()
+    assert "ade-block-mixed-commit" in cfg.read_text()
+    assert (python_project / ".claude" / "hooks" / "block-mixed-commit.py").exists()
+    assert not (python_project / ".claude" / "settings.json").exists()
+
+
+def test_init_rejects_unknown_agent(python_project: Path) -> None:
+    result = runner.invoke(
+        app, ["init", "--project-dir", str(python_project), "--agent", "cursor"]
+    )
+    assert result.exit_code != 0
+
+
+def test_init_settings_merge_is_idempotent(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    import json
+    settings = json.loads((python_project / ".claude" / "settings.json").read_text())
+    cmds = [
+        h["command"]
+        for block in settings["hooks"]["PreToolUse"]
+        for h in block["hooks"]
+    ]
+    assert cmds.count("python .claude/hooks/block-mixed-commit.py --stdin-json") == 1
+
+
+def test_init_settings_merge_preserves_existing(python_project: Path) -> None:
+    import json
+    settings_path = python_project / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(json.dumps({"permissions": {"allow": ["Bash(ls)"]}}))
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    merged = json.loads(settings_path.read_text())
+    assert merged["permissions"]["allow"] == ["Bash(ls)"]
+    assert "PreToolUse" in merged["hooks"]
+
+
+def test_init_copilot_seed_if_missing_preserves_existing(python_project: Path) -> None:
+    cfg = python_project / ".pre-commit-config.yaml"
+    cfg.write_text("repos: []  # user owned\n")
+    runner.invoke(app, ["init", "--project-dir", str(python_project), "--agent", "copilot"])
+    assert "user owned" in cfg.read_text()

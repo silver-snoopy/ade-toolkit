@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "python .claude/hooks/block-mixed-commit.py --stdin-json" },
+          { "type": "command", "command": "python .claude/hooks/check-leftover-stub.py --stdin-json" }
+        ]
+      }
+    ]
+  }
+}

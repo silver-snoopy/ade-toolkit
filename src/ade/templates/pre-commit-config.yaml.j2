@@ -1,0 +1,17 @@
+# ADE deterministic commit hooks (G1/G2).
+# Install with BOTH hook types:
+#   pre-commit install --hook-type pre-commit --hook-type commit-msg
+repos:
+  - repo: local
+    hooks:
+      - id: ade-block-mixed-commit
+        name: ADE — no mixed test+impl commits
+        entry: python .claude/hooks/block-mixed-commit.py
+        language: system
+        stages: [commit-msg]
+      - id: ade-check-leftover-stub
+        name: ADE — no leftover stubs in committed source
+        entry: python .claude/hooks/check-leftover-stub.py
+        language: system
+        types: [text]
+        stages: [pre-commit]
