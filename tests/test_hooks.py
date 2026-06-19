@@ -177,3 +177,20 @@ def test_check_leftover_stub_stdin_json_mode(hook_repo: Path) -> None:
         check=False,
     )
     assert result.returncode == 2, result.stderr
+
+
+def test_block_mixed_commit_marker_bypass_stdin_json(hook_repo: Path) -> None:
+    """The [test-refactor] bypass is reachable under the Claude substrate too."""
+    _write_stage(hook_repo, "src/feature.py", "def f():\n    return 1\n")
+    _write_stage(hook_repo, "tests/test_feature.py", "def test_f():\n    assert True\n")
+    payload = '{"tool_input": {"command": "git commit -m \\"refactor: x [test-refactor]\\""}}'
+    hook = hook_repo / ".claude" / "hooks" / "block-mixed-commit.py"
+    result = subprocess.run(
+        [sys.executable, str(hook), "--stdin-json"],
+        cwd=hook_repo,
+        input=payload,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr

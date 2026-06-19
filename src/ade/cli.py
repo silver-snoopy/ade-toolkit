@@ -114,6 +114,9 @@ def _merge_hooks(current: dict, ade: dict) -> dict:
     """Idempotently merge ADE PreToolUse hook commands into an existing settings dict."""
     merged = copy.deepcopy(current)
     hooks = merged.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        hooks = {}
+        merged["hooks"] = hooks
     for event, blocks in ade.get("hooks", {}).items():
         existing_blocks = hooks.setdefault(event, [])
         for ade_block in blocks:
@@ -308,6 +311,7 @@ def doctor(
             "Vendored grill-with-docs skill (R4)",
         ),
         (".claude/skills/ade/phases/01-research.md", "Research phase skill"),
+        (".claude/hooks/_hooklib.py", "Hook library: _hooklib (G1/G2 dependency)"),
         (".claude/hooks/block-mixed-commit.py", "Commit hook: block-mixed-commit (G1)"),
         (".claude/hooks/check-leftover-stub.py", "Commit hook: check-leftover-stub (G2)"),
     ]
