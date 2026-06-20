@@ -46,7 +46,32 @@ CLAUDE.md         → ADE workflow section appended on init
 | 8 — Ship | Commit, push, PR | Orchestrator | PR URL |
 | 9 — Retro | Metrics + cleanup | Orchestrator | `.ade/tasks/<id>/retro.json` |
 
-Human gates: after R5 (ready-for-development), after Phase 2 (plan completeness), after Phase 8 (merge decision).
+Human gates: after R5 (ready-for-development), after Phase 2 (plan completeness), after Phase 8 (merge decision). For `architecture`-routed tasks, an additional confirmation gate follows Phase-0 routing.
+
+## Blast-radius routing (G4)
+
+The closing sub-step of Phase 0 assigns a **tier** that masks which phases run:
+
+- **trivial** — tiny self-contained change: lightweight inline research, no design-check,
+  single review pass, no retro — but always author-separated TDD, the deterministic quality
+  gate, and the merge gate.
+- **standard** — the full nine-phase flow (default).
+- **architecture** — standard + ≥1 ADR + an adversarial Plan Soundness Review before code.
+
+**Hybrid classifier.** The orchestrator judges trivial-vs-standard from the intent; a
+deterministic rule set decides **forced-escalation** — security/auth/secrets/crypto/
+data-loss force a floor of `standard`, and schema/migrations/public-API/ADR-or-model force
+`architecture`, regardless of estimated size. Rules + globs live in the user-owned
+`.claude/ade-routing.json`.
+
+**Two-layer enforcement.** Phase 0 applies the rules to the *declared* affected areas (no
+diff exists yet). The `check-escalation-paths` commit hook re-checks the *actual* diff at
+Ship time against a hardcoded baseline (which config can only extend) — the non-evadable
+guarantee, scoped to ADE-routed tasks (`ade/<task-id>` branches). See
+`docs/adr/0001-hybrid-blast-radius-routing-classifier.md`.
+
+The Phase-0 S/M/L scope estimate now *feeds* the router rather than being purely
+informational.
 
 ## Phase 1 — Research (detailed)
 
@@ -227,6 +252,10 @@ Two Python scripts committed under `.claude/hooks/` act as a hard gate on commit
 
 - **`block-mixed-commit.py`** — rejects any commit that contains both test files and non-test source files in the same changeset. This enforces the Phase 4a/4b author separation at the VCS level. Bypass: include `[test-refactor]` in the commit message for the narrow case of a refactor that must touch both together.
 - **`check-leftover-stub.py`** — rejects committed non-test source files that still contain stub markers (`NotImplementedError`, `TODO: implement`, or `Not implemented`). This prevents stubs from being accidentally shipped as real implementation.
+- **`check-escalation-paths.py`** — for an ADE-routed task (`ade/<task-id>` branch), rejects
+  a commit whose diff touches escalation paths (security/auth/secrets, schema/migrations,
+  public-API) below the task's routed floor. Baseline globs are compiled in;
+  `.claude/ade-routing.json` may only extend them. No-op off an `ade/*` branch.
 
 Both scripts share common detection logic via `_hooklib.py` (also in `.claude/hooks/`), so they work identically regardless of which substrate wires them.
 
@@ -256,6 +285,7 @@ All subagents are defined as Markdown files under `.claude/agents/` with YAML fr
 | `code-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `security-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `test-runner` | haiku | Read, Bash | Phase 5 |
+| `plan-reviewer` | sonnet | Read, Grep, Glob | Phase 2 (architecture tier) |
 
 The orchestrator (Claude Opus in the main session) is the only actor that dispatches subagents. Subagents do not invoke other subagents — composition is orchestrator-driven.
 
@@ -332,6 +362,7 @@ These rules govern the orchestrator's behavior. Violations break the architectur
 | Phase 4–6 code → review loop | 3 cycles | Escalate to user |
 | Phase 5 QA fix loop | 3 iterations | Escalate to user |
 | Phase 4 commit hooks (`block-mixed-commit`, `check-leftover-stub`) | N/A (hard gate) | Reject commit; orchestrator must correct before retry |
+| Plan Soundness Review (architecture) | 2 iterations | Escalate to user |
 
 ## CLI surface
 
