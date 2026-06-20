@@ -429,3 +429,15 @@ def test_init_generates_plan_reviewer_agent(python_project: Path) -> None:
     assert "Write" not in content and "Edit" not in content and "Bash" not in content
     # language-agnostic
     assert "@vitals" not in content
+
+
+def test_intent_skill_has_route_substep(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    intent = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "00-intent.md"
+    ).read_text()
+    assert "0d — Route" in intent or "0d - Route" in intent
+    for tier in ("trivial", "standard", "architecture"):
+        assert tier in intent
+    assert "ade-routing.json" in intent
+    assert "forced-escalation" in intent.lower() or "escalation" in intent.lower()
