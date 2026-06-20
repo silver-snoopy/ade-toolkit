@@ -1,0 +1,16 @@
+{
+  "escalation_globs": {
+    "architecture": [
+      "*/migrations/*", "*.sql", "*schema.*", "*openapi.*", "*.proto",
+      "*/routes/*", "*/api/*", "docs/adr/*", "*/models/*"
+    ],
+    "standard": [
+      "*/auth/*", "*secret*", "*crypto*", "*/security/*", "*.env*", "*credential*"
+    ]
+  },
+  "size_thresholds": { "architecture_file_count": 10 },
+  "keywords": {
+    "architecture": ["schema", "migration", "public api", "breaking change", "data model"],
+    "standard": ["auth", "authentication", "authorization", "secret", "credential", "crypto", "security", "permission", "data loss"]
+  }
+}

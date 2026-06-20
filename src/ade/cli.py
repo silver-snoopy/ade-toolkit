@@ -235,6 +235,13 @@ def init(
     else:
         rprint("  [dim]= Kept existing .claude/ade-stack.md[/dim]")
 
+    # Seed .claude/ade-routing.json (G4) — routing config, seed-if-missing, user-owned.
+    routing_dest = project_dir / ".claude" / "ade-routing.json"
+    if _render_and_write_if_missing(env, "ade-routing.json.j2", routing_dest, ctx):
+        rprint("  [green]+[/green] Created .claude/ade-routing.json")
+    else:
+        rprint("  [dim]= Kept existing .claude/ade-routing.json[/dim]")
+
     # Update CLAUDE.md with ADE section
     ade_section_template = env.get_template("claude_md_section.md.j2")
     ade_section = ade_section_template.render(**ctx)

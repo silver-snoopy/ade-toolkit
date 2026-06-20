@@ -383,3 +383,21 @@ def test_no_stale_stack_references(python_project: Path) -> None:
     ]
     found = [tok for tok in forbidden if tok in blob]
     assert not found, f"stale references still present: {found}"
+
+
+def test_init_seeds_ade_routing_file(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    routing = python_project / ".claude" / "ade-routing.json"
+    assert routing.exists()
+    data = json.loads(routing.read_text())
+    assert "escalation_globs" in data
+    assert "architecture" in data["escalation_globs"]
+    assert "keywords" in data
+
+
+def test_init_ade_routing_seed_if_missing_preserves_edits(python_project: Path) -> None:
+    routing = python_project / ".claude" / "ade-routing.json"
+    routing.parent.mkdir(parents=True, exist_ok=True)
+    routing.write_text('{"escalation_globs": {"architecture": ["*.custom"]}}\n')
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert "*.custom" in routing.read_text()
