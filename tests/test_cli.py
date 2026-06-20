@@ -442,7 +442,7 @@ def test_init_generates_compounder_agent(python_project: Path) -> None:
     # contract terms
     assert "calibration" in content.lower()
     assert "Learning" in content
-    assert "why it matters" in content.lower()
+    assert "why this matters" in content.lower()
     assert "NO LEARNING" in content
     # never promotes severity by frequency
     assert "never" in content.lower() and "frequency" in content.lower()
@@ -534,6 +534,7 @@ def test_review_persists_output(python_project: Path) -> None:
         python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
     ).read_text()
     assert ".ade/tasks/<task-id>/review.md" in review
+    assert "even when" in review.lower()
 
 
 def test_retro_skill_describes_codify_step(python_project: Path) -> None:
