@@ -15,11 +15,13 @@ import _hooklib as h
 # the safe direction for a security floor. Config can only add to these.
 BASELINE_GLOBS: dict[str, list[str]] = {
     "architecture": [
-        "*/migrations/*", "*.sql", "*schema.*", "*openapi.*", "*.proto",
-        "*/routes/*", "*/api/*", "docs/adr/*", "*/models/*",
+        "*/migrations/*", "migrations/*", "*.sql", "*schema.*", "*openapi.*", "*.proto",
+        "*/routes/*", "routes/*", "*/api/*", "api/*", "docs/adr/*",
+        "*/models/*", "models/*",
     ],
     "standard": [
-        "*/auth/*", "*secret*", "*crypto*", "*/security/*", "*.env*", "*credential*",
+        "*/auth/*", "auth/*", "*secret*", "*crypto*", "*/security/*", "security/*",
+        "*.env*", "*credential*",
     ],
 }
 TIER_RANK = {"trivial": 0, "standard": 1, "architecture": 2}

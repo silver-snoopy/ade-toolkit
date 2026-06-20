@@ -258,3 +258,11 @@ def test_escalation_hook_malformed_config_falls_back_to_baseline(hook_repo: Path
     _write_stage(hook_repo, "src/auth/login.py", "def login():\n    return True\n")
     result = _run_hook(hook_repo, "check-escalation-paths.py", "src/auth/login.py")
     assert result.returncode == 2, result.stderr  # baseline still enforced
+
+
+def test_escalation_hook_blocks_top_level_dir(hook_repo: Path) -> None:
+    _route(hook_repo, "feat-x", "trivial")
+    _write_stage(hook_repo, "auth/login.py", "def login():\n    return True\n")
+    result = _run_hook(hook_repo, "check-escalation-paths.py", "auth/login.py")
+    assert result.returncode == 2, result.stderr
+    assert "standard" in result.stderr
