@@ -41,3 +41,36 @@ detail. Update when a term is coined, sharpened, or changes meaning.
   (not the code) by a fresh-context reviewer that tries to refute it against the spec.
   Distinct from the **PLAN GATE**, which is a structural completeness check applied to all
   tiers.
+
+## Compound loop (G3)
+
+- **Compound loop** — the cross-task feedback mechanism by which each completed task
+  deposits durable, reloadable knowledge so the next task is cheaper: Phase 9 **codifies**
+  learnings that Phase 1 reads back, and review findings accrete into a corpus that Phase 6
+  reads back.
+- **Codify** — the closing sub-step of **Phase 9 (Retrospective)**: turn the cycle's
+  reflection into durable knowledge by writing a Learning and merging the task's review
+  findings into the calibration corpus. (Parallel to G4's "Route" sub-step of Phase 0 — a
+  sub-step, not a renamed phase.) Distinct from the **Retro** proper, which looks back and
+  records per-task metrics (`retro.json`).
+- **Learning** — a durable, per-task knowledge artifact at `docs/learnings/{date}_{slug}.md`
+  capturing a *thing we discovered* about how the system/tools/domain behave (including
+  failed approaches) and **why it matters** — the transferable mechanism, not an anecdote.
+  Distinct from an **ADR** (a decision we *committed to*) and a **spec** (the WHAT/plan):
+  *if you chose it, it's an ADR; if you found it out, it's a Learning.*
+  _Avoid_: solution, retro note.
+- **Calibration corpus** — the single accreting, version-controlled doc at
+  `docs/review-calibration.md` listing recurring **finding-classes**; read **fresh** by
+  Phase 6 review agents every run so the project's recurring issues are checked proactively.
+  The corpus *is* the review tuning (passive read-back; review prompts are never rewritten).
+- **Finding-class** — one recurring category of review finding in the calibration corpus,
+  carrying a severity (assigned from the finding's *badness*), a frequency (how many tasks
+  it recurred in), a greppable signal, and an example. **Frequency orders the corpus; it
+  never promotes severity** — recurrence drives prominence, not escalation.
+- **Review-findings signal** — the per-task count of Phase 6 review findings (plus post-PR
+  bot comments when a merged PR with bot reviews exists), surfaced at Retro as a health
+  number. Its only durable effect is incrementing a finding-class's frequency; it is **not**
+  a gate (ADE has no post-PR loop to halt). _Avoid_: SLI.
+- **Compounder** — the read-only subagent (sonnet) that distills a task's findings and
+  learnings into the Learning body and the corpus merge; the orchestrator owns the final
+  write. Runs only in the Codify sub-step (standard + architecture tiers; trivial skips it).
