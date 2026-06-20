@@ -106,7 +106,12 @@ def _render_hooks(env: Environment, hooks_dir: Path, context: dict) -> None:
     Rendered explicitly (not via _render_template_dir) so the leading-underscore
     helper `_hooklib.py` is not mangled into a dashed name.
     """
-    for name in ("_hooklib.py", "block-mixed-commit.py", "check-leftover-stub.py"):
+    for name in (
+        "_hooklib.py",
+        "block-mixed-commit.py",
+        "check-leftover-stub.py",
+        "check-escalation-paths.py",
+    ):
         _render_and_write(env, f"hooks/{name}.j2", hooks_dir / name, context)
 
 
@@ -328,6 +333,7 @@ def doctor(
         (".claude/hooks/_hooklib.py", "Hook library: _hooklib (G1/G2 dependency)"),
         (".claude/hooks/block-mixed-commit.py", "Commit hook: block-mixed-commit (G1)"),
         (".claude/hooks/check-leftover-stub.py", "Commit hook: check-leftover-stub (G2)"),
+        (".claude/hooks/check-escalation-paths.py", "Commit hook: check-escalation-paths (G4)"),
     ]
     project_initialized = True
     for rel, description in required_paths:

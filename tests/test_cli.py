@@ -223,6 +223,8 @@ def test_init_claude_mode_emits_settings_and_hooks(python_project: Path) -> None
     assert (python_project / ".claude" / "hooks" / "block-mixed-commit.py").exists()
     assert (python_project / ".claude" / "hooks" / "check-leftover-stub.py").exists()
     assert not (python_project / ".pre-commit-config.yaml").exists()
+    assert (python_project / ".claude" / "hooks" / "check-escalation-paths.py").exists()
+    assert "check-escalation-paths.py" in settings.read_text()
 
 
 def test_init_copilot_mode_emits_precommit_config(python_project: Path) -> None:
@@ -235,6 +237,8 @@ def test_init_copilot_mode_emits_precommit_config(python_project: Path) -> None:
     assert "ade-block-mixed-commit" in cfg.read_text()
     assert (python_project / ".claude" / "hooks" / "block-mixed-commit.py").exists()
     assert not (python_project / ".claude" / "settings.json").exists()
+    assert "ade-check-escalation-paths" in cfg.read_text()
+    assert (python_project / ".claude" / "hooks" / "check-escalation-paths.py").exists()
 
 
 def test_init_rejects_unknown_agent(python_project: Path) -> None:
@@ -401,3 +405,12 @@ def test_init_ade_routing_seed_if_missing_preserves_edits(python_project: Path) 
     routing.write_text('{"escalation_globs": {"architecture": ["*.custom"]}}\n')
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     assert "*.custom" in routing.read_text()
+
+
+def test_doctor_checks_escalation_hook(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    (python_project / ".claude" / "hooks" / "check-escalation-paths.py").unlink()
+    with patch("ade.cli._check_command", return_value=True):
+        result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
+    assert result.exit_code == 1
+    assert "FAIL" in result.output
