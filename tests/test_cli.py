@@ -431,6 +431,23 @@ def test_init_generates_plan_reviewer_agent(python_project: Path) -> None:
     assert "@vitals" not in content
 
 
+def test_init_generates_compounder_agent(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agent_path = python_project / ".claude" / "agents" / "compounder.md"
+    assert agent_path.exists()
+    content = agent_path.read_text()
+    assert "model: sonnet" in content
+    # read-only: no Write/Edit/Bash in the tools line
+    assert "tools: [Read, Grep, Glob]" in content
+    # contract terms
+    assert "calibration" in content.lower()
+    assert "Learning" in content
+    assert "why it matters" in content.lower()
+    assert "NO LEARNING" in content
+    # never promotes severity by frequency
+    assert "never" in content.lower() and "frequency" in content.lower()
+
+
 def test_intent_skill_has_route_substep(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     intent = (
