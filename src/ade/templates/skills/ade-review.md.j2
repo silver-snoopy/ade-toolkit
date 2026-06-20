@@ -1,4 +1,4 @@
-Run ADE review phases (Review + Verify + Documentation) for: $ARGUMENTS
+Run ADE review phases (Review + Documentation) for: $ARGUMENTS
 
 ## Phase 6 — REVIEW
 
@@ -11,6 +11,7 @@ code, errors, tests, types, comments (exclude simplify).
 1. Logic: errors, edge cases, null handling, race conditions
 2. Conventions: project patterns from CLAUDE.md
 3. Security: OWASP top 10, injection, auth bypass, secrets
+4. Test adequacy: tautologies, all-mocks, missing edge cases, each automatable criterion meaningfully exercised
 
 Classify: Critical (blocking) | Important (fix before merge) | Suggestions (advisory) | Positive (informational).
 Fix all Critical and Important. Re-run build after fixes.
@@ -26,21 +27,11 @@ On review pass: invoke `code-simplifier` final polish → re-run Phase 5 → pro
 
 **Exit criteria:** No Critical/Important findings. Build passes. Simplification pass complete.
 
-## Phase 7 — VERIFY (MANDATORY — NO EXEMPTIONS)
-Live verification with evidence for ALL changes (frontend, backend, refactors, anything).
+**Acceptance gate:** every automatable Phase-0 criterion has a covering test that
+meaningfully exercises it (missing/empty → Important). `(manual)` criteria are listed for
+the human, not blockers.
 
-1. Start local dev environment
-2. Write temporary Playwright test against live system
-3. Capture screenshots at key states
-4. Present to user
-5. Verify each acceptance criterion from Phase 0
-6. For bugfixes: compare with reproduction evidence
-
-**Hard requirement:** Evidence captured against live system.
-**Allowed fallback:** Any method exercising live system with evidence. Mocked tests NEVER sufficient.
-**Exit criteria:** All acceptance criteria verified with evidence.
-
-## Phase 8 — DOCUMENTATION
+## Phase 7 — DOCUMENTATION
 Update affected docs: product capabilities, architecture, CLAUDE.md, API docs.
 **Exit criteria:** All affected documentation updated.
 
