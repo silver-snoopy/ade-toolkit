@@ -15,7 +15,7 @@ def test_init_python_project(python_project: Path) -> None:
 
     # Verify v4 generated files
     assert (python_project / ".ade" / ".gitignore").exists()
-    assert (python_project / ".claude" / "agents" / "backend-coder.md").exists()
+    assert (python_project / ".claude" / "agents" / "implementer.md").exists()
     assert (python_project / ".claude" / "agents" / "code-reviewer.md").exists()
     assert (python_project / ".claude" / "agents" / "test-runner.md").exists()
     assert (python_project / ".claude" / "skills" / "ade" / "ade-full.md").exists()
@@ -70,9 +70,9 @@ def test_init_agent_definitions_have_model(python_project: Path) -> None:
     """Agent definitions should specify a model."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
 
-    backend = (python_project / ".claude" / "agents" / "backend-coder.md").read_text()
-    assert "model:" in backend
-    assert "sonnet" in backend
+    implementer = (python_project / ".claude" / "agents" / "implementer.md").read_text()
+    assert "model:" in implementer
+    assert "sonnet" in implementer
 
     test_runner = (python_project / ".claude" / "agents" / "test-runner.md").read_text()
     assert "haiku" in test_runner
@@ -285,10 +285,27 @@ def test_init_generates_test_writer_agent(python_project: Path) -> None:
     assert "never" in content.lower() and "implementation" in content.lower()
 
 
-def test_coders_forbidden_from_test_files(python_project: Path) -> None:
+def test_implementer_forbidden_from_test_files(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    backend = (python_project / ".claude" / "agents" / "backend-coder.md").read_text()
-    assert "test file" in backend.lower()
+    impl = (python_project / ".claude" / "agents" / "implementer.md").read_text()
+    assert "test file" in impl.lower()
+
+
+def test_init_generates_implementer_agent(python_project: Path) -> None:
+    """A single language-agnostic implementer replaces the two coder agents."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agents = python_project / ".claude" / "agents"
+    impl = agents / "implementer.md"
+    assert impl.exists()
+    content = impl.read_text()
+    assert "model:" in content and "sonnet" in content
+    assert "test file" in content.lower()
+    # Language-agnostic: no hardcoded JS/TS stack leaks in.
+    assert "@vitals" not in content
+    assert "import type" not in content
+    # The old layer-named coders are gone.
+    assert not (agents / "backend-coder.md").exists()
+    assert not (agents / "frontend-coder.md").exists()
 
 
 def test_phase4_skill_describes_author_separation(python_project: Path) -> None:
