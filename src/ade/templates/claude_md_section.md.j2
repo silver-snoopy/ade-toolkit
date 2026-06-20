@@ -95,8 +95,12 @@ Fix all HIGH and MEDIUM findings before proceeding.
 
 **◆ MERGE GATE ◆**: Present PR to user for review and merge decision.
 
-**Phase 9 — RETROSPECTIVE**: Record metrics and learnings.
-Save to `.ade/tasks/<task-id>/retro.json`. Clean up worktree.
+**Phase 9 — RETROSPECTIVE**: Record metrics to `.ade/tasks/<task-id>/retro.json`, then
+**Codify** (standard/architecture tiers): a read-only `compounder` subagent folds review
+findings into `docs/review-calibration.md` (frequency orders the corpus, never promotes
+severity) and writes a `docs/learnings/{date}_{slug}.md` when the task yielded a transferable
+insight. Phase 1 reads `docs/learnings/` back and Phase 6 reads `docs/review-calibration.md`
+fresh — the compound loop. Clean up worktree.
 
 ### Post-merge: GitHub PR review-and-fix loop
 

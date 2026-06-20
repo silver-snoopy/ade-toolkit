@@ -73,6 +73,43 @@ guarantee, scoped to ADE-routed tasks (`ade/<task-id>` branches). See
 The Phase-0 S/M/L scope estimate now *feeds* the router rather than being purely
 informational.
 
+## Compound loop (G3)
+
+ADE's Phase 9 was historically an ephemeral, per-task `retro.json` that dead-ended. G3
+promotes it with a **Codify** sub-step that deposits durable, reloadable knowledge so each
+task makes the next cheaper. Two version-controlled artifacts live in the target project,
+joining `CONTEXT.md` (terminology) and ADRs (decisions):
+
+- **`docs/learnings/{date}_{slug}.md`** — a per-task **Learning**: a mechanism-focused record
+  of something the task *discovered* (incl. failed approaches) and *why it matters*. Written
+  only when there is a genuinely transferable insight (routine tasks produce none). A Learning
+  is a *discovery*; an ADR is a *decision* — *if you chose it, it's an ADR; if you found it
+  out, it's a Learning.*
+- **`docs/review-calibration.md`** — a single accreting **calibration corpus** of recurring
+  review **finding-classes** (severity from badness, frequency, greppable signal, example),
+  ordered most-frequent-first.
+
+**Data flow (the loop):**
+1. **Phase 9 / Codify** (standard + architecture; skipped for `trivial`): a read-only
+   `compounder` subagent (sonnet) reads the persisted Phase-6 `review.md`, `retro.json`, the
+   spec, and the diff, then returns a corpus merge (always applied) and a Learning (written
+   only if transferable). The orchestrator owns the writes.
+2. **Phase 1 / Research** R2.1 scouts grep `docs/learnings/` for prior discoveries in the
+   task's area.
+3. **Phase 6 / Review** agents read `docs/review-calibration.md` fresh every run and
+   prioritize the project's top recurring finding-classes.
+
+The **review-findings signal** (per-task finding count, plus best-effort bot comments on
+*prior* merged PRs) is surfaced at Retro as a health number whose only durable effect is
+incrementing finding-class frequency. It is **not** a gate — the loop is passive,
+prose-driven, and non-gating (see ADR 0002), deliberately diverging from LeRisque's gating
+SLI and from G4's enforcement hook (G3 guards no security boundary; it accrues knowledge).
+
+### Subagent
+
+- **`compounder`** (sonnet, read-only `[Read, Grep, Glob]`) — distills a task's findings and
+  discoveries into the calibration-corpus merge and a conditional Learning during Codify.
+
 ## Phase 1 — Research (detailed)
 
 Phase 1 is the most rigorous and recently rebuilt part of the pipeline. It has five sub-steps producing artifacts that compound across tasks.

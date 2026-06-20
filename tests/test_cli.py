@@ -538,9 +538,7 @@ def test_review_persists_output(python_project: Path) -> None:
 
 def test_retro_skill_describes_codify_step(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    retro = (
-        python_project / ".claude" / "skills" / "ade" / "phases" / "09-retro.md"
-    ).read_text()
+    retro = (python_project / ".claude" / "skills" / "ade" / "phases" / "09-retro.md").read_text()
     assert "Codify" in retro
     assert "docs/learnings/" in retro
     assert "docs/review-calibration.md" in retro
@@ -556,3 +554,11 @@ def test_research_reads_learnings(python_project: Path) -> None:
         python_project / ".claude" / "skills" / "ade" / "phases" / "01-research.md"
     ).read_text()
     assert "docs/learnings/" in research
+
+
+def test_claude_md_section_describes_compound_loop(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    claude_md = (python_project / "CLAUDE.md").read_text()
+    assert "docs/learnings/" in claude_md
+    assert "review-calibration.md" in claude_md
+    assert "Codify" in claude_md
