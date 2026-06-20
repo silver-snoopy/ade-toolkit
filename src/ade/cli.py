@@ -228,6 +228,13 @@ def init(
             rprint("  [dim]= Kept existing .pre-commit-config.yaml[/dim]")
             rprint("    [dim]Add the ADE `repo: local` hooks block manually — see docs.[/dim]")
 
+    # Seed .claude/ade-stack.md (G5b) — ADE-tooling config, seed-if-missing, user-owned.
+    stack_dest = project_dir / ".claude" / "ade-stack.md"
+    if _render_and_write_if_missing(env, "stack.md.j2", stack_dest, ctx):
+        rprint("  [green]+[/green] Created .claude/ade-stack.md")
+    else:
+        rprint("  [dim]= Kept existing .claude/ade-stack.md[/dim]")
+
     # Update CLAUDE.md with ADE section
     ade_section_template = env.get_template("claude_md_section.md.j2")
     ade_section = ade_section_template.render(**ctx)

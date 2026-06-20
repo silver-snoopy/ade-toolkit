@@ -315,3 +315,23 @@ def test_phase4_skill_describes_author_separation(python_project: Path) -> None:
     assert "test-writer" in phase4
     assert "RED" in phase4 or "failing test" in phase4.lower()
     assert "author separation" in phase4.lower() or "separate" in phase4.lower()
+
+
+def test_init_seeds_ade_stack_file(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    stack = python_project / ".claude" / "ade-stack.md"
+    assert stack.exists()
+    content = stack.read_text()
+    assert "build:" in content
+    assert "lint:" in content
+    assert "test:" in content
+    # python block carries the detected commands
+    assert "ruff check" in content
+
+
+def test_init_ade_stack_seed_if_missing_preserves_edits(python_project: Path) -> None:
+    stack = python_project / ".claude" / "ade-stack.md"
+    stack.parent.mkdir(parents=True, exist_ok=True)
+    stack.write_text("# my edited stack\n- test: make check\n")
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert "my edited stack" in stack.read_text()

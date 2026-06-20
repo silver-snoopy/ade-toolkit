@@ -1,0 +1,23 @@
+# ADE stack commands
+
+ADE phase skills read this file for the project's commands. `ade init` seeds it from
+stack detection; edit any line to correct it. One block per detected language. A value of
+`none` means "not applicable — skip this step"; a `# set your <slot> command` line means
+detection could not infer it — fill it in.
+
+{% if info.commands %}
+{% for lang, slots in info.commands.items() %}
+## {{ lang }}
+- build:  {{ slots.build }}
+- lint:   {{ slots.lint }}
+- format: {{ slots.format }}
+- test:   {{ slots.test }}
+
+{% endfor %}
+{% else %}
+## <language>
+- build:  # set your build command
+- lint:   # set your lint command
+- format: # set your format command
+- test:   # set your test command
+{% endif %}
