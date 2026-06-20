@@ -14,6 +14,7 @@ class ProjectInfo:
     project_name: str
     languages: list[str] = field(default_factory=list)
     test_commands: dict[str, str] = field(default_factory=dict)
+    commands: dict[str, dict[str, str]] = field(default_factory=dict)
     existing_linter_configs: list[str] = field(default_factory=list)
     has_claude_md: bool = False
     root: Path = field(default_factory=lambda: Path("."))
@@ -61,6 +62,42 @@ _DEFAULT_TEST_COMMANDS: dict[str, str] = {
     "rust": "cargo test",
 }
 
+# Default build/lint/format commands per language. Slots that do not apply to a
+# language are OMITTED here (e.g. python has no separate build) — the omission is what
+# drives the "none" three-state rendering in _detect_commands.
+_DEFAULT_BUILD_COMMANDS: dict[str, str] = {
+    "javascript": "npm run build",
+    "typescript": "npm run build",
+    "go": "go build ./...",
+    "rust": "cargo build",
+}
+_DEFAULT_LINT_COMMANDS: dict[str, str] = {
+    "python": "ruff check",
+    "javascript": "npm run lint",
+    "typescript": "npm run lint",
+    "go": "go vet ./...",
+    "rust": "cargo clippy",
+}
+_DEFAULT_FORMAT_COMMANDS: dict[str, str] = {
+    "python": "ruff format",
+    "javascript": "npm run format",
+    "typescript": "npm run format",
+    "go": "gofmt -l .",
+    "rust": "cargo fmt --check",
+}
+
+# Slot name → its per-language default map. Order defines the rendered order.
+_SLOT_DEFAULTS: dict[str, dict[str, str]] = {
+    "build": _DEFAULT_BUILD_COMMANDS,
+    "lint": _DEFAULT_LINT_COMMANDS,
+    "format": _DEFAULT_FORMAT_COMMANDS,
+    "test": _DEFAULT_TEST_COMMANDS,
+}
+
+# A language is "known" if ADE ships defaults for it (keyed off the test map, which
+# has an entry for every supported language).
+_KNOWN_LANGUAGES: frozenset[str] = frozenset(_DEFAULT_TEST_COMMANDS)
+
 
 def normalize_language(lang: str) -> str:
     """Normalize a language name, resolving aliases."""
@@ -75,6 +112,7 @@ def detect_project(root: Path) -> ProjectInfo:
     _detect_languages(root, info)
     _detect_linter_configs(root, info)
     _detect_test_commands(root, info)
+    _detect_commands(root, info)
     _detect_project_name(root, info)
     info.has_claude_md = (root / "CLAUDE.md").exists()
 
@@ -128,6 +166,31 @@ def _detect_test_commands(root: Path, info: ProjectInfo) -> None:
             default = _DEFAULT_TEST_COMMANDS.get(lang)
             if default:
                 info.test_commands[lang] = default
+
+
+def _detect_commands(root: Path, info: ProjectInfo) -> None:
+    """Populate info.commands with a build/lint/format/test block per language.
+
+    Three slot states keep the rendered file honest:
+    - a present per-language default → the command;
+    - an omitted slot for a *known* language → the literal ``none`` (phases skip it);
+    - any slot for an *unknown/undetected* language → a ``# set your <slot> command``
+      placeholder for the user to fill in.
+    The test slot reuses the package.json override already captured in test_commands.
+    """
+    for lang in info.languages:
+        known = lang in _KNOWN_LANGUAGES
+        slots: dict[str, str] = {}
+        for slot, defaults in _SLOT_DEFAULTS.items():
+            if slot == "test" and lang in info.test_commands:
+                slots[slot] = info.test_commands[lang]
+            elif lang in defaults:
+                slots[slot] = defaults[lang]
+            elif known:
+                slots[slot] = "none"
+            else:
+                slots[slot] = f"# set your {slot} command"
+        info.commands[lang] = slots
 
 
 def _detect_project_name(root: Path, info: ProjectInfo) -> None:
