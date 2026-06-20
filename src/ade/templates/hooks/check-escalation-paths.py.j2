@@ -48,7 +48,7 @@ def main() -> int:
     tier = h.routing_tier(task_id)
     if tier is None:
         return 0  # routing never recorded — treat as non-ADE, no-op
-    rank = TIER_RANK.get(tier, TIER_RANK["standard"])  # unknown tier → conservative
+    rank = TIER_RANK.get(tier, TIER_RANK["standard"])  # tier is always valid here (None handled above); default is defensive only
     globs = _escalation_globs()
     violations: list[tuple[str, str]] = []
     for f in files:
