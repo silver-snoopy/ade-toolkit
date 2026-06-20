@@ -414,3 +414,18 @@ def test_doctor_checks_escalation_hook(python_project: Path) -> None:
         result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
     assert result.exit_code == 1
     assert "FAIL" in result.output
+
+
+def test_init_generates_plan_reviewer_agent(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agent = python_project / ".claude" / "agents" / "plan-reviewer.md"
+    assert agent.exists()
+    content = agent.read_text()
+    assert "model:" in content and "sonnet" in content
+    assert "plan" in content.lower()
+    assert "refute" in content.lower() or "adversarial" in content.lower()
+    assert "acceptance criteria" in content.lower()
+    # read-only: no Write/Edit/Bash in the tool list
+    assert "Write" not in content and "Edit" not in content and "Bash" not in content
+    # language-agnostic
+    assert "@vitals" not in content
