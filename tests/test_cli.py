@@ -451,3 +451,52 @@ def test_ade_full_describes_routing_and_tiers(python_project: Path) -> None:
     assert "Plan Soundness Review" in full
     assert "skipped for" in full.lower() or "skip for" in full.lower()  # masking annotations
     assert "ade-routing.json" in full or "forced-escalation" in full.lower()
+
+
+def test_init_seeds_learnings_dir(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    readme = python_project / "docs" / "learnings" / "README.md"
+    assert readme.exists()
+    content = readme.read_text()
+    assert "Why this matters" in content
+    assert "Learning" in content
+    # boundary vs ADR is spelled out so future agents pick the right artifact
+    assert "ADR" in content
+
+
+def test_init_learnings_seed_if_missing_preserves_edits(python_project: Path) -> None:
+    readme = python_project / "docs" / "learnings" / "README.md"
+    readme.parent.mkdir(parents=True, exist_ok=True)
+    readme.write_text("# my edited learnings index\n")
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert "my edited learnings index" in readme.read_text()
+
+
+def test_init_seeds_review_calibration(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    corpus = python_project / "docs" / "review-calibration.md"
+    assert corpus.exists()
+    content = corpus.read_text()
+    assert "finding-class" in content.lower()
+    assert "Frequency" in content
+    assert "Severity" in content
+
+
+def test_init_review_calibration_seed_if_missing_preserves_edits(python_project: Path) -> None:
+    corpus = python_project / "docs" / "review-calibration.md"
+    corpus.parent.mkdir(parents=True, exist_ok=True)
+    corpus.write_text("# my edited corpus\n")
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert "my edited corpus" in corpus.read_text()
+
+
+def test_doctor_checks_compound_artifacts(python_project: Path) -> None:
+    """Doctor passes but WARNs when the seeded compound artifacts are removed."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    (python_project / "docs" / "review-calibration.md").unlink()
+
+    with patch("ade.cli._check_command", return_value=True):
+        result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
+    assert result.exit_code == 0
+    assert "WARN" in result.output
+    assert "review-calibration" in result.output

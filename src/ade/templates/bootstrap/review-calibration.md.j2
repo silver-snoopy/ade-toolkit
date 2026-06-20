@@ -1,0 +1,24 @@
+# Review calibration corpus
+
+A single, accreting list of the review **finding-classes** that recur in *this* project.
+Phase 6 review agents read this file **fresh at the start of every review** and prioritize
+the highest-frequency classes — so the issues this codebase keeps producing get caught
+proactively. The corpus *is* the tuning; review prompts are never rewritten.
+
+Written by the Codify sub-step of Phase 9 (via the `compounder` subagent): each task folds
+its review findings in. **Frequency orders this list (most-recurring first); it never
+promotes a class's severity.** Starts empty — an empty corpus is simply a no-op.
+
+## Finding-classes
+
+<!-- Each finding-class, most-frequent first:
+
+### <class name>
+- Severity: blocker | fix-before-merge | nice-to-have   (from the finding's own badness)
+- Frequency: <N> tasks
+- Signal: <greppable description of what to look for>
+- Example: <task slug / file#anchor / short quote>
+
+-->
+
+_(empty — the compound loop fills this in as tasks complete.)_

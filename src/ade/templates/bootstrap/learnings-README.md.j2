@@ -1,0 +1,43 @@
+# Learnings
+
+This directory holds durable, per-task **Learnings** produced by the Codify sub-step of
+ADE's Phase 9 (Retrospective). A Learning captures something the task *discovered* — a
+non-obvious mechanism, a failed approach worth remembering, or a sharp gotcha — and **why it
+matters**, so the next task's Research phase (Phase 1) reads it back and is cheaper.
+
+A Learning is distinct from:
+
+- an **ADR** (`docs/adr/`) — a decision you committed to. Rule of thumb: *if you chose it,
+  it's an ADR; if you found it out, it's a Learning.*
+- a **spec** (`docs/specs/`) — the WHAT/plan for a task, written before implementation.
+
+## Naming convention
+
+`{YYYY-MM-DD}_{slug}.md` — date-prefixed for chronological ordering; the slug is a 2–4 word
+kebab-case summary. One file per task, written **only when the task yielded a transferable
+insight** — routine tasks produce none, which keeps this directory high-signal.
+
+## Template
+
+```
+# <one-line problem statement>
+
+## Context
+2-3 sentences: what the task was, what you were trying to do.
+
+## What we tried
+- Approach X — expected Y, found Z.
+
+## What we learned
+The concrete finding. Specifics — names, paths, numbers.
+
+## Why this matters
+The underlying mechanism — the part that transfers to the next task. A principle, not an
+anecdote.
+
+## Gotchas
+Sharp edges someone applying this should know.
+
+## Related
+- Spec / ADRs / glossary terms touched.
+```
