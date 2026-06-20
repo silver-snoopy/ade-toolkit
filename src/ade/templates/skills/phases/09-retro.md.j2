@@ -1,4 +1,4 @@
-# Phase 10 — Retrospective
+# Phase 9 — Retrospective
 
 ## Purpose
 
@@ -26,7 +26,6 @@ Save to: `.ade/tasks/<task-id>/retro.json`
       "implement": "45m",
       "qualityGate": "12m",
       "review": "15m",
-      "verify": "10m",
       "docs": "5m",
       "ship": "5m"
     }
@@ -36,7 +35,6 @@ Save to: `.ade/tasks/<task-id>/retro.json`
     "designCheck": 1,
     "codeReviewCycles": 2,
     "qaFixAttempts": 1,
-    "verifyRejectCycles": 0,
     "totalIterations": 4
   },
 
@@ -91,7 +89,6 @@ Count of loops within each phase. Lower is better.
 - **designCheck** — how many stub revision rounds (max 2)
 - **codeReviewCycles** — how many code-fix-review loops (max 3)
 - **qaFixAttempts** — how many quality gate fix attempts (max 3)
-- **verifyRejectCycles** — how many verify-fail-fix loops (max 2)
 
 ### circuitBreakers
 Whether any iteration limit was hit and required user escalation.
@@ -148,12 +145,7 @@ After completion, the task directory should contain:
 ├── intent.md
 ├── plan.md
 ├── status.json
-├── retro.json
-└── verification/
-    ├── 01-default-state.png
-    ├── 02-after-interaction.png
-    ├── verification-summary.md
-    └── api-response.json (if applicable)
+└── retro.json
 ```
 
 These files are retained for historical reference and process improvement analysis.

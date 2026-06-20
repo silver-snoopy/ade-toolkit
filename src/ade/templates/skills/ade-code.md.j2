@@ -8,17 +8,20 @@ Review for plan alignment (max 2 iterations).
 **Exit criteria:** Stubs created. Module structure matches plan.
 
 ## Phase 4 — IMPLEMENT (author-separated TDD)
-Step 4a: dispatch `test-writer` → writes FAILING tests, commits them alone (`test:`).
-Step 4b: dispatch implementer subagents (`backend-coder`/`frontend-coder`) → make tests
-GREEN, commit alone (`feat:`/`fix:`). Enforce build order: shared → backend → frontend.
-The orchestrator does NOT pass the test-writer's reasoning to the implementer.
+Step 4a: dispatch `test-writer` → writes FAILING tests (one per automatable Phase-0
+criterion), commits them alone (`test:`).
+Step 4b: dispatch one or more `implementer` subagents with disjoint file assignments →
+make tests GREEN, commit alone (`feat:`/`fix:`). Build dependencies before dependents
+(the plan's task DAG defines order). The orchestrator does NOT pass the test-writer's
+reasoning to the implementer.
 
 **Hard requirement:** Tests start RED, end GREEN. No stub markers remain in source.
 **Mechanism:** `block-mixed-commit` hook keeps test and impl commits separate.
 **Exit criteria:** All tests pass. Build passes.
 
 ## Phase 5 — QUALITY GATE
-Run: lint → format → build → unit tests → E2E tests.
+Run the project's lint → format → build → test commands (see `.claude/ade-stack.md`);
+skip any slot that is `none` or unset.
 If failures: dispatch Sonnet fixer subagent (max 3 attempts).
 
 **Exit criteria:** All automated checks pass.

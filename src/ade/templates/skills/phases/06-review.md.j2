@@ -50,7 +50,7 @@ Focus on consistency with project patterns and standards.
 
 **What to look for:**
 - Naming conventions — files, functions, variables, types match existing patterns
-- Import style — `import type` for type-only imports, consistent ordering
+- Import style — follows the project's import conventions and ordering
 - Code structure — follows the established pattern for that file type (route, hook, component)
 - Error handling — uses project error patterns (not bare `try/catch` with `console.log`)
 - Test structure — follows existing test patterns (describe/it nesting, mock setup)
@@ -73,6 +73,32 @@ Focus on OWASP Top 10 and application-specific security concerns.
 - **Dependency risks** — new packages with known vulnerabilities
 - **Secrets in code** — hardcoded API keys, tokens, or credentials
 - **Input validation** — are all user inputs validated before use?
+
+### Lens 4: Test adequacy
+
+Tests are now the sole in-loop proof of acceptance, so review them as rigorously as the
+code. (The preferred mechanism's `pr-test-analyzer` already covers this — this lens closes
+the gap in fallback mode.)
+
+**What to look for:**
+- **Tautologies** — assertions that can never fail (`assert True`, asserting a literal you
+  just defined, re-asserting a mock's return value).
+- **All-mocks / no real call** — the unit under test is fully mocked away, so the test
+  exercises nothing real.
+- **Missing edge cases** — empty inputs, error paths, boundaries from the spec untested.
+- **Criterion coverage** — every automatable Phase-0 acceptance criterion has a test that
+  *meaningfully exercises* it (not a shallow render or a tautology).
+
+## Acceptance-Coverage Gate
+
+Because live verification has been removed from the pipeline, this gate is the in-loop
+acceptance check — it replaces live evidence:
+
+- **Every automatable Phase-0 acceptance criterion must have a covering test that
+  meaningfully exercises it** (not a tautology, not all-mocks). A criterion with no test,
+  or only an empty/tautological one, is an **Important** finding that must be resolved.
+- **`(manual)` criteria** are not blockers — list them in the review summary as
+  human-verify items for the reviewer to check outside the loop.
 
 ## Severity Classification
 
@@ -110,7 +136,7 @@ Both the preferred mechanism and fallback use the same severity taxonomy:
 
 ## Handling Findings
 
-1. **Critical findings** — Fix immediately. Do not proceed to verify phase.
+1. **Critical findings** — Fix immediately. Do not proceed to Docs (Phase 7).
 2. **Important findings** — Fix before merge. Can batch multiple Important fixes together.
 3. **Suggestions** — Note in review output. Fix if the file is already being changed.
    Otherwise, leave for a future cleanup task.
@@ -129,7 +155,7 @@ On review pass (no Critical/Important findings):
 
 1. Invoke `code-simplifier` — final polish pass
 2. Re-run Phase 5 (Quality Gate) to validate
-3. Proceed to Phase 7
+3. Proceed to Docs (Phase 7)
 
 ## Review Output Format
 
@@ -145,7 +171,7 @@ On review pass (no Critical/Important findings):
 | # | File | Line | Finding | Recommendation |
 |---|------|------|---------|----------------|
 | 2 | hooks/useExport.ts | 18 | Missing error state reset | Reset error on retry |
-| 3 | types/export.ts | 5 | Uses `type` instead of `interface` | Change to interface |
+| 3 | export module | 5 | Type fails to express an invariant | Tighten the type |
 
 ### Suggestions
 | # | File | Line | Finding | Recommendation |

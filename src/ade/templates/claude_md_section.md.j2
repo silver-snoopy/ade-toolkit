@@ -59,8 +59,12 @@ create file stubs. Review for plan alignment (max 2 iterations).
 
 **Phase 4 — IMPLEMENT**: test-writer (RED) → implementer (GREEN), author-separated.
 Step 4a: `test-writer` subagent writes FAILING tests, commits them alone (`test:`).
-Step 4b: `backend-coder`/`frontend-coder` make tests GREEN, commit alone (`feat:`/`fix:`).
-Enforce build order: shared types → backend → frontend.
+Step 4b: one or more `implementer` subagents (disjoint file assignments) make tests GREEN,
+commit alone (`feat:`/`fix:`). Build dependencies before dependents (the plan's task DAG
+defines order).
+
+**Stack commands:** build/lint/format/test commands live in `.claude/ade-stack.md`
+(seeded by `ade init`, user-owned). Phases reference it instead of hardcoding commands.
 
 **Phase 5 — QUALITY GATE**: Dispatch Haiku subagent to run build + tests.
 If failures, dispatch Sonnet fixer subagent (max 3 attempts).
@@ -71,10 +75,7 @@ If failures, dispatch Sonnet fixer subagent (max 3 attempts).
 - Security: OWASP top 10, injection, auth bypass, secrets
 Fix all HIGH and MEDIUM findings before proceeding.
 
-**Phase 7 — VERIFY**: Run full test suite. Capture evidence for each
-acceptance criterion from Phase 0.
-
-**Phase 8 — DOCUMENTATION**: Update docs triggered by code changes:
+**Phase 7 — DOCUMENTATION**: Update docs triggered by code changes:
 - New service/provider → update file tree in architecture doc
 - New API route → update endpoints table in architecture doc
 - New DB table/migration → update data model table in architecture doc
@@ -83,11 +84,11 @@ acceptance criterion from Phase 0.
 - Removed dependency/pattern → note removal in architecture doc
 - New convention/command/env var → update CLAUDE.md
 
-**Phase 9 — COMMIT & PR**: Stage, commit, push, open PR.
+**Phase 8 — COMMIT & PR**: Stage, commit, push, open PR.
 
 **◆ MERGE GATE ◆**: Present PR to user for review and merge decision.
 
-**Phase 10 — RETROSPECTIVE**: Record metrics and learnings.
+**Phase 9 — RETROSPECTIVE**: Record metrics and learnings.
 Save to `.ade/tasks/<task-id>/retro.json`. Clean up worktree.
 
 ### Post-merge: GitHub PR review-and-fix loop
@@ -102,7 +103,6 @@ subagents to apply fixes inside the PR's worktree, then re-reviews. Bounded to
 - Design check: max 2 iterations
 - Code→review loop: max 3 cycles
 - QA fix: max 3 iterations
-- Verify→review reject: max 2 cycles
 - PR review-fix loop: max 3 cycles
 After any limit, escalate to user. Do NOT retry silently.
 

@@ -65,3 +65,32 @@ def test_detect_existing_claude_md(python_project: Path) -> None:
 def test_detect_no_claude_md(python_project: Path) -> None:
     info = detect_project(python_project)
     assert info.has_claude_md is False
+
+
+def test_detect_commands_python(python_project: Path) -> None:
+    info = detect_project(python_project)
+    py = info.commands["python"]
+    assert py["lint"] == "ruff check"
+    assert py["format"] == "ruff format"
+    assert py["test"] == "pytest --tb=short -q"
+    # Python has no separate build step → not-applicable slot renders "none".
+    assert py["build"] == "none"
+
+
+def test_detect_commands_node(node_project: Path) -> None:
+    info = detect_project(node_project)
+    ts = info.commands["typescript"]
+    assert ts["build"] == "npm run build"
+    assert ts["lint"] == "npm run lint"
+    # package.json scripts.test override flows through to the test slot.
+    assert ts["test"] == "jest"
+
+
+def test_detect_commands_unknown_language() -> None:
+    from ade.detect import ProjectInfo, _detect_commands
+
+    info = ProjectInfo(project_name="x", languages=["elixir"])
+    _detect_commands(info.root, info)
+    elixir = info.commands["elixir"]
+    assert elixir["build"] == "# set your build command"
+    assert elixir["test"] == "# set your test command"

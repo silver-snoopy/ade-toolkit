@@ -1,6 +1,6 @@
 # ADE Architecture
 
-This document describes ADE's current architecture: what `ade init` produces, how the resulting Claude Code installation runs the 10-phase SDLC, and the invariants that govern orchestration.
+This document describes ADE's current architecture: what `ade init` produces, how the resulting Claude Code installation runs the 9-phase SDLC, and the invariants that govern orchestration.
 
 ADE is a *scaffolder*, not a runtime. The Python package writes a self-contained `.claude/` tree, seeds project documentation artifacts (`CONTEXT.md`, `docs/adr/`, `docs/specs/`), and exits. Claude Code is the runtime: subagent dispatch, worktree isolation, file I/O, and shell execution all use native Claude Code capabilities.
 
@@ -31,7 +31,7 @@ CONTEXT.md        → domain glossary (user-owned after seed)
 CLAUDE.md         → ADE workflow section appended on init
 ```
 
-## The 10-phase SDLC
+## The 9-phase SDLC
 
 | Phase | Purpose | Primary actor | Output |
 |---|---|---|---|
@@ -39,15 +39,14 @@ CLAUDE.md         → ADE workflow section appended on init
 | 1 — Research | Produce verified durable spec | R1–R5 (see below) | `docs/specs/{date}_{slug}.spec.md`, `CONTEXT.md` updates, `docs/adr/NNNN-*.md` |
 | 2 — Plan | Write implementation plan | Orchestrator | `.ade/tasks/<id>/plan.md` (6 mandatory sections) |
 | 3 — Design check | Generate stubs in worktree | Sonnet subagent | Stub files matching plan |
-| 4 — Implement | Author-separated TDD: write failing tests then drive them to green | `test-writer` (RED) → 1–3 implementer subagents (GREEN) | Tests + code in worktree |
+| 4 — Implement | Author-separated TDD: write failing tests then drive them to green | `test-writer` (RED) → `implementer` (GREEN) | Tests + code in worktree |
 | 5 — Quality gate | Lint, format, build, tests | Haiku subagent | Pass/fail with fix loop (max 3) |
 | 6 — Review | Multi-aspect code review | `pr-review-toolkit` (preferred) or 3 parallel Sonnet subagents (fallback) | Findings table (Critical / Important / Suggestions / Positive) |
-| 7 — Verify | Live evidence per acceptance criterion | Orchestrator | `.ade/tasks/<id>/verification/` |
-| 8 — Docs | Update affected documentation | Sonnet subagent | Architecture / API / capabilities updates |
-| 9 — Ship | Commit, push, PR | Orchestrator | PR URL |
-| 10 — Retro | Metrics + cleanup | Orchestrator | `.ade/tasks/<id>/retro.json` |
+| 7 — Docs | Update affected documentation | Sonnet subagent | Architecture / API / capabilities updates |
+| 8 — Ship | Commit, push, PR | Orchestrator | PR URL |
+| 9 — Retro | Metrics + cleanup | Orchestrator | `.ade/tasks/<id>/retro.json` |
 
-Human gates: after R5 (ready-for-development), after Phase 2 (plan completeness), after Phase 9 (merge decision).
+Human gates: after R5 (ready-for-development), after Phase 2 (plan completeness), after Phase 8 (merge decision).
 
 ## Phase 1 — Research (detailed)
 
@@ -196,19 +195,29 @@ After R5, the orchestrator summarizes:
 
 User confirms readiness. The spec is now the contract for the Development phase.
 
-## Phases 2–10 (current state)
+## Phases 2–9 (current state)
 
 These phases retain the structure that predates the v5 Research rewrite. They are functional and produce useful work, but they would benefit from the same rigor pass applied to Phase 1. A future thread will rework them.
 
 - **Phase 2 — Plan**: 6 mandatory sections (Context, Ordered task list, Files, Dependencies, Test strategy, Risk areas). Primary input: the spec from R5.
 - **Phase 3 — Design check**: Subagent in worktree generates file stubs from plan. Max 2 iterations.
-- **Phase 4 — Implement**: Author-separated TDD. Phase 4a: `test-writer` writes failing tests covering the plan's acceptance criteria and commits them alone (RED). Phase 4b: 1–3 implementer subagents (`backend-coder`, `frontend-coder`) drive those tests to GREEN, never editing test files. Build order: shared → backend → frontend. The `block-mixed-commit` hook enforces the commit boundary between phases.
+- **Phase 4 — Implement**: Author-separated TDD. Phase 4a: `test-writer` writes failing tests covering the plan's acceptance criteria and commits them alone (RED). Phase 4b: one or more `implementer` subagents (disjoint file assignments) drive those tests to GREEN, never editing test files. Build dependencies before dependents (the task DAG defines order). The `block-mixed-commit` hook enforces the commit boundary between phases.
 - **Phase 5 — Quality gate**: Lint, format, build, tests. Fix loop max 3.
 - **Phase 6 — Review**: `pr-review-toolkit` preferred; fallback is 3 parallel subagents (Logic / Conventions / Security). Findings classified Critical / Important / Suggestions / Positive. Review-fix cycle max 3.
-- **Phase 7 — Verify**: Live evidence per acceptance criterion. Max 2 verify-reject cycles.
-- **Phase 8 — Docs**: Architecture, capabilities, API docs, CLAUDE.md updates.
-- **Phase 9 — Ship**: Commit, push, open PR. Human gate.
-- **Phase 10 — Retro**: Metrics, learnings, worktree cleanup.
+- **Phase 7 — Docs**: Architecture, capabilities, API docs, CLAUDE.md updates.
+- **Phase 8 — Ship**: Commit, push, open PR. Human gate.
+- **Phase 9 — Retro**: Metrics, learnings, worktree cleanup.
+
+## Stack configuration (`.claude/ade-stack.md`)
+
+`ade init` detects each language's build/lint/format/test commands and seeds them into
+`.claude/ade-stack.md` (seed-if-missing, user-owned thereafter). Phase skills reference
+this file generically rather than hardcoding commands, which is what makes the pipeline
+stack-neutral. Three slot states keep it honest: a real command; `none` for a
+known-language slot that does not apply (e.g. python has no build), which phases skip; and
+`# set your <slot> command` for an unknown/undetected stack, which the user fills in. The
+orchestrator reads the file and injects the concrete command into each subagent's dispatch
+prompt; for a multi-language change it runs the block for each changed language.
 
 ## Deterministic hook layer (G2)
 
@@ -243,8 +252,7 @@ All subagents are defined as Markdown files under `.claude/agents/` with YAML fr
 | `synthesizer` | sonnet | Read, Write | R3.1, R5.3 |
 | `spec-verifier` | sonnet | Read, Grep, Glob | R5.2 |
 | `test-writer` | sonnet | Read, Write, Edit, Bash, Glob, Grep | Phase 4a |
-| `backend-coder` | sonnet | Read, Write, Edit, Bash, Glob, Grep | Phase 4b |
-| `frontend-coder` | sonnet | Read, Write, Edit, Bash, Glob, Grep | Phase 4b |
+| `implementer` | sonnet | Read, Write, Edit, Bash, Glob, Grep | Phase 4b |
 | `code-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `security-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `test-runner` | haiku | Read, Bash | Phase 5 |
@@ -261,13 +269,12 @@ The orchestrator (Claude Opus in the main session) is the only actor that dispat
 | `.ade/tasks/<id>/research/web-*.md` | R2.3 web-researchers | R3.1 | Ephemeral |
 | `.ade/tasks/<id>/research/r5-claims.md` | R5.1 orchestrator | R5.2 verifiers, R5.3 synthesizer | Ephemeral |
 | `.ade/tasks/<id>/research/r5-verifier-*.md` | R5.2 verifiers | R5.3 synthesizer | Ephemeral |
-| `docs/specs/{date}_{slug}.spec.md` | R3.1 + R3.2 + R4 + R5.3 | Phase 2, Phase 7 | **Permanent (versioned)** |
+| `docs/specs/{date}_{slug}.spec.md` | R3.1 + R3.2 + R4 + R5.3 | Phase 2 | **Permanent (versioned)** |
 | `CONTEXT.md` | `grill-with-docs` (R4) inline | All subsequent phases, future tasks | **Permanent (additive)** |
 | `docs/adr/NNNN-*.md` | `grill-with-docs` (R4) sparingly | Future tasks (reference) | **Permanent (immutable once accepted)** |
-| `.ade/tasks/<id>/plan.md` | Phase 2 | Phases 3–7 | Ephemeral |
+| `.ade/tasks/<id>/plan.md` | Phase 2 | Phases 3–8 | Ephemeral |
 | `.ade/tasks/<id>/status.md` | All phases (orchestrator updates) | `ade status` | Ephemeral |
-| `.ade/tasks/<id>/verification/` | Phase 7 | Phase 9 (PR evidence) | Ephemeral |
-| `.ade/tasks/<id>/retro.json` | Phase 10 | (reference, future calibration) | Ephemeral |
+| `.ade/tasks/<id>/retro.json` | Phase 9 | (reference, future calibration) | Ephemeral |
 
 The line between ephemeral and permanent maps to ownership: `.ade/tasks/` is per-task working state, gitignored. `docs/` is project-owned, version-controlled, durable.
 
@@ -324,7 +331,6 @@ These rules govern the orchestrator's behavior. Violations break the architectur
 | Phase 3 design check | 2 iterations | Escalate to user |
 | Phase 4–6 code → review loop | 3 cycles | Escalate to user |
 | Phase 5 QA fix loop | 3 iterations | Escalate to user |
-| Phase 7 verify → review reject | 2 cycles | Escalate to user |
 | Phase 4 commit hooks (`block-mixed-commit`, `check-leftover-stub`) | N/A (hard gate) | Reject commit; orchestrator must correct before retry |
 
 ## CLI surface

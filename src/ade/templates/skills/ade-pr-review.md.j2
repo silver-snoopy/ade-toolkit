@@ -1,8 +1,8 @@
 Run the ADE GitHub PR review-and-fix loop for: $ARGUMENTS
 
 The orchestrator never edits code itself. It dispatches the `pr-reviewer` agent
-to inspect the PR, then dispatches `backend-coder` / `frontend-coder` agents to
-apply fixes inside the PR's worktree, then re-reviews until clean or the
+to inspect the PR, then dispatches one or more `implementer` agents (disjoint file
+assignments) to apply fixes inside the PR's worktree, then re-reviews until clean or the
 iteration cap is hit.
 
 ## Resolve the PR
@@ -33,9 +33,8 @@ While `verdict == NEEDS_FIXES` and `iteration < 3`:
    gh pr checkout <PR> --recurse-submodules
    git worktree add .ade/worktrees/pr-<PR> HEAD
    ```
-2. Group `actionable` findings by file. For each group, dispatch one coder
-   subagent (`backend-coder` for server/lib code, `frontend-coder` for UI).
-   Each agent owns its files — no overlap.
+2. Group `actionable` findings by file. For each group, dispatch one `implementer`
+   subagent. Each agent owns its files — no overlap.
 3. Re-run Phase 5 (Quality Gate) via the `test-runner` agent inside the worktree.
 4. If quality gate passes → push to the PR branch:
    ```bash
@@ -64,7 +63,7 @@ When `verdict in {ADVISORY, LGTM}`:
 - Max **3** review-fix cycles. After that, escalate.
 - Never force-push. Never amend commits already on the PR.
 - Never `--request-changes` on someone else's PR without explicit user approval.
-- Never auto-merge. The MERGE GATE in Phase 9 still applies.
+- Never auto-merge. The MERGE GATE after Ship (Phase 8) still applies.
 
 ## Optional: subscribe to PR activity
 

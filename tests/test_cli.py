@@ -15,7 +15,7 @@ def test_init_python_project(python_project: Path) -> None:
 
     # Verify v4 generated files
     assert (python_project / ".ade" / ".gitignore").exists()
-    assert (python_project / ".claude" / "agents" / "backend-coder.md").exists()
+    assert (python_project / ".claude" / "agents" / "implementer.md").exists()
     assert (python_project / ".claude" / "agents" / "code-reviewer.md").exists()
     assert (python_project / ".claude" / "agents" / "test-runner.md").exists()
     assert (python_project / ".claude" / "skills" / "ade" / "ade-full.md").exists()
@@ -70,21 +70,21 @@ def test_init_agent_definitions_have_model(python_project: Path) -> None:
     """Agent definitions should specify a model."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
 
-    backend = (python_project / ".claude" / "agents" / "backend-coder.md").read_text()
-    assert "model:" in backend
-    assert "sonnet" in backend
+    implementer = (python_project / ".claude" / "agents" / "implementer.md").read_text()
+    assert "model:" in implementer
+    assert "sonnet" in implementer
 
     test_runner = (python_project / ".claude" / "agents" / "test-runner.md").read_text()
     assert "haiku" in test_runner
 
 
 def test_init_skills_have_phase_content(python_project: Path) -> None:
-    """Skills should contain phase instructions."""
+    """Skills should contain phase instructions, renumbered 0–9."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
 
     full = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
     assert "Phase 0" in full
-    assert "Phase 10" in full or "RETROSPECTIVE" in full
+    assert "Phase 9" in full or "RETROSPECTIVE" in full
     assert "Circuit Breaker" in full or "circuit breaker" in full.lower()
 
     plan = (python_project / ".claude" / "skills" / "ade" / "ade-plan.md").read_text()
@@ -148,13 +148,17 @@ def test_status_with_tasks(python_project: Path) -> None:
 
 
 def test_init_generates_phase_docs(python_project: Path) -> None:
-    """Phase reference docs should be generated."""
+    """Phase reference docs should be generated, renumbered 0–9 with no verify phase."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     phases_dir = python_project / ".claude" / "skills" / "ade" / "phases"
     assert phases_dir.is_dir()
     assert (phases_dir / "00-intent.md").exists()
-    assert (phases_dir / "07-verify.md").exists()
-    assert (phases_dir / "qa-verify-bug.md").exists()
+    assert (phases_dir / "07-docs.md").exists()
+    assert (phases_dir / "08-ship.md").exists()
+    assert (phases_dir / "09-retro.md").exists()
+    # live verification is gone
+    assert not (phases_dir / "07-verify.md").exists()
+    assert not (phases_dir / "qa-verify-bug.md").exists()
 
 
 def test_init_generates_feature_spec_template(python_project: Path) -> None:
@@ -172,11 +176,16 @@ def test_init_full_skill_has_exit_criteria(python_project: Path) -> None:
     assert "Allowed fallback:" in content
 
 
-def test_init_full_skill_has_live_verification(python_project: Path) -> None:
-    """Mandatory live verification should be in the skill."""
+def test_init_no_live_verification(python_project: Path) -> None:
+    """No live-verification machinery remains anywhere in the full pipeline skill."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    content = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
-    assert "no exemptions" in content.lower() or "NO EXEMPTIONS" in content
+    skills = python_project / ".claude" / "skills" / "ade"
+    full = (skills / "ade-full.md").read_text()
+    for token in ("Playwright", "docker compose", "localhost", "NO EXEMPTIONS", "/10"):
+        assert token not in full, f"stale live-verify token in ade-full.md: {token}"
+    phases = skills / "phases"
+    assert not (phases / "07-verify.md").exists()
+    assert not (phases / "qa-verify-bug.md").exists()
 
 
 def test_init_generates_pr_reviewer_agent(python_project: Path) -> None:
@@ -285,10 +294,27 @@ def test_init_generates_test_writer_agent(python_project: Path) -> None:
     assert "never" in content.lower() and "implementation" in content.lower()
 
 
-def test_coders_forbidden_from_test_files(python_project: Path) -> None:
+def test_implementer_forbidden_from_test_files(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    backend = (python_project / ".claude" / "agents" / "backend-coder.md").read_text()
-    assert "test file" in backend.lower()
+    impl = (python_project / ".claude" / "agents" / "implementer.md").read_text()
+    assert "test file" in impl.lower()
+
+
+def test_init_generates_implementer_agent(python_project: Path) -> None:
+    """A single language-agnostic implementer replaces the two coder agents."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agents = python_project / ".claude" / "agents"
+    impl = agents / "implementer.md"
+    assert impl.exists()
+    content = impl.read_text()
+    assert "model:" in content and "sonnet" in content
+    assert "test file" in content.lower()
+    # Language-agnostic: no hardcoded JS/TS stack leaks in.
+    assert "@vitals" not in content
+    assert "import type" not in content
+    # The old layer-named coders are gone.
+    assert not (agents / "backend-coder.md").exists()
+    assert not (agents / "frontend-coder.md").exists()
 
 
 def test_phase4_skill_describes_author_separation(python_project: Path) -> None:
@@ -298,3 +324,62 @@ def test_phase4_skill_describes_author_separation(python_project: Path) -> None:
     assert "test-writer" in phase4
     assert "RED" in phase4 or "failing test" in phase4.lower()
     assert "author separation" in phase4.lower() or "separate" in phase4.lower()
+
+
+def test_init_seeds_ade_stack_file(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    stack = python_project / ".claude" / "ade-stack.md"
+    assert stack.exists()
+    content = stack.read_text()
+    assert "build:" in content
+    assert "lint:" in content
+    assert "test:" in content
+    # python block carries the detected commands
+    assert "ruff check" in content
+
+
+def test_init_ade_stack_seed_if_missing_preserves_edits(python_project: Path) -> None:
+    stack = python_project / ".claude" / "ade-stack.md"
+    stack.parent.mkdir(parents=True, exist_ok=True)
+    stack.write_text("# my edited stack\n- test: make check\n")
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert "my edited stack" in stack.read_text()
+
+
+def test_review_skill_has_acceptance_coverage_gate(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    review = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
+    ).read_text()
+    assert "acceptance-coverage gate" in review.lower()
+    assert "Test adequacy" in review
+    # acceptance is now the in-loop check; verify-phase wording is gone
+    assert "verify phase" not in review.lower()
+
+
+def test_no_stale_stack_references(python_project: Path) -> None:
+    """No pre-G5 stack/verify token may survive in the generated tree (spec §5)."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    claude_dir = python_project / ".claude"
+    docs = [
+        p
+        for p in claude_dir.rglob("*.md")
+        if "vendored" not in p.parts  # vendored skills keep their own wording
+    ]
+    docs.append(python_project / "CLAUDE.md")  # generated ADE section lives here
+    blob = "\n".join(p.read_text() for p in docs if p.exists())
+    forbidden = [
+        "@vitals",
+        "-w @",
+        "backend-coder",
+        "frontend-coder",
+        "Playwright",
+        "docker compose",
+        "localhost",
+        "NO EXEMPTIONS",
+        "07-verify",
+        "qa-verify",
+        "/10",
+    ]
+    found = [tok for tok in forbidden if tok in blob]
+    assert not found, f"stale references still present: {found}"
