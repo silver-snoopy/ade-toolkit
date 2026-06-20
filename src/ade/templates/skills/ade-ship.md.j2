@@ -24,6 +24,16 @@ Record to `.ade/tasks/<task-id>/retro.json`:
 - What worked, what didn't
 - Follow-up items
 
+### Codify (skipped for `trivial`)
+Dispatch the `compounder` subagent (read-only) with `.ade/tasks/<task-id>/review.md`,
+`retro.json`, the spec, the diff, and `docs/review-calibration.md`. Then:
+- **Always** merge its findings into `docs/review-calibration.md` (increment/append
+  finding-classes; frequency orders the corpus, never promotes severity).
+- **If** it returns a Learning, save it to `docs/learnings/{YYYY-MM-DD}_{slug}.md`; otherwise
+  note "routine — no Learning".
+- Surface the review-findings signal (finding count + recurring classes).
+See `phases/09-retro.md` for the full procedure.
+
 Clean up worktree: `git worktree remove .ade/worktrees/<task-id>`
 
-**Exit criteria:** Retro saved. Worktree cleaned up.
+**Exit criteria:** Retro saved. Corpus merged; Learning written or skipped. Worktree cleaned up.

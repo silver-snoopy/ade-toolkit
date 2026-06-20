@@ -517,3 +517,17 @@ def test_doctor_checks_compound_artifacts(python_project: Path) -> None:
     assert result.exit_code == 0
     assert "WARN" in result.output
     assert "review-calibration" in result.output
+
+
+def test_retro_skill_describes_codify_step(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    retro = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "09-retro.md"
+    ).read_text()
+    assert "Codify" in retro
+    assert "docs/learnings/" in retro
+    assert "docs/review-calibration.md" in retro
+    assert "compounder" in retro
+    # conditional learning + trivial exclusion are explicit
+    assert "NO LEARNING" in retro or "no Learning" in retro
+    assert "trivial" in retro.lower()
