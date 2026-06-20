@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Create a clean commit history and open a pull request with full context, verification
-evidence, and test plan.
+Create a clean commit history and open a pull request with full context, an
+acceptance-coverage summary, and test results.
 
 ## What NOT to Commit
 
@@ -125,12 +125,14 @@ gh pr create \
   --title "feat: add CSV export to nutrition daily endpoint" \
   --body "$(cat <<'EOF'
 ## Summary
-- Add CSV/JSON export endpoint for daily nutrition data
-- Includes date range validation and empty-data handling
+- <1–3 bullets describing the change>
 
-## Test Plan
-- [ ] Unit tests pass
-- [ ] E2E tests pass
+## Acceptance Coverage
+- Each automatable Phase-0 criterion → its green test
+- Any `(manual)` criteria, listed for the human reviewer
+
+## Test Results
+- <test command from .claude/ade-stack.md> — all green
 
 🤖 Generated with Claude Code
 EOF
