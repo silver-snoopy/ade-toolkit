@@ -9,6 +9,7 @@ Runs under two substrates with one exit-code contract (0 = pass, 2 = reject):
 """
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import re
@@ -105,3 +106,51 @@ def gather() -> tuple[list[str], str]:
         return staged_files(), _read(msg_file)
     argv = [a for a in sys.argv[1:] if not a.startswith("-")]
     return (argv or staged_files()), ""
+
+
+def current_branch() -> str:
+    out = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True, text=True, check=False,
+        encoding="utf-8", errors="replace",
+    )
+    return out.stdout.strip() if out.returncode == 0 else ""
+
+
+def current_task_id() -> str | None:
+    """ADE routes work on `ade/<task-id>` branches; return <task-id> or None."""
+    b = current_branch()
+    prefix = "ade/"
+    return b[len(prefix):] if b.startswith(prefix) else None
+
+
+def routing_tier(task_id: str) -> str | None:
+    """Read the tier recorded by Phase-0 routing in .ade/tasks/<id>/routing.md."""
+    path = os.path.join(".ade", "tasks", task_id, "routing.md")
+    text = _read(path)
+    if not text:
+        return None
+    m = re.search(r"(?im)^\s*Tier:\s*(trivial|standard|architecture)\b", text)
+    return m.group(1).lower() if m else None
+
+
+def load_routing_config() -> dict:
+    """Parse .claude/ade-routing.json; {} on missing or malformed (caller uses baseline)."""
+    path = os.path.join(".claude", "ade-routing.json")
+    raw = _read(path)
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        sys.stderr.write("ADE hook: ade-routing.json is malformed; using baseline only.\n")
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def glob_match(path: str, pattern: str) -> bool:
+    return fnmatch.fnmatchcase(path.replace("\\", "/"), pattern)
+
+
+def any_glob(path: str, patterns: list[str]) -> bool:
+    return any(glob_match(path, p) for p in patterns)
