@@ -148,13 +148,17 @@ def test_status_with_tasks(python_project: Path) -> None:
 
 
 def test_init_generates_phase_docs(python_project: Path) -> None:
-    """Phase reference docs should be generated."""
+    """Phase reference docs should be generated, renumbered 0–9 with no verify phase."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     phases_dir = python_project / ".claude" / "skills" / "ade" / "phases"
     assert phases_dir.is_dir()
     assert (phases_dir / "00-intent.md").exists()
-    assert (phases_dir / "07-verify.md").exists()
-    assert (phases_dir / "qa-verify-bug.md").exists()
+    assert (phases_dir / "07-docs.md").exists()
+    assert (phases_dir / "08-ship.md").exists()
+    assert (phases_dir / "09-retro.md").exists()
+    # live verification is gone
+    assert not (phases_dir / "07-verify.md").exists()
+    assert not (phases_dir / "qa-verify-bug.md").exists()
 
 
 def test_init_generates_feature_spec_template(python_project: Path) -> None:
