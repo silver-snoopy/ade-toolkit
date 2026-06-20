@@ -1,7 +1,7 @@
 # Design — G5: Language-agnostic implementer, stack de-hardcoding, remove live verification
 
 **Date:** 2026-06-19
-**Status:** Approved (design); pending implementation plan
+**Status:** Implemented
 **Scope:** ADE toolkit (`src/ade/`) — closes gap G5 from `docs/ade-sdlc-gap-analysis.html`, plus the operator-directed removal of live verification from the pipeline.
 
 ## 1. Context & motivation
