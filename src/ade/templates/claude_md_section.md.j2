@@ -13,6 +13,13 @@ When asked to implement a feature or fix a bug using the ADE workflow
 - Estimated scope: S (< 3 files) | M (3-10 files) | L (> 10 files)
 - Save to `.ade/tasks/<task-id>/intent.md`
 
+**Routing (closing sub-step of Phase 0):** assign a tier — `trivial` / `standard` /
+`architecture` — that masks which phases run. `standard` is the full flow; `trivial` cuts
+ceremony (keeps TDD + quality gate + merge gate); `architecture` adds an ADR + a Plan
+Soundness Review. Forced-escalation (security/auth/secrets/schema/migration/public-API)
+raises the tier deterministically and is enforced by the `check-escalation-paths` hook.
+Rules + globs live in `.claude/ade-routing.json`.
+
 **Phase 1 — RESEARCH**: Produce a verified, durable spec in five sub-steps (R1–R5).
 The phase accumulates three project artifacts: a permanent spec, an updated domain
 glossary (`CONTEXT.md`), and zero-or-more ADRs under `docs/adr/`.
@@ -104,6 +111,7 @@ subagents to apply fixes inside the PR's worktree, then re-reviews. Bounded to
 - Code→review loop: max 3 cycles
 - QA fix: max 3 iterations
 - PR review-fix loop: max 3 cycles
+- Plan Soundness Review (architecture): max 2 iterations
 After any limit, escalate to user. Do NOT retry silently.
 
 ### Orchestrator Rules

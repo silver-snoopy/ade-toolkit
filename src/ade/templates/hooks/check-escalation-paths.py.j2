@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""Block an ADE-routed task from committing escalation-path changes below its floor (G4).
+
+Scoped to ADE-routed work: acts only on an `ade/<task-id>` branch with a routing.md.
+A hardcoded baseline of escalation globs is enforced even if .claude/ade-routing.json is
+missing or malformed; the config may only EXTEND the baseline, never shrink it.
+"""
+from __future__ import annotations
+
+import sys
+
+import _hooklib as h
+
+# Floors. fnmatch '*' spans '/', so patterns are '*'-style (not '**'). Over-inclusive is
+# the safe direction for a security floor. Config can only add to these.
+BASELINE_GLOBS: dict[str, list[str]] = {
+    "architecture": [
+        "*/migrations/*", "migrations/*", "*.sql", "*schema.*", "*openapi.*", "*.proto",
+        "*/routes/*", "routes/*", "*/api/*", "api/*", "docs/adr/*",
+        "*/models/*", "models/*",
+    ],
+    "standard": [
+        "*/auth/*", "auth/*", "*secret*", "*crypto*", "*/security/*", "security/*",
+        "*.env*", "*credential*",
+    ],
+}
+TIER_RANK = {"trivial": 0, "standard": 1, "architecture": 2}
+
+
+def _escalation_globs() -> dict[str, list[str]]:
+    globs = {floor: list(pats) for floor, pats in BASELINE_GLOBS.items()}
+    cfg = h.load_routing_config().get("escalation_globs", {})
+    if isinstance(cfg, dict):
+        for floor in ("architecture", "standard"):
+            extra = cfg.get(floor)
+            if isinstance(extra, list):
+                globs[floor].extend(str(g) for g in extra)
+    return globs
+
+
+def main() -> int:
+    files, _ = h.gather()
+    if not files:
+        return 0
+    task_id = h.current_task_id()
+    if task_id is None:
+        return 0  # not an ADE-routed branch — not our business
+    tier = h.routing_tier(task_id)
+    if tier is None:
+        return 0  # routing never recorded — treat as non-ADE, no-op
+    rank = TIER_RANK.get(tier, TIER_RANK["standard"])  # tier is always valid here (None handled above); default is defensive only
+    globs = _escalation_globs()
+    violations: list[tuple[str, str]] = []
+    for f in files:
+        if rank < TIER_RANK["architecture"] and h.any_glob(f, globs["architecture"]):
+            violations.append((f, "architecture"))
+        elif rank < TIER_RANK["standard"] and h.any_glob(f, globs["standard"]):
+            violations.append((f, "standard"))
+    if violations:
+        lines = "\n  ".join(f"{path}  (needs floor: {floor})" for path, floor in violations)
+        sys.stderr.write(
+            f"ADE hook: task routed '{tier}' but the diff touches escalation paths:\n  "
+            + lines
+            + "\nRe-route this task up to the required floor before committing "
+            "(routing is the closing sub-step of Phase 0).\n"
+        )
+        return h.BLOCK
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

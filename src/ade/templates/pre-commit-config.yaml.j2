@@ -15,3 +15,8 @@ repos:
         language: system
         types: [text]
         stages: [pre-commit]
+      - id: ade-check-escalation-paths
+        name: ADE — no escalation-path changes below routed floor
+        entry: python .claude/hooks/check-escalation-paths.py
+        language: system
+        stages: [pre-commit]

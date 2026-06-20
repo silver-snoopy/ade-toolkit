@@ -3,6 +3,8 @@ Run ADE review phases (Review + Documentation) for: $ARGUMENTS
 ## Phase 6 — REVIEW
 
 **Hard requirement:** No unresolved Critical/Important findings.
+*(Tier masking: `trivial` runs a single quick review pass instead of the full fan;
+`architecture` additionally had a Plan Soundness Review before code, in Phase 2.)*
 **Preferred mechanism:** Invoke `pr-review-toolkit:review-pr` with aspects:
 code, errors, tests, types, comments (exclude simplify).
   - Scope: `git diff main...ade/<task-id>`

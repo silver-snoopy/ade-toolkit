@@ -1,7 +1,7 @@
 # Design — G4: Blast-radius routing
 
 **Date:** 2026-06-20
-**Status:** Approved (design), hardened via grill-with-docs; pending implementation plan
+**Status:** Implemented
 **Scope:** ADE toolkit (`src/ade/`) — closes gap G4 from `docs/ade-sdlc-gap-analysis.html` (Recommendations move #3).
 **Depends on:** G1/G2 (deterministic hook layer) and G5 (9-phase pipeline, stack-neutral phases) — both shipped.
 **Companion docs:** glossary terms in `CONTEXT.md` (Routing section); the classifier decision in `docs/adr/0001-hybrid-blast-radius-routing-classifier.md`.

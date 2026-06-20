@@ -3,6 +3,7 @@ Run ADE coding phases (Design Check + Implement + Quality Gate) for: $ARGUMENTS
 If a plan exists in `.ade/tasks/`, use it. Otherwise, run /ade-plan first.
 
 ## Phase 3 — DESIGN CHECK
+*(skipped for `trivial`-routed tasks — go straight to Implement.)*
 Dispatch Sonnet subagent in worktree to create file stubs.
 Review for plan alignment (max 2 iterations).
 **Exit criteria:** Stubs created. Module structure matches plan.

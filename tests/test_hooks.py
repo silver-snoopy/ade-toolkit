@@ -7,7 +7,12 @@ import pytest
 
 from ade.cli import _get_template_env
 
-HOOK_TEMPLATES = ("_hooklib.py", "block-mixed-commit.py", "check-leftover-stub.py")
+HOOK_TEMPLATES = (
+    "_hooklib.py",
+    "block-mixed-commit.py",
+    "check-leftover-stub.py",
+    "check-escalation-paths.py",
+)
 
 
 def _render_hooks(dest: Path) -> None:
@@ -194,3 +199,70 @@ def test_block_mixed_commit_marker_bypass_stdin_json(hook_repo: Path) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def _route(repo: Path, task_id: str, tier: str) -> None:
+    """Put the repo on an ade/<task-id> branch with a routing.md recording the tier."""
+    _git(repo, "checkout", "-q", "-b", f"ade/{task_id}")
+    rd = repo / ".ade" / "tasks" / task_id
+    rd.mkdir(parents=True, exist_ok=True)
+    (rd / "routing.md").write_text(f"Tier: {tier}\n", encoding="utf-8")
+
+
+def test_escalation_hook_blocks_below_floor(hook_repo: Path) -> None:
+    _route(hook_repo, "feat-x", "standard")
+    _write_stage(hook_repo, "src/db/migrations/001_add.sql", "CREATE TABLE t (id int);\n")
+    result = _run_hook(hook_repo, "check-escalation-paths.py", "src/db/migrations/001_add.sql")
+    assert result.returncode == 2, result.stderr
+    assert "architecture" in result.stderr
+
+
+def test_escalation_hook_allows_when_floor_met(hook_repo: Path) -> None:
+    _route(hook_repo, "feat-x", "architecture")
+    _write_stage(hook_repo, "src/db/migrations/001_add.sql", "CREATE TABLE t (id int);\n")
+    result = _run_hook(hook_repo, "check-escalation-paths.py", "src/db/migrations/001_add.sql")
+    assert result.returncode == 0, result.stderr
+
+
+def test_escalation_hook_noop_off_ade_branch(hook_repo: Path) -> None:
+    # hook_repo is on the default branch (not ade/*); migration must NOT be blocked.
+    _write_stage(hook_repo, "src/db/migrations/001_add.sql", "CREATE TABLE t (id int);\n")
+    result = _run_hook(hook_repo, "check-escalation-paths.py", "src/db/migrations/001_add.sql")
+    assert result.returncode == 0, result.stderr
+
+
+def test_escalation_hook_baseline_holds_without_config(hook_repo: Path) -> None:
+    # No .claude/ade-routing.json at all; baseline must still block an auth change at trivial.
+    _route(hook_repo, "feat-x", "trivial")
+    _write_stage(hook_repo, "src/auth/login.py", "def login():\n    return True\n")
+    result = _run_hook(hook_repo, "check-escalation-paths.py", "src/auth/login.py")
+    assert result.returncode == 2, result.stderr
+    assert "standard" in result.stderr
+
+
+def test_escalation_hook_config_extends_baseline(hook_repo: Path) -> None:
+    _route(hook_repo, "feat-x", "standard")
+    cfg = hook_repo / ".claude" / "ade-routing.json"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text('{"escalation_globs": {"architecture": ["*.weird"]}}\n', encoding="utf-8")
+    _write_stage(hook_repo, "thing.weird", "x\n")
+    result = _run_hook(hook_repo, "check-escalation-paths.py", "thing.weird")
+    assert result.returncode == 2, result.stderr
+
+
+def test_escalation_hook_malformed_config_falls_back_to_baseline(hook_repo: Path) -> None:
+    _route(hook_repo, "feat-x", "trivial")
+    cfg = hook_repo / ".claude" / "ade-routing.json"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text("{ not json", encoding="utf-8")
+    _write_stage(hook_repo, "src/auth/login.py", "def login():\n    return True\n")
+    result = _run_hook(hook_repo, "check-escalation-paths.py", "src/auth/login.py")
+    assert result.returncode == 2, result.stderr  # baseline still enforced
+
+
+def test_escalation_hook_blocks_top_level_dir(hook_repo: Path) -> None:
+    _route(hook_repo, "feat-x", "trivial")
+    _write_stage(hook_repo, "auth/login.py", "def login():\n    return True\n")
+    result = _run_hook(hook_repo, "check-escalation-paths.py", "auth/login.py")
+    assert result.returncode == 2, result.stderr
+    assert "standard" in result.stderr

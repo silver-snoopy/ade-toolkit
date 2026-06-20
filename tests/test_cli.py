@@ -223,6 +223,8 @@ def test_init_claude_mode_emits_settings_and_hooks(python_project: Path) -> None
     assert (python_project / ".claude" / "hooks" / "block-mixed-commit.py").exists()
     assert (python_project / ".claude" / "hooks" / "check-leftover-stub.py").exists()
     assert not (python_project / ".pre-commit-config.yaml").exists()
+    assert (python_project / ".claude" / "hooks" / "check-escalation-paths.py").exists()
+    assert "check-escalation-paths.py" in settings.read_text()
 
 
 def test_init_copilot_mode_emits_precommit_config(python_project: Path) -> None:
@@ -235,6 +237,8 @@ def test_init_copilot_mode_emits_precommit_config(python_project: Path) -> None:
     assert "ade-block-mixed-commit" in cfg.read_text()
     assert (python_project / ".claude" / "hooks" / "block-mixed-commit.py").exists()
     assert not (python_project / ".claude" / "settings.json").exists()
+    assert "ade-check-escalation-paths" in cfg.read_text()
+    assert (python_project / ".claude" / "hooks" / "check-escalation-paths.py").exists()
 
 
 def test_init_rejects_unknown_agent(python_project: Path) -> None:
@@ -383,3 +387,67 @@ def test_no_stale_stack_references(python_project: Path) -> None:
     ]
     found = [tok for tok in forbidden if tok in blob]
     assert not found, f"stale references still present: {found}"
+
+
+def test_init_seeds_ade_routing_file(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    routing = python_project / ".claude" / "ade-routing.json"
+    assert routing.exists()
+    data = json.loads(routing.read_text())
+    assert "escalation_globs" in data
+    assert "architecture" in data["escalation_globs"]
+    assert "keywords" in data
+
+
+def test_init_ade_routing_seed_if_missing_preserves_edits(python_project: Path) -> None:
+    routing = python_project / ".claude" / "ade-routing.json"
+    routing.parent.mkdir(parents=True, exist_ok=True)
+    routing.write_text('{"escalation_globs": {"architecture": ["*.custom"]}}\n')
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert "*.custom" in routing.read_text()
+
+
+def test_doctor_checks_escalation_hook(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    (python_project / ".claude" / "hooks" / "check-escalation-paths.py").unlink()
+    with patch("ade.cli._check_command", return_value=True):
+        result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
+    assert result.exit_code == 1
+    assert "FAIL" in result.output
+
+
+def test_init_generates_plan_reviewer_agent(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agent = python_project / ".claude" / "agents" / "plan-reviewer.md"
+    assert agent.exists()
+    content = agent.read_text()
+    assert "model:" in content and "sonnet" in content
+    assert "plan" in content.lower()
+    assert "refute" in content.lower() or "adversarial" in content.lower()
+    assert "acceptance criteria" in content.lower()
+    # read-only: no Write/Edit/Bash in the tool list
+    assert "Write" not in content and "Edit" not in content and "Bash" not in content
+    # language-agnostic
+    assert "@vitals" not in content
+
+
+def test_intent_skill_has_route_substep(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    intent = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "00-intent.md"
+    ).read_text()
+    assert "0d — Route" in intent or "0d - Route" in intent
+    for tier in ("trivial", "standard", "architecture"):
+        assert tier in intent
+    assert "ade-routing.json" in intent
+    assert "forced-escalation" in intent.lower() or "escalation" in intent.lower()
+
+
+def test_ade_full_describes_routing_and_tiers(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    full = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
+    for tier in ("trivial", "standard", "architecture"):
+        assert tier in full
+    assert "Plan Soundness Review" in full
+    assert "skipped for" in full.lower() or "skip for" in full.lower()  # masking annotations
+    assert "ade-routing.json" in full or "forced-escalation" in full.lower()

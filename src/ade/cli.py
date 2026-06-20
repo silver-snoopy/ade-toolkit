@@ -106,7 +106,12 @@ def _render_hooks(env: Environment, hooks_dir: Path, context: dict) -> None:
     Rendered explicitly (not via _render_template_dir) so the leading-underscore
     helper `_hooklib.py` is not mangled into a dashed name.
     """
-    for name in ("_hooklib.py", "block-mixed-commit.py", "check-leftover-stub.py"):
+    for name in (
+        "_hooklib.py",
+        "block-mixed-commit.py",
+        "check-leftover-stub.py",
+        "check-escalation-paths.py",
+    ):
         _render_and_write(env, f"hooks/{name}.j2", hooks_dir / name, context)
 
 
@@ -235,6 +240,13 @@ def init(
     else:
         rprint("  [dim]= Kept existing .claude/ade-stack.md[/dim]")
 
+    # Seed .claude/ade-routing.json (G4) — routing config, seed-if-missing, user-owned.
+    routing_dest = project_dir / ".claude" / "ade-routing.json"
+    if _render_and_write_if_missing(env, "ade-routing.json.j2", routing_dest, ctx):
+        rprint("  [green]+[/green] Created .claude/ade-routing.json")
+    else:
+        rprint("  [dim]= Kept existing .claude/ade-routing.json[/dim]")
+
     # Update CLAUDE.md with ADE section
     ade_section_template = env.get_template("claude_md_section.md.j2")
     ade_section = ade_section_template.render(**ctx)
@@ -321,6 +333,7 @@ def doctor(
         (".claude/hooks/_hooklib.py", "Hook library: _hooklib (G1/G2 dependency)"),
         (".claude/hooks/block-mixed-commit.py", "Commit hook: block-mixed-commit (G1)"),
         (".claude/hooks/check-leftover-stub.py", "Commit hook: check-leftover-stub (G2)"),
+        (".claude/hooks/check-escalation-paths.py", "Commit hook: check-escalation-paths (G4)"),
     ]
     project_initialized = True
     for rel, description in required_paths:
