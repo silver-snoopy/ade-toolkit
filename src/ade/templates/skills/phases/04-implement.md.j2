@@ -14,10 +14,13 @@ Dispatch the `test-writer` subagent. It:
 - Writes FAILING tests (test files only).
 - Confirms the suite is RED for the right reason (assertion failures, not import errors).
 - Commits a **test-only** commit: `test: add failing tests for <task-id>`.
+- Maps **each automatable acceptance criterion** from Phase 0 to at least one test.
+  Criteria tagged `(manual)` are skipped (no test) — a human verifies them outside the loop.
 
 ## 4b — Implementer (GREEN)
 
-Dispatch the implementer subagent(s) (`backend-coder` / `frontend-coder`). They:
+Dispatch the `implementer` subagent(s) — multiple instances with disjoint file
+assignments when units are independent. They:
 - Receive the spec, the committed failing tests, and the stubs.
 - Write the minimum code to turn the suite GREEN.
 - Must NOT create or edit test files, and must leave no stub markers in committed source.
@@ -41,21 +44,13 @@ If the worktree doesn't exist yet (e.g., Design Check was skipped for small task
 git worktree add .ade/worktrees/<task-id> -b ade/<task-id>
 ```
 
-## Build Order Enforcement
+## Build / Dependency Order
 
-**Always build in this order:**
-1. `packages/shared` — types and constants
-2. `packages/backend` — server, routes, services
-3. `packages/frontend` — UI components, pages
-
-After completing work in each package, run:
-```bash
-npm run build -w @vitals/shared    # after shared changes
-npm run build -w @vitals/backend   # after backend changes
-npm run build -w @vitals/frontend  # after frontend changes
-```
-
-Do not move to the next package until the current one builds cleanly.
+Build dependencies before dependents — the plan's ordered task list / DAG defines the
+order; there is no fixed package order. After completing each unit of work, run the
+project's `build` command (see `.claude/ade-stack.md`) for the affected module before
+moving on. If `build` is `none` or unset for this stack, rely on the `test` command
+instead. Do not accumulate build errors across tasks.
 
 ## Subagent File Ownership Rules
 
@@ -64,18 +59,18 @@ When splitting work across subagents:
 - **No two agents may edit the same file.** This is a hard rule — no exceptions.
 - If two tasks need to modify the same file, they must be serialized (one completes before
   the other starts).
-- Shared type files (`packages/shared/src/types/`) are especially prone to conflicts —
-  assign all shared type work to a single agent.
+- Shared contract/type files are especially prone to conflicts — assign all shared-type
+  work to a single agent.
 
 ### Splitting Strategy
 
 | Pattern | When to use |
 |---------|------------|
-| **By package** | Backend agent + frontend agent (most common) |
-| **By feature slice** | Each agent owns a vertical slice (type + route + UI) |
-| **By layer** | One agent does all queries, another does all routes |
+| **By module** | One agent per top-level module with clear boundaries (most common) |
+| **By feature slice** | Each agent owns a vertical slice (contract + entrypoint + view) |
+| **By layer** | One agent does all data queries, another all entrypoints |
 
-The "by package" split is safest because packages have clear boundaries.
+The "by module" split is safest because modules have clear boundaries.
 
 ## Convention Reference
 
@@ -85,12 +80,12 @@ Before writing code, read these project conventions:
 - **Existing files in the same directory** — match naming, export style, error handling
 - **Test files nearby** — understand the testing pattern used
 
-Key conventions to enforce:
-- 4-space indentation for Java, 2-space for everything else
-- `import type` for type-only imports (enforced by ESLint)
-- Explicit types over `var` in Java; `interface` over `type` for object shapes in TS
-- Single quotes, semicolons, 100-char line width (Prettier)
-- Unused variables prefixed with `_`
+Key conventions come from the project, not from ADE:
+- Indentation, quoting, and line width: follow CLAUDE.md and the existing files in the
+  same directory.
+- Lint/format rules are enforced by the project's `lint`/`format` commands
+  (see `.claude/ade-stack.md`) — run them rather than hand-applying style rules.
+- Match the naming, export, and error-handling style of neighboring code.
 
 ## Implementation Checklist
 

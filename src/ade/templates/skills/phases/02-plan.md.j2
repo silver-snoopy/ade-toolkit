@@ -33,26 +33,26 @@ Key decisions:
 Dependency-aware, numbered task list. Each task must be specific enough that an agent can
 execute it without ambiguity.
 
-**Build order rule:** shared types → backend → frontend. Always.
+**Dependency-order rule:** build dependencies before dependents. The plan's ordered task
+list / DAG defines the order — there is no fixed package order.
 
 ```markdown
 ## 2. Task List
 
-### Shared Types (build first)
-1. Add `ExportFormat` type to `packages/shared/src/types/export.ts`
-2. Export from `packages/shared/src/index.ts`
+### Foundation (build first — shared contracts / types)
+1. Add the `ExportFormat` contract in the shared/contracts module
+2. Re-export it from the module's public surface
 
-### Backend
-3. Add `queryNutritionCsv()` to `packages/backend/src/db/queries/measurements.ts`
-4. Add GET `/api/nutrition/export` route in `packages/backend/src/routes/nutrition.ts`
-5. Add unit tests for query function
-6. Add route tests with app.inject()
+### Core
+3. Add the `export` query/operation in the data layer
+4. Add the export entrypoint (route / handler / command)
+5. Add unit tests for the query/operation
+6. Add tests for the entrypoint
 
-### Frontend
-7. Add `useNutritionExport` hook in `packages/frontend/src/hooks/`
-8. Add Export button to Nutrition page
-9. Add component tests
-10. Add E2E test for export flow
+### Edge (depends on Core)
+7. Add the client-side `useExport` accessor
+8. Wire the Export action into the relevant view
+9. Add view-level tests
 ```
 
 **What makes a task "specific enough to execute":**
@@ -75,16 +75,15 @@ Table format for quick reference:
 
 | Action | Path | Description |
 |--------|------|-------------|
-| CREATE | `packages/shared/src/types/export.ts` | ExportFormat type |
-| MODIFY | `packages/shared/src/index.ts` | Re-export new type |
-| MODIFY | `packages/backend/src/db/queries/measurements.ts` | Add CSV query |
-| MODIFY | `packages/backend/src/routes/nutrition.ts` | Add export route |
-| CREATE | `packages/backend/src/routes/__tests__/nutrition-export.test.ts` | Route tests |
-| MODIFY | `packages/frontend/src/pages/Nutrition.tsx` | Add export button |
-| CREATE | `packages/frontend/src/hooks/useNutritionExport.ts` | Export hook |
-| CREATE | `e2e/nutrition-export.spec.ts` | E2E test |
-| MODIFY | `docs/product-capabilities.md` | Add UC-NUT-05 export capability |
-| MODIFY | `docs/architecture.md` | Add export route to API table |
+| CREATE | `<shared>/contracts/export.<ext>` | ExportFormat contract |
+| MODIFY | `<shared>/index.<ext>` | Re-export new contract |
+| MODIFY | `<core>/data/export_query.<ext>` | Add export query |
+| MODIFY | `<core>/entrypoints/export.<ext>` | Add export entrypoint |
+| CREATE | `<core>/entrypoints/export_test.<ext>` | Entrypoint tests |
+| MODIFY | `<edge>/views/Export.<ext>` | Add export action |
+| CREATE | `<edge>/accessors/use_export.<ext>` | Export accessor |
+| MODIFY | `docs/product-capabilities.md` | Add export capability |
+| MODIFY | `docs/architecture.md` | Add export entrypoint to the surface table |
 ```
 
 **Documentation row rule:** If the task adds a route, table, service, or user-facing
@@ -114,15 +113,14 @@ What tests to write at each level:
 ## 5. Test Strategy
 
 ### Unit Tests
-- `queryNutritionCsv` — verify CSV format, date filtering, empty result handling
-- Export button component — render, click handler
+- `export_query` — verify output format, filtering, empty-result handling
+- Export action component — render and trigger behavior
 
 ### Integration Tests
-- None needed (no new external dependencies)
+- None needed (no new external dependencies), or list them explicitly
 
-### E2E Tests
-- Navigate to Nutrition → click Export → verify file download
-- Export with empty date range → verify error message
+### End-to-end / acceptance Tests
+- Map each automatable Phase-0 acceptance criterion to at least one test here
 ```
 
 ### Section 6: Risk Areas
@@ -161,7 +159,7 @@ Rules:
 Before proceeding to Phase 3, verify:
 - [ ] Plan file exists at `.ade/tasks/<task-id>/plan.md`
 - [ ] All 6 sections are present and non-empty
-- [ ] Task list follows build order (shared → backend → frontend)
+- [ ] Task list is dependency-ordered (dependencies before dependents)
 - [ ] Every acceptance criterion from intent is covered by at least one task
 - [ ] Test strategy covers all new behavior
 

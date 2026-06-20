@@ -19,75 +19,22 @@ All stub work happens in the worktree, not the main working tree.
 
 ## What Stubs Should Contain
 
-Stubs define the **shape** of the code, not the logic:
+Stubs define the **shape** of the code, not the logic. Regardless of language, a stub is:
 
-### Type Definitions (full)
-```typescript
-// packages/shared/src/types/export.ts
-export interface ExportOptions {
-  format: 'csv' | 'json';
-  startDate: string;
-  endDate: string;
-  metrics?: string[];
-}
+- **Type / data definitions** — written in full (the contract the rest of the code binds
+  to): record/struct/interface shapes, enums, and the fields each carries.
+- **Function / method signatures** — name, parameters with types, and return type, with a
+  body that is a placeholder that fails loudly (raise/throw "not implemented", or the
+  language's equivalent).
+- **Entrypoint shells** — route/handler/command registration with the signature wired up
+  but the body a placeholder.
+- **Component / view shells** — the props/inputs contract plus an empty or null render.
+- **Accessor / hook shells** — the signature and the returned shape, with placeholder
+  values.
 
-export interface ExportResult {
-  data: string;
-  filename: string;
-  contentType: string;
-}
-```
-
-### Function Signatures (signature + throw)
-```typescript
-// packages/backend/src/db/queries/measurements.ts
-export async function queryNutritionExport(
-  pool: Pool,
-  startDate: string,
-  endDate: string,
-  format: ExportFormat
-): Promise<ExportResult> {
-  throw new Error('Not implemented');
-}
-```
-
-### Route Stubs (registration + handler shell)
-```typescript
-// packages/backend/src/routes/nutrition.ts
-app.get('/api/nutrition/export', {
-  preHandler: apiKeyMiddleware(opts.env.xApiKey),
-}, async (request, reply) => {
-  // TODO: Implement in Phase 4
-  throw new Error('Not implemented');
-});
-```
-
-### Component Stubs (props interface + empty render)
-```typescript
-// packages/frontend/src/components/ExportButton.tsx
-interface ExportButtonProps {
-  onExport: (format: ExportFormat) => void;
-  isLoading: boolean;
-}
-
-export function ExportButton({ onExport, isLoading }: ExportButtonProps) {
-  // TODO: Implement in Phase 4
-  return null;
-}
-```
-
-### Hook Stubs (signature + return shape)
-```typescript
-// packages/frontend/src/hooks/useNutritionExport.ts
-export function useNutritionExport() {
-  // TODO: Implement in Phase 4
-  return {
-    exportData: async (_options: ExportOptions) => {},
-    isExporting: false,
-    error: null as string | null,
-  };
-}
-```
+The placeholder marker must be one the `check-leftover-stub` hook recognizes so it can
+never be shipped as real code (`Not implemented` / `NotImplementedError` /
+`TODO: implement`).
 
 ## What Stubs Should NOT Contain
 
@@ -103,10 +50,12 @@ After creating stubs, verify:
 
 1. **Coverage** — Every file in the plan's file table (Section 3) that is marked CREATE
    has a corresponding stub.
-2. **Type consistency** — Types flow correctly across package boundaries
-   (shared → backend, shared → frontend).
-3. **Build check** — Run `npm run build -w @vitals/shared` to verify shared types compile.
-   Other packages may not build yet (stubs throw), but there should be no type errors.
+2. **Type consistency** — shared contracts/types flow correctly to every module that
+   depends on them (dependencies before dependents).
+3. **Build check** — run the project's `build` command (see `.claude/ade-stack.md`) for
+   the foundation module to verify the shared contracts compile. Dependent modules may not
+   build yet (stubs fail loudly), but there should be no contract/type errors. If `build`
+   is `none` or unset for this stack, skip this check.
 4. **Import check** — All imports resolve. No circular dependencies introduced.
 
 ## Iteration Limit

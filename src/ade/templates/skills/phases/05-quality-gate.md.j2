@@ -14,42 +14,23 @@ cd .ade/worktrees/<task-id>
 ```
 
 ### Step 1: Lint
-```bash
-npm run lint
-```
-All ESLint errors must be resolved. Warnings are acceptable only if they are pre-existing
-(not introduced by this task).
+Run the project's `lint` command (see `.claude/ade-stack.md`). All lint errors must be
+resolved. Warnings are acceptable only if pre-existing (not introduced by this task).
 
-### Step 2: Format Check
-```bash
-npm run format:check
-```
-If formatting issues exist, auto-fix:
-```bash
-npm run format
-```
-Then re-check to confirm.
+### Step 2: Format
+Run the project's `format` command (see `.claude/ade-stack.md`); if it reports issues,
+apply the fix and re-check.
 
 ### Step 3: Build
-```bash
-npm run build -w @vitals/shared
-npm run build -w @vitals/backend
-npm run build -w @vitals/frontend
-```
-All packages must build with zero TypeScript errors.
+Run the project's `build` command (see `.claude/ade-stack.md`) for each changed module,
+dependencies before dependents. Everything must build with zero errors.
 
-### Step 4: Unit Tests
-```bash
-npm run test
-```
-All tests must pass. Zero failures allowed for merge.
+### Step 4: Tests
+Run the project's `test` command (see `.claude/ade-stack.md`). All tests must pass — zero
+failures allowed for merge.
 
-### Step 5: E2E Tests (if applicable)
-```bash
-npm run test:e2e
-```
-Run only if the task includes frontend changes or new E2E tests. E2E tests require the
-frontend dev server (auto-started by Playwright config).
+**If a command is `none` or unset for this stack, skip that step.** For a multi-language
+repo, run the command block for each language whose files changed in this task.
 
 ## Pre-existing Warnings vs New Errors
 
@@ -62,7 +43,7 @@ frontend dev server (auto-started by Playwright config).
 
 To determine if an issue is pre-existing, check if it exists on the base branch:
 ```bash
-git stash && npm run lint && git stash pop
+git stash && <lint command from .claude/ade-stack.md> && git stash pop
 ```
 
 ## Fixer Subagent Dispatch
@@ -87,9 +68,8 @@ Provide the fixer with:
 
 | Failure | Typical fix |
 |---------|------------|
-| `consistent-type-imports` | Change `import { X }` to `import type { X }` |
 | `no-unused-vars` | Remove unused import or prefix with `_` |
-| Prettier formatting | Run `npm run format` |
+| Formatting violation | Run the project's `format` command |
 | Type error: property missing | Add property to interface or fix typo |
 | Test: expected vs received | Fix assertion or fix implementation |
 | Test: mock not called | Fix mock setup or fix call site |
@@ -111,10 +91,9 @@ Do NOT silently retry beyond the limit. The circuit breaker exists to prevent in
 ## Quality Gate Pass Criteria
 
 All of the following must be true:
-- [ ] `npm run lint` — zero errors
-- [ ] `npm run format:check` — zero issues
-- [ ] All packages build successfully
-- [ ] `npm run test` — all tests pass
-- [ ] `npm run test:e2e` — all E2E tests pass (if applicable)
+- [ ] `lint` command — zero errors
+- [ ] `format` command — zero issues
+- [ ] `build` command — all changed modules build (skip if `none`)
+- [ ] `test` command — all tests pass
 
 Only after all checks pass does the task proceed to Phase 6 (Review).

@@ -26,14 +26,13 @@ Save to `.ade/tasks/<task-id>/intent.md` with this exact structure:
 **Goal:** One-sentence summary of what this change accomplishes.
 
 ## Acceptance Criteria
-- [ ] Criterion 1 — specific, testable outcome
-- [ ] Criterion 2 — specific, testable outcome
-- [ ] Criterion 3 — specific, testable outcome
+- [ ] Criterion 1 — specific, automatable outcome
+- [ ] Criterion 2 — specific, automatable outcome
+- [ ] Criterion 3 (manual) — visual/perceptual, verified by a human outside the loop
 
 ## Affected Areas
-- packages/shared: <what changes>
-- packages/backend: <what changes>
-- packages/frontend: <what changes>
+- <area / module>: <what changes>
+- <area / module>: <what changes>
 
 ## Estimated Scope
 - **Size:** S (< 3 files) | M (3–10 files) | L (> 10 files)
@@ -52,16 +51,22 @@ One sentence, imperative mood. Good: "Add CSV export to the nutrition daily endp
 Bad: "We need to maybe look into adding some kind of export functionality."
 
 ### Acceptance Criteria
-Each criterion must be independently verifiable. Use this test: could a reviewer look at
-the running system and confirm yes/no whether this criterion is met?
+Each criterion must be independently verifiable, and must be **expressible as an
+automated test** to count as in-loop. Use this test: could a reviewer write a test that
+confirms yes/no whether this criterion is met?
 
-Bad: "The UI looks good." (subjective)
-Good: "The nutrition table renders rows for each day in the selected date range." (verifiable)
+A criterion that is inherently visual or perceptual (e.g. "the toast appears", "the
+layout looks right") cannot be captured by a test. Tag it `(manual)` — it is verified by
+a human *outside* the ADE loop, not by the pipeline. The pipeline guarantees exactly what
+the tests guarantee; it does not pretend a shallow render-test stands in for human review.
+
+Bad: "The UI looks good." (subjective — tag `(manual)` if it must be kept)
+Good: "The export endpoint returns CSV with one row per day in the range." (automatable)
 
 ### Affected Areas
-List every package that will have file changes. This drives the build order in later phases
-and helps scope the research phase. If unsure, list as "possibly affected" and confirm
-during research.
+List every area or module that will have file changes. This helps scope the research
+phase and informs the plan's dependency-ordered task list. If unsure, list as "possibly
+affected" and confirm during research.
 
 ### Estimated Scope
 Be honest. Underestimating scope leads to drift detection triggers later. When in doubt,
