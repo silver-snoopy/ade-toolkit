@@ -441,3 +441,13 @@ def test_intent_skill_has_route_substep(python_project: Path) -> None:
         assert tier in intent
     assert "ade-routing.json" in intent
     assert "forced-escalation" in intent.lower() or "escalation" in intent.lower()
+
+
+def test_ade_full_describes_routing_and_tiers(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    full = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
+    for tier in ("trivial", "standard", "architecture"):
+        assert tier in full
+    assert "Plan Soundness Review" in full
+    assert "skipped for" in full.lower() or "skip for" in full.lower()  # masking annotations
+    assert "ade-routing.json" in full or "forced-escalation" in full.lower()

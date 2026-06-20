@@ -49,11 +49,23 @@ Update `.ade/tasks/<task-id>/status.md`: `Phase 0/9 — Intent captured`
 
 For detailed instructions, see [phases/00-intent.md](phases/00-intent.md).
 
-**Exit criteria:** Goal and acceptance criteria clearly stated. Intent file saved.
+**Then route (closing sub-step 0d):** assign a tier — `trivial` / `standard` /
+`architecture` — from Type + Affected Areas + Scope, applying the forced-escalation rules
+in `.claude/ade-routing.json` first (security/auth/secrets/crypto/data-loss → floor
+`standard`; schema/migration/public-API/ADR-or-model → `architecture`; config unparseable →
+treat as ≥ standard). Record `Tier: <tier>` to `.ade/tasks/<task-id>/routing.md`, announce
+it, and — for `architecture` or any forced-escalation — get explicit user confirmation
+before Phase 1. The tier masks which phases run (see each phase heading). See
+[phases/00-intent.md](phases/00-intent.md) for the full routing rules.
+
+**Exit criteria:** Goal and acceptance criteria clearly stated. Intent file saved. Tier
+assigned, recorded, and (if architecture/forced) confirmed.
 
 ---
 
 ## Phase 1 — RESEARCH
+
+*(trivial: a single lightweight inline scout — no grill/CoVe. standard/architecture: full R1–R5.)*
 
 Produce a verified, durable spec in five sub-steps (R1–R5). The phase accumulates three project artifacts: the permanent spec, an updated domain glossary (`CONTEXT.md`), and zero-or-more ADRs under `docs/adr/`.
 
@@ -93,6 +105,8 @@ The spec is now the contract for Development. **Do NOT proceed to Phase 2 until 
 
 ## Phase 2 — PLAN
 
+*(trivial: short inline plan, no Plan agent.)*
+
 Write a detailed implementation plan.
 
 **Hard requirement:** Produce a concrete written plan specific enough to execute without ambiguity.
@@ -126,7 +140,26 @@ Verify the plan file exists and contains all 6 required sections.
 
 ---
 
+## ★ PLAN SOUNDNESS REVIEW (architecture tier only) ★
+
+For `architecture`-routed tasks only, after the PLAN GATE's completeness check passes,
+dispatch the fresh-context `plan-reviewer` subagent (it never sees the planning reasoning).
+It tries to refute the plan against the spec — hallucinated paths, weak/uncovered
+acceptance criteria, scope creep, missing edge cases, missing ADR for a hard-to-reverse
+decision — and returns `VERDICT: APPROVE | REJECT`.
+
+- On REJECT: fix the plan and re-review. **Max 2 iterations**, then escalate to the user.
+- `trivial` / `standard` tasks skip this step.
+
+This is distinct from the PLAN GATE: the gate is a structural completeness check (all 6
+sections present) for every tier; this is an adversarial correctness check for architecture
+tasks only.
+
+---
+
 ## Phase 3 — DESIGN CHECK
+
+*(skipped for `trivial`.)*
 
 Generate file stubs before full implementation to catch architectural drift early.
 
@@ -203,6 +236,8 @@ For detailed instructions, see [phases/05-quality-gate.md](phases/05-quality-gat
 
 ## Phase 6 — REVIEW
 
+*(trivial: a single quick review pass instead of the full fan.)*
+
 Multi-lens code review to catch issues before verification.
 
 **Hard requirement:** Review the change across logic, conventions, and security. Resolve all Critical and Important findings.
@@ -247,6 +282,8 @@ For detailed instructions, see [phases/06-review.md](phases/06-review.md).
 ---
 
 ## Phase 7 — DOCUMENTATION
+
+*(trivial: only if a doc trigger fires. architecture: required.)*
 
 Update project documentation to reflect changes.
 
@@ -300,6 +337,8 @@ The agent creates the PR. The human merges it. This is non-negotiable.
 
 ## Phase 9 — RETROSPECTIVE
 
+*(skipped for `trivial`.)*
+
 Record metrics and learnings.
 
 Save to `.ade/tasks/<task-id>/retro.json`:
@@ -322,6 +361,7 @@ Update `.ade/tasks/<task-id>/status.md`: `Phase 9/9 — Complete`
 - Design check: max 2 iterations
 - Code→review loop: max 3 cycles
 - QA fix: max 3 iterations
+- Plan Soundness Review (architecture): max 2 iterations
 After any limit, escalate to user with summary. Do NOT retry silently.
 
 ## Orchestrator Rules
