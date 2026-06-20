@@ -335,3 +335,14 @@ def test_init_ade_stack_seed_if_missing_preserves_edits(python_project: Path) ->
     stack.write_text("# my edited stack\n- test: make check\n")
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     assert "my edited stack" in stack.read_text()
+
+
+def test_review_skill_has_acceptance_coverage_gate(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    review = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
+    ).read_text()
+    assert "acceptance-coverage gate" in review.lower()
+    assert "Test adequacy" in review
+    # acceptance is now the in-loop check; verify-phase wording is gone
+    assert "verify phase" not in review.lower()
