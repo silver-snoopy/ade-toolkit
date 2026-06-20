@@ -355,3 +355,31 @@ def test_review_skill_has_acceptance_coverage_gate(python_project: Path) -> None
     assert "Test adequacy" in review
     # acceptance is now the in-loop check; verify-phase wording is gone
     assert "verify phase" not in review.lower()
+
+
+def test_no_stale_stack_references(python_project: Path) -> None:
+    """No pre-G5 stack/verify token may survive in the generated tree (spec §5)."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    claude_dir = python_project / ".claude"
+    docs = [
+        p
+        for p in claude_dir.rglob("*.md")
+        if "vendored" not in p.parts  # vendored skills keep their own wording
+    ]
+    docs.append(python_project / "CLAUDE.md")  # generated ADE section lives here
+    blob = "\n".join(p.read_text() for p in docs if p.exists())
+    forbidden = [
+        "@vitals",
+        "-w @",
+        "backend-coder",
+        "frontend-coder",
+        "Playwright",
+        "docker compose",
+        "localhost",
+        "NO EXEMPTIONS",
+        "07-verify",
+        "qa-verify",
+        "/10",
+    ]
+    found = [tok for tok in forbidden if tok in blob]
+    assert not found, f"stale references still present: {found}"
