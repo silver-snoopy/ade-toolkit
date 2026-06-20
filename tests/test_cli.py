@@ -548,3 +548,11 @@ def test_retro_skill_describes_codify_step(python_project: Path) -> None:
     # conditional learning + trivial exclusion are explicit
     assert "NO LEARNING" in retro or "no Learning" in retro
     assert "trivial" in retro.lower()
+
+
+def test_research_reads_learnings(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    research = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "01-research.md"
+    ).read_text()
+    assert "docs/learnings/" in research
