@@ -79,12 +79,12 @@ def test_init_agent_definitions_have_model(python_project: Path) -> None:
 
 
 def test_init_skills_have_phase_content(python_project: Path) -> None:
-    """Skills should contain phase instructions."""
+    """Skills should contain phase instructions, renumbered 0–9."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
 
     full = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
     assert "Phase 0" in full
-    assert "Phase 10" in full or "RETROSPECTIVE" in full
+    assert "Phase 9" in full or "RETROSPECTIVE" in full
     assert "Circuit Breaker" in full or "circuit breaker" in full.lower()
 
     plan = (python_project / ".claude" / "skills" / "ade" / "ade-plan.md").read_text()
@@ -176,11 +176,16 @@ def test_init_full_skill_has_exit_criteria(python_project: Path) -> None:
     assert "Allowed fallback:" in content
 
 
-def test_init_full_skill_has_live_verification(python_project: Path) -> None:
-    """Mandatory live verification should be in the skill."""
+def test_init_no_live_verification(python_project: Path) -> None:
+    """No live-verification machinery remains anywhere in the full pipeline skill."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    content = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
-    assert "no exemptions" in content.lower() or "NO EXEMPTIONS" in content
+    skills = python_project / ".claude" / "skills" / "ade"
+    full = (skills / "ade-full.md").read_text()
+    for token in ("Playwright", "docker compose", "localhost", "NO EXEMPTIONS", "/10"):
+        assert token not in full, f"stale live-verify token in ade-full.md: {token}"
+    phases = skills / "phases"
+    assert not (phases / "07-verify.md").exists()
+    assert not (phases / "qa-verify-bug.md").exists()
 
 
 def test_init_generates_pr_reviewer_agent(python_project: Path) -> None:
