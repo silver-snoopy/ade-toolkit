@@ -519,6 +519,23 @@ def test_doctor_checks_compound_artifacts(python_project: Path) -> None:
     assert "review-calibration" in result.output
 
 
+def test_review_reads_calibration(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    review = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
+    ).read_text()
+    assert "docs/review-calibration.md" in review
+    assert "fresh" in review.lower()
+
+
+def test_review_persists_output(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    review = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
+    ).read_text()
+    assert ".ade/tasks/<task-id>/review.md" in review
+
+
 def test_retro_skill_describes_codify_step(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     retro = (
