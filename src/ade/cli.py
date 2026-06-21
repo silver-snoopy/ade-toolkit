@@ -84,29 +84,11 @@ def _check_command(name: str) -> bool:
     return shutil.which(name) is not None
 
 
-def _render_template_dir(
-    env: Environment,
-    template_prefix: str,
-    dest_dir: Path,
-    context: dict,
-    suffix: str = ".j2",
-) -> None:
-    """Render all templates under a prefix directory to a destination."""
-    for template_name in env.loader.list_templates():
-        if template_name.startswith(template_prefix) and template_name.endswith(suffix):
-            relative = template_name[len(template_prefix) :]
-            # Strip .j2 suffix from output filename
-            dest_name = relative[: -len(suffix)] if relative.endswith(suffix) else relative
-            # Convert underscores to dashes for Claude Code conventions
-            dest_name = dest_name.replace("_", "-")
-            _render_and_write(env, template_name, dest_dir / dest_name, context)
-
-
 def _render_hooks(env: Environment, hooks_dir: Path, context: dict) -> None:
     """Render the deterministic hook scripts, preserving exact filenames.
 
-    Rendered explicitly (not via _render_template_dir) so the leading-underscore
-    helper `_hooklib.py` is not mangled into a dashed name.
+    Rendered explicitly with exact filenames so the leading-underscore
+    helper `_hooklib.py` is not renamed.
     """
     for name in (
         "_hooklib.py",
