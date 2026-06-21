@@ -11,6 +11,11 @@ from ade.harnesses.base import HarnessTarget
 _MODEL_RE = re.compile(r"(?m)^model:\s*(\w+)\s*$")
 
 
+def _toml_basic_str(value: str) -> str:
+    """Escape a string for a TOML basic (double-quoted) value."""
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _remap_model(content: str, tier_models: dict[str, str]) -> str:
     def sub(m: re.Match[str]) -> str:
         tier = m.group(1)
@@ -38,7 +43,7 @@ def _to_toml(markdown: str, name: str) -> str:
     - ``name`` = stem passed in (e.g. ``"implementer"``)
     - ``description`` = first non-empty body line (the role sentence)
     - ``model`` = frontmatter ``model:`` value, if present (optional in Codex)
-    - ``developer_instructions`` = full body as a TOML literal string (``'''...''``)
+    - ``developer_instructions`` = full body as a TOML literal string (``'''...'''``)
     The ``tools`` frontmatter key is dropped — Codex TOML uses ``sandbox_mode`` /
     ``mcp_servers`` instead; omitted here for V1.
     """
@@ -58,10 +63,10 @@ def _to_toml(markdown: str, name: str) -> str:
     developer_instructions = body_stripped.replace("'''", "''")
 
     lines: list[str] = [
-        f'name = "{name}"',
-        f'description = "{description}"',
+        f'name = "{_toml_basic_str(name)}"',
+        f'description = "{_toml_basic_str(description)}"',
     ]
     if "model" in fm:
-        lines.append(f'model = "{fm["model"]}"')
+        lines.append(f'model = "{_toml_basic_str(fm["model"])}"')
     lines.append(f"developer_instructions = '''\n{developer_instructions}\n'''\n")
     return "\n".join(lines) + "\n"

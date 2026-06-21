@@ -1,8 +1,10 @@
+import tomllib
+
 import pytest
 from jinja2 import Environment, PackageLoader
 
 from ade.harnesses import TARGETS, HarnessTarget, selected_targets
-from ade.harnesses.workers import render_worker
+from ade.harnesses.workers import _to_toml, render_worker
 
 
 def _env() -> Environment:
@@ -51,3 +53,12 @@ def test_render_worker_toml_for_codex() -> None:
     assert "name =" in content
     assert "developer_instructions =" in content
     assert "'''" in content  # body as a TOML literal multi-line string
+
+
+def test_to_toml_escapes_quotes_in_description() -> None:
+    md = '---\nmodel: sonnet\ntools: [Read]\n---\nYou are the "implementer" agent.\nMore body.\n'
+    toml_text = _to_toml(md, "implementer")
+    parsed = tomllib.loads(toml_text)  # must not raise
+    assert parsed["name"] == "implementer"
+    assert '"implementer"' in parsed["description"]
+    assert "More body." in parsed["developer_instructions"]
