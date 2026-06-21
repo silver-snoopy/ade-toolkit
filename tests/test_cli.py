@@ -503,3 +503,13 @@ def test_config_lives_in_dot_ade(python_project: Path) -> None:
     assert (python_project / ".ade" / "ade-stack.md").exists()
     assert not (python_project / ".claude" / "ade-routing.json").exists()
     assert not (python_project / ".claude" / "ade-stack.md").exists()
+
+
+def test_doctor_mentions_uvx(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    with patch("ade.cli._check_command", return_value=True):
+        result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
+    # The doctor summary block should mention "uvx ade-toolkit" as the zero-install path.
+    # We check for the specific command prefix, not just "uvx" (which may appear in the
+    # pytest tmp-path that contains the test function name).
+    assert "uvx ade-toolkit" in result.output

@@ -58,21 +58,34 @@ your-project/
 
 `ade init` only **seeds if missing** the user-owned artifacts (`CONTEXT.md`, `docs/adr/0001-…`, `docs/specs/README.md`, `docs/learnings/README.md`, `docs/review-calibration.md`, `.claude/ade-stack.md`, `.claude/ade-routing.json`). The rest of `.claude/` is regenerated on every init. With `--agent copilot`, hooks are wired through a `.pre-commit-config.yaml` instead of `.claude/settings.json`.
 
-## Install
+## Quickstart
+
+Zero-install (recommended):
+
+```bash
+uvx ade-toolkit init --agent all      # scaffold for all harnesses
+# or: --agent claude,gemini           # comma-list of targets
+```
+
+Or install once:
 
 ```bash
 pip install ade-toolkit
+ade init --agent claude
 ```
 
-## Quick start
+`--agent` accepts `claude`, `gemini`, `copilot`, `codex`, a comma-separated list, or `all` (default: `claude`).
 
 ```bash
 cd your-project
-ade init                # Scaffold ADE skills, agents, hooks, and bootstrap docs
 ade doctor              # Verify prerequisites and project state
-claude                  # Start Claude Code
-/ade-full add auth      # Run the full 9-phase SDLC cycle
+claude                  # Start Claude Code (or: gemini / gh copilot / codex)
+/ade-pipeline add auth  # Run the full 9-phase SDLC cycle
 ```
+
+**v2 → v3 upgrade:** run `ade migrate` (idempotent) to move config from `.claude/` to `.ade/` and regenerate the v3 skills tree. User-owned files (`CONTEXT.md`, ADRs, routing config) are never overwritten.
+
+**Skill quality gate:** run `ade eval` to statically check generated skills for missing frontmatter and oversized descriptions (Codex 8 KB cap).
 
 ## The 9-phase SDLC
 
@@ -199,9 +212,11 @@ Anthropic does not support declarative skill peer-dependencies, so ADE's distrib
 
 | Command | What it does |
 |---------|-------------|
-| `ade init` | Scaffold ADE into the current project (idempotent — preserves user-owned bootstrap files). Use `--agent {claude,copilot}` to choose the hook substrate (default `claude`). |
+| `ade init` | Scaffold ADE into the current project (idempotent — preserves user-owned bootstrap files). `--agent` accepts `claude`, `gemini`, `copilot`, `codex`, a comma-list, or `all` (default `claude`). |
+| `ade migrate` | Upgrade a v2 ADE tree to v3 (idempotent). Moves config to `.ade/`, regenerates skills. |
 | `ade doctor` | Check external tools, ADE project state, and recommended plugins |
 | `ade status` | List active tasks under `.ade/tasks/` |
+| `ade eval` | Statically check generated skills for quality issues (missing frontmatter, oversized descriptions) |
 
 ## License
 

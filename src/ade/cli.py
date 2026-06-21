@@ -415,6 +415,10 @@ def doctor(
             rprint(f"[yellow]All required checks pass with {warnings} warning(s).[/yellow]")
         else:
             rprint("[green]All checks pass.[/green]")
+        rprint(
+            "  [dim]Tip: run ADE without installing — "
+            "`uvx ade-toolkit init --agent all` (zero-install, like npx)[/dim]"
+        )
     else:
         rprint("[red]Required checks failed. Fix issues above before running ADE workflows.[/red]")
         raise typer.Exit(1)
