@@ -34,34 +34,13 @@ def test_init_does_not_generate_v3_artifacts(python_project: Path) -> None:
     assert not (python_project / ".pre-commit-config.yaml").exists()
 
 
-def test_init_creates_claude_md_with_ade_section(python_project: Path) -> None:
+def test_init_creates_claude_md_with_pointer_block(python_project: Path) -> None:
     result = runner.invoke(app, ["init", "--project-dir", str(python_project)])
     assert result.exit_code == 0
 
     content = (python_project / "CLAUDE.md").read_text()
-    assert "ADE" in content
+    assert "<!-- ADE:START -->" in content
     assert "Agentic Development Environment" in content
-
-
-def test_init_appends_to_existing_claude_md(python_project: Path) -> None:
-    existing = "# My Project\n\nExisting content.\n"
-    (python_project / "CLAUDE.md").write_text(existing)
-
-    result = runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    assert result.exit_code == 0
-
-    content = (python_project / "CLAUDE.md").read_text()
-    assert content.startswith("# My Project")
-    assert "Existing content." in content
-    assert "ADE" in content
-
-
-def test_init_does_not_duplicate_ade_section(python_project: Path) -> None:
-    runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    runner.invoke(app, ["init", "--project-dir", str(python_project)])
-
-    content = (python_project / "CLAUDE.md").read_text()
-    assert content.count("## ADE") == 1
 
 
 def test_init_agent_definitions_have_model(python_project: Path) -> None:
@@ -352,7 +331,7 @@ def test_no_stale_stack_references(python_project: Path) -> None:
         if "vendored" not in p.parts
         and "grill-with-docs" not in p.parts  # vendored/grill keep their own wording
     ]
-    docs.append(python_project / "CLAUDE.md")  # generated ADE section lives here
+    docs.append(python_project / "AGENTS.md")  # canonical ADE instruction file lives here
     blob = "\n".join(p.read_text() for p in docs if p.exists())
     forbidden = [
         "@vitals",
@@ -531,9 +510,9 @@ def test_research_reads_learnings(python_project: Path) -> None:
     assert "docs/learnings/" in research
 
 
-def test_claude_md_section_describes_compound_loop(python_project: Path) -> None:
+def test_agents_md_describes_compound_loop(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    claude_md = (python_project / "CLAUDE.md").read_text()
-    assert "docs/learnings/" in claude_md
-    assert "review-calibration.md" in claude_md
-    assert "Codify" in claude_md
+    agents_md = (python_project / "AGENTS.md").read_text()
+    assert "docs/learnings/" in agents_md
+    assert "review-calibration.md" in agents_md
+    assert "Codify" in agents_md

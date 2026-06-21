@@ -15,6 +15,7 @@ from rich.table import Table
 from ade.detect import detect_project, normalize_language
 from ade.harnesses import HarnessTarget, selected_targets
 from ade.harnesses.hooks import emit_hooks, render_hook_scripts
+from ade.harnesses.memory import emit_memory_pointer
 from ade.harnesses.workers import render_worker
 
 app = typer.Typer(
@@ -22,8 +23,6 @@ app = typer.Typer(
     help="ADE — Agentic Development Environment toolkit",
     no_args_is_help=True,
 )
-
-ADE_SECTION_MARKER = "## ADE — Agentic Development Environment"
 
 
 def _get_template_env() -> Environment:
@@ -61,21 +60,6 @@ def _render_and_write_if_missing(
         return False
     _render_and_write(env, template_name, dest, context)
     return True
-
-
-def _update_claude_md(project_dir: Path, ade_section: str) -> None:
-    """Append ADE section to CLAUDE.md, or create it."""
-    claude_md = project_dir / "CLAUDE.md"
-
-    if claude_md.exists():
-        existing = claude_md.read_text(encoding="utf-8")
-        if ADE_SECTION_MARKER in existing:
-            return
-        content = existing.rstrip() + "\n\n" + ade_section
-    else:
-        content = ade_section
-
-    claude_md.write_text(content, encoding="utf-8")
 
 
 def _check_command(name: str) -> bool:
@@ -208,10 +192,11 @@ def init(
     else:
         rprint("  [dim]= Kept existing .claude/ade-routing.json[/dim]")
 
-    # Update CLAUDE.md with ADE section
-    ade_section_template = env.get_template("claude_md_section.md.j2")
-    ade_section = ade_section_template.render(**ctx)
-    _update_claude_md(project_dir, ade_section)
+    # Emit the canonical instruction file once (ADE-owned, always overwritten):
+    _render_and_write(env, "AGENTS.md.j2", project_dir / "AGENTS.md", ctx)
+    # Thin pointer per harness:
+    for target in targets:
+        emit_memory_pointer(target, env, project_dir, ctx)
 
     # Bootstrap project artifacts (CONTEXT.md glossary, docs/adr/, docs/specs/).
     # These are user-owned project artifacts ADE seeds at init time but never
