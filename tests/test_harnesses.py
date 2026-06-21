@@ -23,3 +23,10 @@ def test_selected_targets_default_is_claude() -> None:
 def test_selected_targets_rejects_unknown() -> None:
     with pytest.raises(KeyError):
         selected_targets("cursor")
+
+
+def test_selected_targets_rejects_empty() -> None:
+    with pytest.raises(KeyError):
+        selected_targets("")
+    with pytest.raises(KeyError):
+        selected_targets("  ")
