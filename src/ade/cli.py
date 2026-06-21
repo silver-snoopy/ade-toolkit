@@ -196,7 +196,12 @@ def migrate(
 ) -> None:
     """Upgrade a v2 ADE tree to the v3 layout (idempotent)."""
     project_dir = project_dir.resolve()
-    targets = selected_targets(agent)
+    try:
+        targets = selected_targets(agent)
+    except KeyError as exc:
+        valid = ", ".join(sorted(TARGETS))
+        rprint(f"[red]Error: unknown --agent value {exc}. Valid: {valid}, or 'all'.[/red]")
+        raise typer.Exit(1) from exc
     info = detect_project(project_dir)
     env = _get_template_env()
     ctx = {"info": info}

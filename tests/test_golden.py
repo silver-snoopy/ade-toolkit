@@ -109,9 +109,14 @@ def test_agent_all_emits_every_harness(python_project: Path) -> None:
 
 
 def test_agent_list_emits_subset(python_project: Path) -> None:
-    runner.invoke(app, ["init", "--project-dir", str(python_project), "--agent", "claude,gemini"])
+    result = runner.invoke(
+        app,
+        ["init", "--project-dir", str(python_project), "--agent", "claude,gemini"],
+    )
+    assert result.exit_code == 0
     assert (python_project / ".gemini" / "skills" / "ade-research" / "SKILL.md").exists()
     assert not (python_project / ".github").exists()
+    assert not (python_project / ".codex").exists()
 
 
 def test_unknown_agent_lists_valid_names(python_project: Path) -> None:

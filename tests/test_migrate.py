@@ -49,3 +49,11 @@ def test_migrate_is_idempotent(python_project: Path) -> None:
     runner.invoke(app, ["migrate", "--project-dir", str(python_project)])
     md = (python_project / "CLAUDE.md").read_text()
     assert md.count("<!-- ADE:START -->") == 1
+
+
+def test_migrate_rejects_unknown_agent(python_project: Path) -> None:
+    result = runner.invoke(
+        app, ["migrate", "--project-dir", str(python_project), "--agent", "cursor"]
+    )
+    assert result.exit_code != 0
+    assert "claude" in result.output  # friendly message lists valid names

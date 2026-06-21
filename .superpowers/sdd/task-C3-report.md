@@ -43,3 +43,23 @@ Parses the `--- frontmatter --- body` markdown. Extracts `model:` from frontmatt
 
 - `description` synthesis (first body line) produces the full first sentence. If a worker's body starts with a heading or blank line the fallback is an empty string — acceptable for V1 since current templates all start with a role sentence.
 - Codex `emit_memory_pointer` still writes an AGENTS.md block (memory.py calls `_render_and_write_if_missing`). Since AGENTS.md is the canonical memory file and Codex reads it natively, this is correct — no separate pointer file is needed and none is emitted.
+
+## Fix: TOML string escaping (post-C3 review)
+
+**Status:** PASS
+
+**Issue:** `_to_toml` builds TOML double-quoted values without escaping backslash or quote characters. If a markdown worker's `description` (or `model` frontmatter) contains `"` or `\`, the generated TOML is invalid.
+
+**Fix Applied:**
+1. Added `_toml_basic_str(value: str)` helper to escape TOML basic-string values (backslash first, then quote).
+2. Updated `_to_toml` to use `_toml_basic_str()` for `name`, `description`, and `model` fields.
+3. Fixed docstring typo: changed `''` to `'''` in the `developer_instructions` description.
+4. Added test `test_to_toml_escapes_quotes_in_description`: feeds markdown with a quote in the description, asserts the TOML parses via `tomllib.loads()`.
+
+**Test Evidence:**
+- RED: Test failed with `tomllib.TOMLDecodeError` (unescaped quote broke TOML syntax).
+- GREEN: After adding `_toml_basic_str`, test passes; TOML parses cleanly.
+- Full suite: **104 passed** (103 prior + 1 new).
+- Lint & format: All checks passed.
+
+**Commit:** `32e8fad` "fix(harnesses): escape TOML basic-string values in _to_toml"
