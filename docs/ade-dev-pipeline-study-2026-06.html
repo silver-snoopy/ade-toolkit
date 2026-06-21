@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADE Development Pipeline (Phases 0–6) — Deep Study: Strengths · Improvements · Missing</title>
+<style>
+  :root {
+    --bg: #0c0e14; --bg-2: #11141d; --panel: #161a26; --panel-2: #1c2130;
+    --line: #262d3d; --line-2: #333c52; --ink: #dde3ee; --ink-dim: #9aa6bd; --ink-faint: #6b7589;
+    --accent: #6ea8fe; --accent-2: #7ee0c0; --warn: #ffb454; --bad: #ff6b6b; --good: #5ad19a; --purple: #c08cf0;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .layout { display: grid; grid-template-columns: 280px 1fr; max-width: 1500px; margin: 0 auto; }
+  nav.toc { position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; border-right: 1px solid var(--line); padding: 28px 18px 60px; background: var(--bg-2); }
+  nav.toc .brand { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
+  nav.toc .brandsub { font-size: 12px; color: var(--ink-faint); margin-bottom: 22px; }
+  nav.toc a { display: block; color: var(--ink-dim); text-decoration: none; font-size: 13.5px; padding: 5px 10px; border-radius: 6px; border-left: 2px solid transparent; }
+  nav.toc a:hover { color: var(--ink); background: var(--panel); }
+  nav.toc .grp { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--ink-faint); text-transform: uppercase; margin: 20px 0 6px 10px; }
+  main { padding: 46px 56px 120px; min-width: 0; }
+  section { margin-bottom: 64px; scroll-margin-top: 24px; }
+  h1 { font-size: 33px; line-height: 1.18; margin: 0 0 10px; letter-spacing: -.02em; font-weight: 700; }
+  h2 { font-size: 23px; margin: 0 0 18px; padding-bottom: 10px; border-bottom: 1px solid var(--line); letter-spacing: -.01em; font-weight: 650; }
+  h2 .num { font-family: var(--mono); font-size: 14px; color: var(--accent); margin-right: 12px; }
+  h3 { font-size: 17px; margin: 30px 0 10px; color: #fff; font-weight: 600; }
+  h3 .phref { font-family: var(--mono); font-size: 12px; color: var(--accent); margin-right: 10px; }
+  h4 { font-size: 14px; margin: 20px 0 8px; color: var(--accent-2); font-family: var(--mono); letter-spacing: .03em; text-transform: uppercase; }
+  p { margin: 0 0 14px; color: var(--ink); }
+  a { color: var(--accent); }
+  strong { color: #fff; font-weight: 650; }
+  em { color: var(--accent-2); font-style: normal; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--panel-2); padding: 1.5px 6px; border-radius: 4px; color: #c9d3e6; border: 1px solid var(--line); }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin-bottom: 7px; }
+  .lede { font-size: 17px; color: var(--ink-dim); max-width: 84ch; }
+  .hero-meta { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); margin-top: 18px; display: flex; gap: 22px; flex-wrap: wrap; }
+  .hero-meta b { color: var(--accent-2); font-weight: 500; }
+  .call { border: 1px solid var(--line-2); border-left: 3px solid var(--accent); background: var(--panel); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+  .call.key { border-left-color: var(--accent-2); }
+  .call.warn { border-left-color: var(--warn); }
+  .call.gap { border-left-color: var(--bad); }
+  .call .tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: 6px; }
+  .call.key .tag { color: var(--accent-2); } .call.warn .tag { color: var(--warn); } .call.gap .tag { color: var(--bad); }
+  .call p:last-child { margin-bottom: 0; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin: 18px 0; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { background: var(--panel-2); color: var(--ink-dim); font-family: var(--mono); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; font-weight: 500; position: sticky; top: 0; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(110,168,254,.045); }
+  td.sys, th.sys { font-weight: 600; color: #fff; white-space: nowrap; }
+  .matrix td { text-align:center; } .matrix td:first-child { text-align:left; white-space:nowrap; color:var(--ink-dim); }
+  .lens td:first-child { white-space:nowrap; font-family:var(--mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase; }
+  .pill { font-family: var(--mono); font-size: 10.5px; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--line-2); color: var(--ink-dim); white-space: nowrap; display: inline-block; }
+  .pill.lead { color: #b7f0d8; border-color: #1f5040; background: #0c211a; }
+  .pill.strong { color: #a9d6ff; border-color: #24405a; background: #0e1d2a; }
+  .pill.partial { color: #ffd9a0; border-color: #5a4524; background: #2a1f0e; }
+  .pill.gap { color: #ffc0c8; border-color: #5a2832; background: #2a0e14; }
+  .v-str { color: var(--good); } .v-weak { color: var(--warn); } .v-gap { color: var(--bad); } .v-info { color: var(--purple); }
+  .y { color: var(--good); font-weight: 600; }
+  .n { color: var(--ink-faint); }
+  .part { color: var(--warn); }
+  .lead-cell { color: var(--accent-2); font-weight:700; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px,1fr)); gap: 16px; margin: 18px 0; }
+  .card { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 18px 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 15.5px; }
+  .card .one { font-size: 13px; color: var(--ink-dim); margin-bottom: 10px; }
+  .card .row { font-size: 12.5px; margin-bottom: 8px; }
+  .card .row b { color: var(--ink-faint); font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; display: block; margin-bottom: 2px; }
+  .pipe { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+  .pipe .stage { flex: 1 1 130px; border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; background: var(--panel); position: relative; }
+  .pipe .stage .n { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+  .pipe .stage .t { font-weight: 600; font-size: 13px; margin: 2px 0 3px; }
+  .pipe .stage .d { font-size: 11px; color: var(--ink-faint); }
+  .pipe .stage .cov { margin-top: 7px; font-family: var(--mono); font-size: 10px; color: var(--good); }
+  .pipe .stage.weak { border-color: #5a4524; } .pipe .stage.weak .cov { color: var(--warn); }
+  .pipe .stage.bad { border-color: #5a2832; } .pipe .stage.bad .cov { color: var(--bad); }
+  .score { display: grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap: 12px; margin: 20px 0; }
+  .score .s { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--panel); }
+  .score .s .v { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+  .score .s .v.g { color: var(--good); } .score .s .v.w { color: var(--warn); } .score .s .v.b { color: var(--bad); }
+  .score .s .l { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+  .src { font-size: 12px; color: var(--ink-faint); } .src a { color: var(--ink-dim); }
+  sup.ref { font-size: 10px; color: var(--accent); font-family: var(--mono); }
+  hr { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
+  @media (max-width: 1080px){ .layout{ grid-template-columns: 1fr;} nav.toc{ position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line);} main{ padding: 32px 22px 80px;} }
+  .footer { border-top:1px solid var(--line); margin-top:50px; padding-top:20px; font-size:12px; color:var(--ink-faint); }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--ink-faint); margin: 8px 0 14px;}
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav class="toc">
+    <div class="brand">ADE&nbsp;//&nbsp;Dev-Pipeline Study</div>
+    <div class="brandsub">Phases 0–6 · strengths / improve / missing</div>
+    <a href="#summary">Executive summary</a>
+    <a href="#method">Scope &amp; method</a>
+    <div class="grp">The pipeline</div>
+    <a href="#pipeline">Phases 0–6 at a glance</a>
+    <a href="#phases">Per-phase deep analysis</a>
+    <a href="#rigor">Process-rigor lens</a>
+    <a href="#matrix">Dev-pipeline field matrix</a>
+    <div class="grp">The verdict (the spine)</div>
+    <a href="#strengths">A · Strengths to protect</a>
+    <a href="#improve">B · Concrete improvements</a>
+    <a href="#missing">C · Missing capabilities</a>
+    <a href="#recs">Ranked recommendations</a>
+    <div class="grp">Reference</div>
+    <a href="#sources">Sources</a>
+  </nav>
+  <main>
+  <section id="summary">
+    <h1>ADE Development Pipeline — Deep Study (Phases 0–6)</h1>
+    <p class="lede">A narrowed, maximum-rigor study of ADE's <em>development pipeline only</em> — Intent → Research → Plan → Design-Check → Implement → Quality-Gate → Review — the path that turns an intent into reviewed, working code, <em>before</em> ship/docs/compound. Each phase is read from the real v3 <code>SKILL.md</code> sources and benchmarked against the agentic-SDLC field through five lenses, with one question as the spine: <strong>what are the strengths, where must ADE improve, and what is missing entirely?</strong></p>
+    <div class="hero-meta">
+      <span>Phases in scope&nbsp; <b>0–6</b></span>
+      <span>Field corpus&nbsp; <b>16 systems (prior re-benchmark)</b></span>
+      <span>Targeted re-verify agents&nbsp; <b>4</b></span>
+      <span>Primary source&nbsp; <b>v3 generated tree</b></span>
+      <span>Date&nbsp; <b>2026-06-21</b></span>
+    </div>
+    <div class="call key">
+      <span class="tag">Bottom line</span>
+      <p>The ADE development pipeline is <strong>field-leading on the hardest-to-fake dimensions of the inner loop</strong> — research-and-verification rigor (a spec-blind Chain-of-Verification no competitor matches), hook-enforced author-separated TDD (the only live <code>EXIT=2</code> mixed-commit block in the field), blast-radius phase-masking routing, an <em>executable</em> design-contract gate, and deterministic circuit breakers on every loop. The weaknesses are concentrated and fixable: independent plan validation runs <strong>only on the architecture tier</strong> (the median change grades its own plan); the design-stub gate has <strong>no independent reviewer</strong>; the fixer loop uses a bare integer cap where leaders use stall-detection; and review is <strong>single-model</strong>. The one true regression remains <strong>G6</strong> — live, evidence-based verification was removed (as a cost of the G5 stack-agnosticism win) and replaced by a test-coverage gate, leaving ADE alone among strong systems with <em>zero</em> runtime proof. The genuinely missing capabilities are design-time threat modeling and forced, falsifiable NFR/capacity targets — both of which would extend, not rebuild, ADE's strongest phase.</p>
+    </div>
+    <div class="score">
+      <div class="s"><div class="v g">leader</div><div class="l">Research + spec-blind CoVe verification (Phase 1)</div></div>
+      <div class="s"><div class="v g">leader</div><div class="l">Hook-enforced author-separated TDD (Phase 4)</div></div>
+      <div class="s"><div class="v g">leader</div><div class="l">Blast-radius phase-masking routing (Phase 0)</div></div>
+      <div class="s"><div class="v g">leader</div><div class="l">Executable design-contract gate (Phase 3)</div></div>
+      <div class="s"><div class="v w">architecture-only</div><div class="l">Independent plan soundness check (Phase 2)</div></div>
+      <div class="s"><div class="v w">single-model</div><div class="l">Review fan — no cross-model decorrelation (Phase 6)</div></div>
+      <div class="s"><div class="v b">G6 regressed</div><div class="l">Live verification removed → test-coverage only (Phase 6)</div></div>
+      <div class="s"><div class="v b">absent</div><div class="l">Design-time threat model · forced NFR targets</div></div>
+    </div>
+  </section>
+
+  <section id="method">
+    <h2><span class="num">00</span>Scope &amp; method</h2>
+    <p><strong>In scope</strong> — the development pipeline up to (not including) compound: Phase 0 Intent + routing, Phase 1 Research (R1–R5), Phase 2 Plan, Phase 3 Design-Check, Phase 4 Implement, Phase 5 Quality-Gate, Phase 6 Review. The test for inclusion: <em>"does this step turn an intent into reviewed, working code?"</em></p>
+    <p><strong>Out of scope</strong> — the compound loop (Phase 9 retro / <code>compounder</code> / <code>docs/learnings/</code> as a <em>compounding</em> mechanism), Phase 7 Docs, Phase 8 Ship, and the cross-harness distribution machinery (v3.0.0). Phase 6 <em>reads</em> the calibration corpus — that read is treated as a Phase-6 input; the writing/compounding loop is not evaluated.</p>
+    <p><strong>Method.</strong> ADE was re-scored from its <em>actual v3 generated tree</em> — every in-scope <code>SKILL.md.j2</code>, the worker subagent definitions (<code>scout</code>, <code>synthesizer</code>, <code>spec-verifier</code>, <code>plan-reviewer</code>, <code>test-writer</code>, <code>implementer</code>, <code>code-reviewer</code>, <code>security-reviewer</code>), and the deterministic hooks (<code>block-mixed-commit</code>, <code>check-leftover-stub</code>, <code>check-escalation-paths</code>) — not its prose claims. The field half leans on the <a href="ade-sdlc-gap-analysis-2026-06.html">2026-06 17-system re-benchmark</a>, whose per-dimension ratings were already adversarially verified against the real repos; this study narrows that corpus to the dev-pipeline dimensions and adds <strong>four targeted re-verification agents</strong> on the questions the narrowed lens needs fresh depth on (plan-soundness norms, design-stub/scaffold practice, bounded-repair + live-verify best practice, research-phase rigor frontier). Each agent was instructed to <em>adversarially refute</em> its own conclusion before settling.</p>
+    <p><strong>The five lenses</strong> applied to every phase: (1) <span class="v-str">Strengths</span> — leading-class behavior, evidence-backed to the skill/agent/hook that delivers it; (2) <span class="v-weak">Weaknesses</span> — weaker-than-field, brittle, or under-specified; (3) <span class="v-gap">Gaps</span> — capabilities the field has that ADE has no step for; (4) <span class="v-info">Process-rigor</span> — isolation, determinism, circuit breakers, fail-safe behavior; (5) <strong>Field-benchmark</strong> — who does it better/differently and what ADE would adopt.</p>
+    <div class="legend">
+      <span>Phase verdicts:</span>
+      <span class="pill lead">leader</span><span class="pill strong">strong</span><span class="pill partial">partial / mixed</span><span class="pill gap">behind</span>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <h2><span class="num">01</span>The Phases 0–6 spine at a glance</h2>
+    <p>The seven in-scope stages with their per-phase verdict. Stages outlined in <span style="color:var(--warn)">amber</span> have a concentrated, fixable weakness; <span style="color:var(--bad)">red</span> marks the one true regression (G6, in Phase 6's acceptance gate).</p>
+    <div class="pipe">
+      <div class="stage"><div class="n">Phase 0</div><div class="t">Intent + Route</div><div class="d">Structured intent · blast-radius tier · deterministic forced-escalation floor</div><div class="cov">leader</div></div>
+      <div class="stage"><div class="n">Phase 1</div><div class="t">Research (R1–R5)</div><div class="d">Iterative-retrieval scouts · grill · spec-blind CoVe</div><div class="cov">leader</div></div>
+      <div class="stage weak"><div class="n">Phase 2</div><div class="t">Plan</div><div class="d">6-section plan · blind plan-reviewer (architecture tier only)</div><div class="cov">strong · gap</div></div>
+      <div class="stage weak"><div class="n">Phase 3</div><div class="t">Design-Check</div><div class="d">Executable stub/contract gate · no independent reviewer</div><div class="cov">leader · 1 weak</div></div>
+      <div class="stage"><div class="n">Phase 4</div><div class="t">Implement</div><div class="d">Author-separated TDD · hook-enforced (EXIT=2)</div><div class="cov">leader</div></div>
+      <div class="stage weak"><div class="n">Phase 5</div><div class="t">Quality-Gate</div><div class="d">lint→format→build→test · fixer max-3 · no stall detection</div><div class="cov">strong</div></div>
+      <div class="stage bad"><div class="n">Phase 6</div><div class="t">Review</div><div class="d">Multi-lens fresh-context fan · single-model · live-verify removed (G6)</div><div class="cov">strong · G6</div></div>
+    </div>
+    <div class="call">
+      <span class="tag">The shape of the verdict</span>
+      <p>ADE's pipeline is <strong>strongest at the front (0–1) and the TDD core (3–4)</strong>, and thins out at the validation seams: the plan is only independently checked at the top tier, the design stub is self-validated, the repair loop is bluntly capped, and the final acceptance proof is test-coverage rather than running-system evidence. Every weakness is an <em>under-applied</em> version of a discipline ADE already owns — blind review, circuit breakers, runtime checks — not a missing concept. That makes the improvements cheap and the strengths durable.</p>
+    </div>
+  </section>
+
+  <section id="phases">
+    <h2><span class="num">02</span>Per-phase deep analysis</h2>
+
+    <h3><span class="phref">Phase 0</span>Intent + Route &nbsp;<span class="pill lead">leader</span></h3>
+    <p><strong>Mechanism.</strong> Extracts a structured intent (<code>type</code> / <code>goal</code> / acceptance criteria / affected areas / S-M-L scope) to <code>.ade/tasks/&lt;id&gt;/intent.md</code>, gating every later phase. Each acceptance criterion must be <em>expressible as an automated test</em> to count as in-loop; inherently visual/perceptual criteria are tagged <code>(manual)</code> and explicitly verified by a human <em>outside</em> the loop — "the pipeline guarantees exactly what the tests guarantee; it does not pretend a shallow render-test stands in for human review." The closing <strong>0d Route</strong> sub-step assigns a tier — <code>trivial</code> / <code>standard</code> / <code>architecture</code> — that <em>masks which later phases run</em>. Routing is <strong>forced-escalation-first and deterministic</strong>: it reads <code>.ade/ade-routing.json</code>, and any affected-area or keyword match against an escalation glob floors the tier (and can never be overridden downward); a missing/unparseable config is treated as ≥ <code>standard</code>.</p>
+    <div class="tablewrap"><table class="lens">
+      <tbody>
+        <tr><td class="v-str">Strength</td><td>True phase-<em>masking</em> blast-radius routing with a <strong>deterministic forced-escalation floor</strong> that the <code>check-escalation-paths</code> commit hook re-enforces against the real diff at ship time — so a Phase-0 mis-route (no diff yet) is still caught later. The automatable-or-<code>(manual)</code> discipline on acceptance criteria is a rare honesty about what the pipeline can and cannot prove. Leader-class, matching gstack/ECC and ahead of the field's many informational "size labels."</td></tr>
+        <tr><td class="v-weak">Weakness</td><td>Within the non-forced band, the <code>trivial</code>-vs-<code>standard</code> split is pure LLM size-judgment (no determinism). Routing accuracy depends on the <em>user</em> naming security/schema/public-API impact in <code>Affected Areas</code> — the skill says so explicitly. No NFR/capacity dimension is captured at intent.</td></tr>
+        <tr><td class="v-gap">Gap</td><td>No incident-intake entry point (a production postmortem as a pipeline trigger) — though that is largely outside the dev-pipeline scope.</td></tr>
+        <tr><td class="v-info">Process-rigor</td><td>Fail-safe by construction: unparseable config ⇒ conservative ≥<code>standard</code>; forced floor is irreversible downward; <code>architecture</code> or any forced floor requires explicit user confirmation. Strong.</td></tr>
+        <tr><td>Field</td><td><strong>Leader.</strong> Microsoft CAF names blast-radius (not apparent complexity) as the primary mandate for multi-agent ceremony; ADE's deterministic floor + hook backstop is the cleanest realization in the set.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3><span class="phref">Phase 1</span>Research (R1–R5) &nbsp;<span class="pill lead">leader — field-best</span></h3>
+    <p><strong>Mechanism.</strong> Five sub-steps producing three durable artifacts (a permanent spec, additive <code>CONTEXT.md</code> glossary, immutable ADRs). <strong>R2.1</strong>: parallel <code>scout</code> subagents with <em>iterative retrieval</em> (DISPATCH→EVALUATE→REFINE→LOOP, max 3 cycles) governed by an explicit stop criterion (≥3 findings at relevance ≥0.8, no critical coverage gaps, no terminology mismatch), refining vocabulary between cycles and grepping <code>docs/learnings/</code> for prior discoveries. <strong>R2.2</strong>: orchestrator confidence check gates conditional <strong>R2.3</strong> web research (Tier-0 tools by default). <strong>R3</strong>: a single-writer <code>synthesizer</code> drafts the spec; the orchestrator interviews the user against a <em>10-category ambiguity taxonomy</em> (one question at a time, multi-choice with one recommended + one alternative, hard cap 5 questions, spec updated atomically after each answer). <strong>R4</strong>: the vendored <code>grill-with-docs</code> skill sharpens domain terms into the glossary + ADRs. <strong>R5</strong>: <em>factor+revise Chain-of-Verification</em> — extract 8–15 claims, dispatch one <code>spec-verifier</code> per claim in parallel, each <strong>structurally forbidden the spec text</strong>, answering from project code/docs alone; the synthesizer (Role B) then revises the spec against material findings and "never silently softens the spec to make findings go away."</p>
+    <div class="tablewrap"><table class="lens">
+      <tbody>
+        <tr><td class="v-str">Strength</td><td>The single most rigorous recon-and-verify pipeline in the field. The defining property — the <code>spec-verifier</code> is the <em>only</em> verifier in the surveyed set that is blind to the artifact it judges <em>in the spec direction</em> — correctly operationalizes both the Chain-of-Verification factored variant<sup class="ref">[1]</sup> and the result that LLMs cannot reliably self-correct their own reasoning<sup class="ref">[2]</sup>. No competitor pairs all three of: iterative-retrieval scouts with a stop criterion, vendored <code>grill-with-docs</code> domain modeling, and factor+revise CoVe with a structurally blind verifier. The triple-durable artifact (spec + glossary + ADR chain) survives <code>/clear</code> and reloads into fresh windows.</td></tr>
+        <tr><td class="v-weak">Weakness</td><td>Scout findings carry citations but no <strong>evidence-strength grading</strong>. The 5-question interview cap is reasonable but rigid. The NFR/capacity category exists in the taxonomy (#4) but the interview is not <em>forced</em> to extract a falsifiable, numeric target — "fast" can survive as a criterion.</td></tr>
+        <tr><td class="v-gap">Gap</td><td>The 10-category taxonomy has no <strong>security-design / threat-surface</strong> category and no <strong>privacy/data-classification</strong> category — so design-time security and PII never enter the spec by construction.</td></tr>
+        <tr><td class="v-info">Process-rigor</td><td>Best-in-study context isolation: scouts and verifiers run in fresh windows returning condensed findings; the verifier's spec-blindness is a <em>structural</em> guarantee, not a prompt nicety (if the spec leaks into a verifier's prompt it self-flags as compromised). The R2.1 loop is hard-capped at 3 cycles and escalates rather than proceeding on thin research.</td></tr>
+        <tr><td>Field</td><td><strong>Leader.</strong> The strongest competitor idea ADE lacks is <strong>gsd's provenance tags</strong> (<code>VERIFIED</code> / <code>CITED</code> / <code>ASSUMED</code>) on every research finding, with <code>ASSUMED</code> forcing user confirmation before a claim becomes a locked decision. gsd's goal-backward verification and BMAD's "Blind Hunter" are strong but point at <em>code</em>, not the spec — so ADE's independence guarantee remains the strongest in the field.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3><span class="phref">Phase 2</span>Plan &nbsp;<span class="pill strong">strong</span> <span class="pill gap">soundness gap</span></h3>
+    <p><strong>Mechanism.</strong> Writes a 6-section <code>plan.md</code> (context, dependency-ordered task list / DAG, files-to-change table, dependencies, test strategy, risk areas) with a <em>documentation-row rule</em> (any new route/table/service/feature must add a row for the affected doc file — "documentation is a deliverable, not an afterthought"). A self-check <strong>Plan Gate</strong> verifies all sections present, dependency-ordered, every acceptance criterion covered. An <strong>adversarial blind <code>plan-reviewer</code></strong> — fresh context, <em>not</em> given the planning reasoning, sees only spec + plan, tries to <em>refute</em> (hallucinated refs, weak acceptance criteria, uncovered criteria, scope creep, &lt;2 edge cases, missing ADR), emits <code>APPROVE</code>/<code>REJECT</code>, max 2 iterations then escalate — runs <strong>only for the <code>architecture</code> tier</strong>.</p>
+    <div class="tablewrap"><table class="lens">
+      <tbody>
+        <tr><td class="v-str">Strength</td><td>A durable, dependency-DAG plan with the doc-as-deliverable rule, and — for high-blast-radius work — a genuinely adversarial, refusal-capable blind reviewer that is structurally denied the planning rationale. That review, where it runs, is field-class.</td></tr>
+        <tr><td class="v-weak">Weakness</td><td><strong>The median <code>standard</code> change gets no independent plan check at all</strong> — only the planner's self-authored Plan Gate checklist, which is exactly the "grade your own homework" failure mode blind review exists to catch. Four mature spec-driven systems (gsd, BMAD, Spec Kit, ECC) apply <em>some</em> independent plan validation to <strong>every</strong> change; ADE is the only one that drops it to zero below the top tier. gsd is the sharp counter-example — same Claude-Code substrate, yet it runs goal-backward <code>gsd-plan-checker</code> on <em>all</em> plans with stall detection, proving all-tier plan validation is operationally affordable.</td></tr>
+        <tr><td class="v-info">Process-rigor</td><td>Where it runs, the loop is bounded (max 2 → escalate) and the reviewer is isolated. The gap is coverage, not rigor: the control's <em>existence</em> drops to zero for the common case, not just its severity.</td></tr>
+        <tr><td>Field</td><td><strong>Behind on plan-validation universality.</strong> Steel-manned counter (CAF blast-radius right-sizing) rejected: CAF scales a control's <em>severity</em>, not its <em>existence to zero</em> — its own model keeps an independent observation layer at every tier. Best fix: a lightweight fresh-context <strong>coverage-matrix check on the <code>standard</code> tier</strong> (every acceptance criterion → task, à la BMAD <code>check-implementation-readiness</code> / Spec Kit <code>analyze</code>), reserving full refutation for <code>architecture</code>.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3><span class="phref">Phase 3</span>Design-Check &nbsp;<span class="pill lead">leader (executable gate)</span> <span class="pill partial">no stub reviewer</span></h3>
+    <p><strong>Mechanism.</strong> Before any real code, a subagent in a dedicated git worktree (<code>ade/&lt;task-id&gt;</code>) creates <strong>stubs</strong>: full type/data definitions and function signatures with loud-failing bodies (<code>NotImplementedError</code> / "Not implemented" / "TODO: implement"), entrypoint/component/accessor shells — no business logic, SQL, API calls, or tests. Stubs are validated against the plan's file table: <em>coverage</em> (every <code>CREATE</code> file stubbed), <em>type consistency</em> (shared contracts flow to dependents), a <em>build check</em> on the foundation module (shared contracts must compile; dependents may fail loudly), and an <em>import / no-circular</em> check. Max 2 iterations then escalate. The <code>check-leftover-stub</code> commit hook guarantees a placeholder marker can never ship as real code. Skipped for the <code>trivial</code> tier.</p>
+    <div class="tablewrap"><table class="lens">
+      <tbody>
+        <tr><td class="v-str">Strength</td><td>This is "Spec Kit's design phase made <em>executable</em>." Where Spec Kit only doc-checks its <code>contracts/</code>, ADE adds a real <strong>compile + import gate</strong> — the differentiating signal. Stubbing surfaces cross-module contract/type mismatch and circular-import problems <em>before</em> expensive parallel TDD, which the plan's prose file-table and TDD's per-unit RED step structurally cannot (a failing test can't distinguish "not implemented yet" from "contract doesn't compile"). The hook-guaranteed no-ship of placeholders appears to be an ADE original.</td></tr>
+        <tr><td class="v-weak">Weakness</td><td><strong>No independent reviewer of the stubs</strong> — the same agent creates and self-validates them, so a wrong-but-compiling contract passes the gate. The 2-iteration loop is shallow. There is also mild tension with strict TDD orthodoxy (tests, not stubs, should drive the interface), defensible here only because author-separation keeps the test-writer in charge of <em>behavior</em> while stubs fix only the module boundary.</td></tr>
+        <tr><td class="v-info">Process-rigor</td><td>Worktree isolation from the main tree; deterministic hook backstop on placeholders; bounded loop with escalation. The missing piece is a blind check — ADE already owns the pattern (the Phase-1 <code>spec-verifier</code> that never sees the spec).</td></tr>
+        <tr><td>Field</td><td><strong>Leading on the executable gate, mildly over-built without a reviewer.</strong> Most systems have no skeleton phase (gsd, Superpowers go straight to TDD); ECC's scaffold runs a <em>working</em> slice with an optional adversarial GAN reviewer. Best fix: add a <strong>blind stub-reviewer</strong> subagent (reuse the <code>spec-verifier</code> isolation pattern on the contracts); keep the executable gate as the differentiator.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3><span class="phref">Phase 4</span>Implement &nbsp;<span class="pill lead">leader — field-best</span></h3>
+    <p><strong>Mechanism.</strong> Author-separated TDD inside the worktree. <strong>4a</strong>: the <code>test-writer</code> subagent writes <em>failing tests only</em> (test files only, never source), maps each automatable Phase-0 criterion to ≥1 test, confirms the suite is RED <em>for the right reason</em> (assertion failures, not import errors), and commits a test-only commit. <strong>4b</strong>: the <code>implementer</code> subagent(s) — dispatched <em>without</em> the test-writer's reasoning, seeing only the spec, the failing tests on disk, and the stubs — write the minimum code to go GREEN, never touching test files, leaving no stub markers, committing an implementation-only commit. The <strong><code>block-mixed-commit</code> hook rejects any commit mixing tests with implementation with a live <code>EXIT=2</code></strong> (bypass only via an explicit <code>[test-refactor]</code> marker). Disjoint-file parallel implementers are allowed; no two agents may edit the same file. Build/test run through the stack-agnostic <code>.ade/ade-stack.md</code> commands.</p>
+    <div class="tablewrap"><table class="lens">
+      <tbody>
+        <tr><td class="v-str">Strength</td><td>The <strong>only</strong> system in the field that makes author-separated TDD a <em>structural</em> guarantee via a live commit-blocking hook, not advice — turning generator≠verifier from a convention into enforcement Anthropic explicitly recommends. The implementer is denied the test author's reasoning, so the tests are an uncontaminated contract. Stack-agnostic by construction (G5).</td></tr>
+        <tr><td class="v-weak">Weakness</td><td><strong>Residual G1 doc defect:</strong> the Implementation Checklist (<code>ade-implement</code> line 103) still reads "Write unit tests alongside the implementation," directly contradicting the author-separation invariant in the same file ("Must NOT create or edit test files"). The hook still blocks a mixed commit, so enforcement holds, but the prose can mislead the implementer. A one-line fix.</td></tr>
+        <tr><td class="v-info">Process-rigor</td><td>Hardest isolation in the set: separate authors, separate commits, deterministic <code>EXIT=2</code> enforcement, hard file-ownership rule for parallel agents, scope-drift threshold (&gt;2× the plan's file table ⇒ stop and re-scope). Excellent fail-safe posture.</td></tr>
+        <tr><td>Field</td><td><strong>Leader.</strong> LeRisque hook-enforces a 4-way split and sdlc-skills/case do author separation, but only ADE ships the live <code>block-mixed-commit</code> gate. Protect this — it is the pipeline's signature.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3><span class="phref">Phase 5</span>Quality-Gate &nbsp;<span class="pill strong">strong</span></h3>
+    <p><strong>Mechanism.</strong> A strict ordered sequence in the worktree — <code>lint → format → build → test</code> — each step gating the next, with a documented pre-existing-vs-newly-introduced triage (pre-existing warnings may stay; new errors must be fixed; a step that is <code>none</code> for the stack is skipped). On failure, a <code>fixer</code> subagent receives the exact errors + files, and the <em>full sequence is re-run</em> (not just the failing step, because fixes regress). <strong>Maximum 3 fixer attempts</strong>, then a circuit breaker escalates with all three failure rounds summarized and a root-cause pattern — "Do NOT silently retry beyond the limit."</p>
+    <div class="tablewrap"><table class="lens">
+      <tbody>
+        <tr><td class="v-str">Strength</td><td>A clean deterministic gate with an explicit, well-articulated circuit breaker and a full-sequence re-run that catches fix-induced regressions. The pre-existing-vs-new triage is more disciplined than most. Stack-agnostic via <code>.ade/ade-stack.md</code>.</td></tr>
+        <tr><td class="v-weak">Weakness</td><td>The bare integer cap (max 3) lags the leaders' <strong>stall / no-progress detection</strong>: <code>case</code> fingerprints each failure and aborts when two cycles match; gsd requires the issue count to <em>strictly decrease</em> and bails on a non-decreasing round. A fixed cap cannot distinguish "making progress, needs a third try" from "stuck on the same error, wasting attempts 2 and 3."</td></tr>
+        <tr><td class="v-gap">Gap</td><td>No runtime/live check lives here either — the gate proves the code <em>builds and the tests pass</em>, never that the wired-together system <em>runs</em> (see Phase 6 / G6).</td></tr>
+        <tr><td class="v-info">Process-rigor</td><td>Bounded, fail-loud, escalation-on-exhaustion — field-normal and sound. The cheap upgrade is a recurring-error fingerprint to bail before the cap.</td></tr>
+        <tr><td>Field</td><td><strong>Strong.</strong> Max-3-then-escalate is squarely field-normal (case=2, oh-my-claudecode/gsd/Superpowers=3). Best fix: add a no-progress fingerprint à la case/gsd.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3><span class="phref">Phase 6</span>Review &nbsp;<span class="pill strong">strong</span> <span class="pill gap">G6 + single-model</span></h3>
+    <p><strong>Mechanism.</strong> Reviews the full <code>main...ade/&lt;task-id&gt;</code> diff. <strong>Reads <code>docs/review-calibration.md</code> fresh first</strong> — the compounded list of finding-classes that recur in this project, most-frequent first — and prioritizes the diff against the top classes. Preferred mechanism dispatches the <code>pr-review-toolkit</code> fan (code / silent-failure / test / type / comment); the documented fallback launches three parallel Sonnet lenses (Logic, Conventions, Security) plus a Test-adequacy lens that hunts tautologies, all-mocks, and missing edge cases. A four-level severity taxonomy (Critical / Important / Suggestion / Positive) gates the review-fix cycle (max 3, escalate if findings keep appearing). The review output is persisted to <code>review.md</code> for the (out-of-scope) compound loop.</p>
+    <div class="tablewrap"><table class="lens">
+      <tbody>
+        <tr><td class="v-str">Strength</td><td>A multi-lens, fresh-context review that <em>reads a compounded calibration corpus</em> to prioritize this codebase's recurring finding-classes — a feedback signal few systems wire into the gate. The Test-adequacy lens is unusually rigorous (tautology / all-mocks / criterion-coverage), treating tests as first-class review targets.</td></tr>
+        <tr><td class="v-gap">Weakness / Gap — G6</td><td><strong>Live verification was removed from the pipeline.</strong> The skill states verbatim: "Because live verification has been removed from the pipeline, this gate is the in-loop acceptance check — it replaces live evidence." The <strong>Acceptance-Coverage Gate</strong> requires every automatable criterion to have a meaningful covering test (no tautology/all-mocks) — but acceptance proof is now <em>test coverage</em>, never running the app / curling the endpoint / capturing output. ADE is alone among strong systems with zero runtime evidence.</td></tr>
+        <tr><td class="v-weak">Weakness — model diversity</td><td>The review fan is <strong>single-model</strong> (<code>code-reviewer</code> and <code>security-reviewer</code> are both <code>model: sonnet</code>). gstack and compound-engineering fan across model <em>families</em> for decorrelated blind spots; ADE does not.</td></tr>
+        <tr><td class="v-info">Process-rigor</td><td>Fresh-context lenses, bounded review-fix cycle, persisted output. The G6 gate is internally honest (it openly says it replaces live evidence) — the issue is the substitution itself, not a hidden one.</td></tr>
+        <tr><td>Field</td><td><strong>Strong, behind on live-verify.</strong> Anthropic's best-practice is explicit<sup class="ref">[3]</sup>: specs should "end with an end-to-end verification step that proves the feature works," and "show evidence rather than asserting success." Only <code>case</code> enforces live-runtime as a true agent-driven hard gate — <em>alongside</em> coverage — precisely because mocked tests pass while the wired system 500s.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="call gap">
+      <span class="tag">G6 — why it regressed, and why the fix is cheap</span>
+      <p>The removal was <strong>deliberate, not accidental</strong>: commit <code>c07199c</code> ("remove live-verify phases and renumber tail to 0-9 (G5c)") deleted <code>07-verify.md.j2</code> and <code>qa-verify-bug.md.j2</code> as part of <strong>G5 — the stack-de-hardcoding / language-agnostic implementer work</strong>. Live verification was stack-specific (you must know how to <em>run</em> and <em>curl</em> the app), so it was sacrificed to win stack-agnosticism. That diagnosis is also the fix: restore a per-criterion live-evidence sub-step driven through the <em>same</em> <code>.ade/ade-stack.md</code> command abstraction Phase 5 already uses for <code>build</code>/<code>test</code> — adding a <code>run</code>/<code>serve</code> command — so ADE regains running-system proof <em>without</em> re-hardcoding the stack. Steel-manned defense (tests are repeatable evidence; a one-shot curl rots immediately; Anthropic itself blesses "a test suite" as a valid check) holds for the <em>durability</em> axis but not the <em>integration-seam</em> axis: this is a <strong>complement gap, not a substitute gap</strong>.</p>
+    </div>
+  </section>
+
+  <section id="rigor">
+    <h2><span class="num">03</span>Process-rigor lens — the cross-cutting view</h2>
+    <p>Pulling the fourth lens out of the per-phase tables: how the pipeline behaves on isolation, determinism, circuit breakers, and fail-safe — the properties that decide whether a gate actually holds under an adversarial or confused model.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Property</th><th>How ADE does it (Phases 0–6)</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Context isolation</strong></td><td>Scouts, web-researchers, spec-verifiers, plan-reviewer, and review lenses all run in fresh windows returning condensed findings. The <code>spec-verifier</code> is <em>structurally</em> blind to the spec; the <code>plan-reviewer</code> is denied the planning reasoning; the <code>implementer</code> is denied the test author's reasoning.</td><td class="y">Leader — generator≠verifier is enforced, not advised</td></tr>
+        <tr><td><strong>Determinism of gates</strong></td><td>Three real deterministic hooks: <code>check-escalation-paths</code> (routing floor vs real diff), <code>block-mixed-commit</code> (author separation, <code>EXIT=2</code>), <code>check-leftover-stub</code> (no placeholders ship). A hardcoded escalation baseline that config may only <em>extend</em>, never shrink.</td><td class="part">Strong — but the escalation hook is <code>ade/*</code>-branch-scoped (no-op on <code>main</code> / non-ADE branches), so it backstops ADE-routed work only, not the repo at large</td></tr>
+        <tr><td><strong>Circuit breakers</strong></td><td>Every iterative loop is hard-capped and escalates rather than silently retrying: R2.1 scouts (3 cycles), design-check (2), plan-reviewer (2), fixer (3), review-fix (3).</td><td class="part">Strong on bounding; lacks <em>stall/no-progress</em> detection (a bare count, not a progress metric)</td></tr>
+        <tr><td><strong>Fail-safe defaults</strong></td><td>Missing/unparseable routing config ⇒ treated as ≥<code>standard</code>. Forced-escalation floor is irreversible downward. Architecture / forced floors require explicit user confirmation. Scope drift &gt;2× the plan's file table ⇒ stop.</td><td class="y">Leader — conservative by construction</td></tr>
+        <tr><td><strong>Independent validation coverage</strong></td><td>Blind validation is present at Phase 1 (all tiers, spec-verifier) and Phase 2 (architecture tier only, plan-reviewer); absent at Phase 3 (stubs self-validated) and below-architecture Phase 2.</td><td class="part">Mixed — the blind-review discipline ADE leads on is <em>under-applied</em> at two seams</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="matrix">
+    <h2><span class="num">04</span>Dev-pipeline field matrix — 9 dimensions × the strongest dev-pipeline systems</h2>
+    <p><span class="lead-cell">●●</span> leader · <span class="y">●</span> strong · <span class="part">◐</span> partial · <span class="n">○</span> absent. ADE ratings are re-verified against the v3 tree; field ratings are narrowed from the prior adversarially-verified re-benchmark, plus the two new dimensions (plan-soundness universality, executable design-contract gate) from this study's targeted agents.</p>
+    <div class="tablewrap"><table class="matrix">
+      <thead><tr><th class="sys">Dev-pipeline dimension</th><th>ADE</th><th>gstack</th><th>gsd</th><th>case</th><th>compound-eng</th><th>Spec Kit</th><th>BMAD</th><th>Superpowers</th><th>HumanLayer</th></tr></thead>
+      <tbody>
+        <tr><td>Intent / blast-radius routing</td><td class="lead-cell">●●</td><td class="lead-cell">●●</td><td class="part">◐</td><td class="part">◐</td><td class="part">◐</td><td class="n">○</td><td class="part">◐</td><td class="n">○</td><td class="n">○</td></tr>
+        <tr><td>Research rigor</td><td class="lead-cell">●●</td><td class="part">◐</td><td class="y">●</td><td class="part">◐</td><td class="lead-cell">●●</td><td class="part">◐</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td></tr>
+        <tr><td>Blind / CoVe verification</td><td class="lead-cell">●●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td class="n">○</td></tr>
+        <tr><td>Plan soundness (independent, all-tier)</td><td class="part">◐</td><td class="part">◐</td><td class="lead-cell">●●</td><td class="part">◐</td><td class="part">◐</td><td class="y">●</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td></tr>
+        <tr><td>Design / contract validation (pre-impl)</td><td class="lead-cell">●●</td><td class="part">◐</td><td class="n">○</td><td class="part">◐</td><td class="n">○</td><td class="y">●</td><td class="part">◐</td><td class="n">○</td><td class="n">○</td></tr>
+        <tr><td>TDD author-separation</td><td class="lead-cell">●●</td><td class="n">○</td><td class="n">○</td><td class="part">◐</td><td class="part">◐</td><td class="n">○</td><td class="n">○</td><td class="part">◐</td><td class="n">○</td></tr>
+        <tr><td>Deterministic gate layer</td><td class="y">●</td><td class="part">◐</td><td class="lead-cell">●●</td><td class="y">●</td><td class="n">○</td><td class="n">○</td><td class="part">◐</td><td class="n">○</td><td class="n">○</td></tr>
+        <tr><td>Multi-aspect review fan</td><td class="y">●</td><td class="lead-cell">●●</td><td class="y">●</td><td class="part">◐</td><td class="lead-cell">●●</td><td class="n">○</td><td class="y">●</td><td class="part">◐</td><td class="y">●</td></tr>
+        <tr><td>Evidence-based live verify</td><td class="part">◐</td><td class="lead-cell">●●</td><td class="y">●</td><td class="lead-cell">●●</td><td class="y">●</td><td class="part">◐</td><td class="part">◐</td><td class="part">◐</td><td class="y">●</td></tr>
+      </tbody>
+    </table></div>
+    <p class="src">ADE leads (●●) on five of nine dev-pipeline dimensions — routing, research, blind verification, executable design-contract validation, and hook-enforced TDD author-separation. It sits at ◐ on plan-soundness universality (architecture-tier only) and on live verify (the G6 regression), and at ● (strong, not leader) on the deterministic gate layer and the single-model review fan.</p>
+  </section>
+
+  <section id="strengths">
+    <h2><span class="num">05</span>A · Confirmed strengths to protect</h2>
+    <p>Ranked by how hard they are to replicate and how central they are to the inner loop. These are evidence-backed to a specific skill/agent/hook and survived adversarial re-verification — guard them in any refactor.</p>
+    <div class="cards">
+      <div class="card"><h3>1 · Spec-blind Chain-of-Verification</h3><div class="one">Phase 1 / R5 · <code>spec-verifier</code></div><div class="row"><b>Why it leads</b>The only verifier in the field blind to the artifact it judges in the spec direction. Correctly operationalizes CoVe<sup class="ref">[1]</sup> + the no-self-correction result<sup class="ref">[2]</sup>. No competitor pairs iterative-retrieval scouts + grill-with-docs + factor+revise CoVe.</div></div>
+      <div class="card"><h3>2 · Hook-enforced author-separated TDD</h3><div class="one">Phase 4 · <code>block-mixed-commit</code> (<code>EXIT=2</code>)</div><div class="row"><b>Why it leads</b>The only system that makes generator≠verifier a structural commit-time guarantee rather than advice. Anthropic explicitly recommends author-separated TDD; ADE alone enforces it.</div></div>
+      <div class="card"><h3>3 · Blast-radius phase-masking routing</h3><div class="one">Phase 0 / 0d · <code>check-escalation-paths</code></div><div class="row"><b>Why it leads</b>A deterministic forced-escalation floor that masks which phases run and is re-enforced against the real diff at ship time. Realizes Microsoft CAF's primary multi-agent mandate more cleanly than the field.</div></div>
+      <div class="card"><h3>4 · Executable design-contract gate</h3><div class="one">Phase 3 · stub build/import check</div><div class="row"><b>Why it leads</b>"Spec Kit's design phase made executable" — a real compile + import gate that catches cross-module contract/circular-import faults before expensive parallel TDD, hook-guaranteed against shipping placeholders.</div></div>
+      <div class="card"><h3>5 · Triple-durable spec artifact</h3><div class="one">Phase 1 · spec + <code>CONTEXT.md</code> + ADRs</div><div class="row"><b>Why it leads</b>A permanent spec, an additive glossary, and an immutable ADR chain that survive <code>/clear</code> and reload into fresh windows — the durable source of truth the field's best also keep, with the fullest triple.</div></div>
+      <div class="card"><h3>6 · Conservative, bounded control flow</h3><div class="one">All phases · circuit breakers + fail-safe defaults</div><div class="row"><b>Why it leads</b>Every iterative loop is hard-capped and escalates; unparseable config defaults to ≥standard; forced floors are irreversible downward. A genuinely fail-safe posture.</div></div>
+    </div>
+  </section>
+
+  <section id="improve">
+    <h2><span class="num">06</span>B · Concrete improvements — where ADE must get better</h2>
+    <p>Each is an <em>under-applied</em> version of a discipline ADE already owns, with a field system to emulate. Ordered by leverage-per-effort.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Improvement</th><th>Phase</th><th>What's weak today</th><th>Field model</th><th>Effort</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Restore live, per-criterion verification (reverse G6)</strong> — add a live-evidence sub-step driven through a new <code>.ade/ade-stack.md</code> <code>run</code>/<code>serve</code> command; keep the Acceptance-Coverage Gate as the durable complement.</td><td>6 (or 5)</td><td>Acceptance proof is test-coverage only; zero running-system evidence; integration-seam bugs pass mocked tests.</td><td><code>case</code> verifier (runtime marker hard-gates PR, alongside coverage)</td><td>Medium</td></tr>
+        <tr><td><strong>Extend plan soundness below the architecture tier</strong> — a lightweight fresh-context coverage-matrix check (every acceptance criterion → task) on <code>standard</code>; reserve full refutation for <code>architecture</code>.</td><td>2</td><td>The median <code>standard</code> change grades its own plan — no independent check at all.</td><td>gsd <code>plan-checker</code> (all tiers); BMAD <code>check-implementation-readiness</code>; Spec Kit <code>analyze</code></td><td>Low–Med</td></tr>
+        <tr><td><strong>Add a blind stub-reviewer to Design-Check</strong> — reuse the <code>spec-verifier</code> isolation pattern on the contracts so a wrong-but-compiling stub is caught.</td><td>3</td><td>Stubs are created and self-validated by the same agent; a wrong contract that compiles passes.</td><td>ECC scaffold's optional adversarial GAN reviewer</td><td>Low</td></tr>
+        <tr><td><strong>Add stall / no-progress detection to the fixer loop</strong> — fingerprint each failure and bail when a round repeats, rather than waiting for the bare max-3 cap.</td><td>5</td><td>A fixed integer cap can't tell "progressing" from "stuck," wasting attempts 2–3.</td><td><code>case</code> failure fingerprint; gsd strictly-decreasing issue count</td><td>Low</td></tr>
+        <tr><td><strong>Grade evidence strength in research</strong> — add provenance tags (<code>VERIFIED</code>/<code>CITED</code>/<code>ASSUMED</code>) to scout findings; route <code>ASSUMED</code> claims into the R3.2 interview before they lock.</td><td>1</td><td>Citations exist but every finding is weighted equally; assumptions can lock silently.</td><td>gsd RESEARCH.md provenance tags</td><td>Low</td></tr>
+        <tr><td><strong>Cross-model review fan</strong> — run at least one review lens on a different model family for decorrelated blind spots.</td><td>6</td><td>All review lenses are Sonnet; correlated blind spots.</td><td>gstack / compound-engineering cross-family fans</td><td>Medium</td></tr>
+        <tr><td><strong>Fix the residual G1 doc defect</strong> — replace <code>ade-implement</code> line 103 ("Write unit tests alongside the implementation") with "Make the pre-written failing tests pass (do not author tests)."</td><td>4</td><td>Prose contradicts the author-separation invariant (hook still blocks, but the instruction misleads).</td><td>— (internal consistency)</td><td>Trivial</td></tr>
+        <tr><td><strong>Document or widen the escalation-hook scope</strong> — note that <code>check-escalation-paths</code> is <code>ade/*</code>-branch-scoped (no-op on <code>main</code>/non-ADE branches), or extend it repo-wide.</td><td>0</td><td>The security floor backstops ADE-routed work only, not direct-to-main commits.</td><td>— (enforcement completeness)</td><td>Low</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="missing">
+    <h2><span class="num">07</span>C · Genuinely missing capabilities</h2>
+    <p>Things the field does in the <em>dev pipeline</em> that ADE has no step for at all — distinguishing a deliberate omission (a design stance to weigh) from a true absence.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Missing capability</th><th>Status</th><th>Field coverage</th><th>Why it matters / how it would attach to ADE</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Live / runtime verification</strong> — running-system evidence per non-manual acceptance criterion</td><td><span class="v-gap">deliberately removed (G6)</span></td><td>Leader in gstack, case, oh-my-cc; strong in gsd, HumanLayer</td><td>Removed as the cost of the G5 stack-agnosticism win. Re-attach via a stack-agnostic <code>run</code>/<code>serve</code> command in <code>.ade/ade-stack.md</code>. The highest-leverage absence — see Improvement B-1.</td></tr>
+        <tr><td><strong>Design-time threat modeling</strong> — STRIDE / abuse-case enumeration of trust boundaries, distinct from code-level security review</td><td><span class="v-gap">true absence</span></td><td>Only 3 / 17 in the field</td><td>ADE's Phase-6 <code>security-reviewer</code> is code-level only; the R3 taxonomy has no security-design category. A threat-model gate between Plan and Implement, with mitigations fed forward as acceptance criteria, would lead a field that mostly skips it. NIST SSDF PW.1.1.</td></tr>
+        <tr><td><strong>Forced, falsifiable NFR / capacity targets</strong> — named p99 latency / throughput / concurrency / data-volume, or an explicit "no NFR constraints"</td><td><span class="v-gap">partial absence</span></td><td>Only ~2 / 17 enforce it</td><td>Category #4 exists in the R3 taxonomy but is not <em>forced</em> to a number, and the <code>spec-verifier</code> does not reject non-falsifiable NFRs ("fast"). The cheapest high-leverage extension of ADE's strongest phase. ISO/IEC 12207, ISO 25010.</td></tr>
+        <tr><td><strong>Independent plan validation for the common case</strong> — any blind check on <code>standard</code>-tier plans</td><td><span class="v-weak">deliberate (over-)right-sizing</span></td><td>gsd / BMAD / Spec Kit / ECC cover all tiers</td><td>Covered as Improvement B-2 — listed here because the <em>absence</em> at the median tier is the gap, not the architecture-tier presence.</td></tr>
+        <tr><td><strong>Cross-model adversarial review</strong> — at least one review lens on a different model family</td><td><span class="v-weak">conscious scope choice</span></td><td>gstack, compound-engineering fan across families</td><td>Covered as Improvement B-6. A real divergence from the leaders, made deliberately, worth revisiting for the security lens specifically.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="call">
+      <span class="tag">Deliberate vs accidental</span>
+      <p>Two of the five are <strong>deliberate</strong> (live-verify removed for stack-agnosticism; cross-model declined for a single-model fan) and one is a <strong>deliberate right-sizing taken one notch too far</strong> (plan validation dropped to zero below architecture). Only <strong>design-time threat modeling</strong> and <strong>forced NFR targets</strong> are true, unconsidered absences — and both attach to the R3 ambiguity taxonomy, ADE's strongest and most extensible surface. They are extensions, not rebuilds.</p>
+    </div>
+  </section>
+
+  <section id="recs">
+    <h2><span class="num">08</span>Ranked recommendations</h2>
+    <p>The strengths/improve/missing spine collapsed into an ordered action list. The first reverses the one regression; the middle band hardens the under-applied disciplines; the tail leads the field into the uncovered design-time tail — each reusing machinery ADE already owns (the R3 taxonomy, the <code>spec-verifier</code> isolation pattern, the <code>.ade/ade-stack.md</code> command abstraction, the hook layer).</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>#</th><th>Move</th><th>Lens</th><th>Effort</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Reverse G6:</strong> restore per-criterion live evidence via a stack-agnostic <code>run</code>/<code>serve</code> command, keeping the Acceptance-Coverage Gate as the durable complement (emulate <code>case</code>).</td><td class="v-gap">missing</td><td>Medium</td></tr>
+        <tr><td>2</td><td><strong>Extend plan soundness to <code>standard</code>:</strong> a fresh-context acceptance-criterion → task coverage-matrix check (emulate BMAD / Spec Kit), reserving full refutation for <code>architecture</code>.</td><td class="v-weak">improve</td><td>Low–Med</td></tr>
+        <tr><td>3</td><td><strong>Add a blind stub-reviewer</strong> to Design-Check (reuse the <code>spec-verifier</code> isolation pattern on the contracts).</td><td class="v-weak">improve</td><td>Low</td></tr>
+        <tr><td>4</td><td><strong>Make NFR/capacity a forced, falsifiable spec category:</strong> require a number or explicit "none" at R3.2, and have the <code>spec-verifier</code> reject non-falsifiable NFRs at R5.</td><td class="v-gap">missing</td><td>Low</td></tr>
+        <tr><td>5</td><td><strong>Add stall/no-progress detection</strong> to the fixer loop (failure fingerprint; emulate case/gsd).</td><td class="v-weak">improve</td><td>Low</td></tr>
+        <tr><td>6</td><td><strong>Add provenance grading</strong> (<code>VERIFIED</code>/<code>CITED</code>/<code>ASSUMED</code>) to scout findings; gate <code>ASSUMED</code> into the R3.2 interview (emulate gsd).</td><td class="v-weak">improve</td><td>Low</td></tr>
+        <tr><td>7</td><td><strong>Add a design-time threat-model gate</strong> between Plan and Implement (STRIDE + abuse cases → mitigations as acceptance criteria); distinct from the code-level <code>security-reviewer</code>.</td><td class="v-gap">missing</td><td>Medium</td></tr>
+        <tr><td>8</td><td><strong>Cross-model review fan</strong> — at least the security lens on a different model family (emulate gstack / compound-engineering).</td><td class="v-weak">improve</td><td>Medium</td></tr>
+        <tr><td>9</td><td><strong>Housekeeping:</strong> fix the residual G1 doc contradiction (<code>ade-implement</code> line 103) and document/widen the <code>ade/*</code>-branch scope of <code>check-escalation-paths</code>.</td><td class="v-weak">improve</td><td>Trivial</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="sources">
+    <h2><span class="num">09</span>Sources</h2>
+    <h4>Primary (ADE v3 generated tree, read directly)</h4>
+    <p class="src">In-scope phase skills: <code>src/ade/templates/skills/{ade-intent, ade-research, ade-plan, ade-design-check, ade-implement, ade-quality-gate, ade-review}/SKILL.md.j2</code> · workers: <code>src/ade/templates/agents/{scout, synthesizer, spec-verifier, plan-reviewer, test-writer, implementer, code-reviewer, security-reviewer}.md.j2</code> · hooks: <code>src/ade/templates/hooks/{block-mixed-commit, check-leftover-stub, check-escalation-paths, _hooklib}.py.j2</code> · routing config: <code>src/ade/templates/ade-routing.json.j2</code> · architecture: <code>docs/ade-architecture-design.md</code> · G6 provenance: commit <code>c07199c</code> (G5c, live-verify removal). Field corpus narrowed from the prior <a href="ade-sdlc-gap-analysis-2026-06.html">2026-06 17-system re-benchmark</a> (adversarially verified per-dimension ratings).</p>
+    <h4>Targeted field re-verification (this study, 4 adversarial agents)</h4>
+    <p class="src">Plan-soundness norms (gsd · BMAD · Spec Kit · ECC · HumanLayer · compound-eng) · design-stub / scaffold practice (Spec Kit · ECC · Superpowers · Cockburn walking-skeleton / tracer-bullet) · bounded-repair + live-verify (case · oh-my-cc · gsd · gstack · octobots) · research-phase rigor frontier (gsd · Spec Kit · BMAD · HumanLayer · compound-eng).</p>
+    <h4>Research &amp; standards anchors</h4>
+    <p class="src">
+      <sup class="ref">[1]</sup> Dhuliawala et al., "Chain-of-Verification Reduces Hallucination in LLMs," <a href="https://arxiv.org/abs/2309.11495">arXiv 2309.11495</a> (Findings of ACL 2024) ·
+      <sup class="ref">[2]</sup> Huang et al., "Large Language Models Cannot Self-Correct Reasoning Yet," <a href="https://arxiv.org/abs/2310.01798">arXiv 2310.01798</a> (ICLR 2024) ·
+      <sup class="ref">[3]</sup> Anthropic, Claude Code best practices — "end with an end-to-end verification step that proves the feature works" / "show evidence rather than asserting success," <a href="https://code.claude.com/docs/en/best-practices">code.claude.com/docs/en/best-practices</a> ·
+      Microsoft CAF, single-agent-vs-multiple-agents (blast-radius doctrine) · NIST SSDF SP 800-218 (PW.1.1 threat modeling) · ISO/IEC 12207 &amp; ISO/IEC 25010 (NFR / quality characteristics) · Cockburn, walking skeleton / Pragmatic Programmer tracer bullets.
+    </p>
+    <div class="footer">
+      ADE development-pipeline deep study (Phases 0–6) · 2026-06-21 · re-scored from the v3 generated tree · field corpus narrowed from the 16-system re-benchmark + 4 targeted adversarial re-verification agents · every strength and gap adversarially verified before crediting.<br>
+      🤖 Compiled with Claude Code (Opus 4.8, 1M context).
+    </div>
+  </section>
+  </main>
+</div>
+</body>
+</html>
