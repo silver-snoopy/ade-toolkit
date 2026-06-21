@@ -87,6 +87,24 @@ def _read(path: str) -> str:
         return ""
 
 
+def _harness() -> str:
+    argv = sys.argv
+    for i, a in enumerate(argv):
+        if a == "--harness" and i + 1 < len(argv):
+            return argv[i + 1]
+    return "claude"
+
+
+# Each parser maps the harness's PreToolUse JSON envelope to the shell command string.
+# Field names differ per harness (Copilot uses camelCase); verified at build time in Phase C.
+_ENVELOPE = {
+    "claude": lambda p: str(p.get("tool_input", {}).get("command", "")),
+    "gemini": lambda p: str(p.get("tool_input", {}).get("command", "")),
+    "copilot": lambda p: str(p.get("toolInput", {}).get("command", "")),
+    "codex": lambda p: str(p.get("tool_input", {}).get("command", "")),
+}
+
+
 def gather() -> tuple[list[str], str]:
     """Return (changed_files, commit_message) for either substrate."""
     if "--stdin-json" in sys.argv:
@@ -96,7 +114,8 @@ def gather() -> tuple[list[str], str]:
         except json.JSONDecodeError:
             sys.stderr.write("ADE hook: could not parse --stdin-json payload; skipping.\n")
             return [], ""
-        command = str(payload.get("tool_input", {}).get("command", ""))
+        parse = _ENVELOPE.get(_harness(), _ENVELOPE["claude"])
+        command = parse(payload)
         if "git commit" not in command:
             return [], ""
         m = re.search(r"-m\s+(['\"])((?:\\.|[^\\])*?)\1", command, re.S)

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import copy
-import json
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,6 +14,7 @@ from rich.table import Table
 
 from ade.detect import detect_project, normalize_language
 from ade.harnesses import HarnessTarget, selected_targets
+from ade.harnesses.hooks import emit_hooks, render_hook_scripts
 from ade.harnesses.workers import render_worker
 
 app = typer.Typer(
@@ -84,21 +83,6 @@ def _check_command(name: str) -> bool:
     return shutil.which(name) is not None
 
 
-def _render_hooks(env: Environment, hooks_dir: Path, context: dict) -> None:
-    """Render the deterministic hook scripts, preserving exact filenames.
-
-    Rendered explicitly with exact filenames so the leading-underscore
-    helper `_hooklib.py` is not renamed.
-    """
-    for name in (
-        "_hooklib.py",
-        "block-mixed-commit.py",
-        "check-leftover-stub.py",
-        "check-escalation-paths.py",
-    ):
-        _render_and_write(env, f"hooks/{name}.j2", hooks_dir / name, context)
-
-
 def _emit_workers(
     targets: list[HarnessTarget], env: Environment, project_dir: Path, ctx: dict
 ) -> None:
@@ -130,51 +114,6 @@ def _emit_skills(
         rel = template_name[len(prefix) : -len(".j2")]  # e.g. "ade-implement/SKILL.md"
         for d in dest_dirs:
             _render_and_write(env, template_name, project_dir / d / rel, ctx)
-
-
-def _merge_hooks(current: dict, ade: dict) -> dict:
-    """Idempotently merge ADE PreToolUse hook commands into an existing settings dict."""
-    merged = copy.deepcopy(current)
-    hooks = merged.setdefault("hooks", {})
-    if not isinstance(hooks, dict):
-        hooks = {}
-        merged["hooks"] = hooks
-    for event, blocks in ade.get("hooks", {}).items():
-        existing_blocks = hooks.setdefault(event, [])
-        for ade_block in blocks:
-            target = next(
-                (b for b in existing_blocks if b.get("matcher") == ade_block.get("matcher")),
-                None,
-            )
-            if target is None:
-                existing_blocks.append(ade_block)
-                continue
-            target_hooks = target.setdefault("hooks", [])
-            seen = {h.get("command") for h in target_hooks}
-            for hook in ade_block.get("hooks", []):
-                if hook.get("command") not in seen:
-                    target_hooks.append(hook)
-    return merged
-
-
-def _emit_claude_hooks(env: Environment, project_dir: Path, context: dict) -> str:
-    """Create or idempotently merge .claude/settings.json hooks. Returns action word."""
-    dest = project_dir / ".claude" / "settings.json"
-    ade_settings = json.loads(env.get_template("claude_settings.json.j2").render(**context))
-    if dest.exists():
-        try:
-            current = json.loads(dest.read_text(encoding="utf-8"))
-            if not isinstance(current, dict):
-                current = {}
-        except json.JSONDecodeError:
-            current = {}
-        merged = _merge_hooks(current, ade_settings)
-        action = "Merged hooks into"
-    else:
-        merged = ade_settings
-        action = "Created"
-    _write_file(dest, json.dumps(merged, indent=2) + "\n")
-    return action
 
 
 @app.command()
@@ -234,12 +173,10 @@ def init(
 
     # Deterministic commit hooks (G1/G2) — scripts always emitted to the committed
     # .claude/hooks/ dir so they exist inside git worktrees; wiring is mode-specific.
-    _render_hooks(env, project_dir / ".claude" / "hooks", ctx)
-
-    if not legacy_copilot:
-        action = _emit_claude_hooks(env, project_dir, ctx)
-        rprint(f"  [green]+[/green] {action} .claude/settings.json (hook wiring)")
-    else:  # legacy copilot (v2 pre-commit path)
+    if legacy_copilot:
+        # v2 copilot shim (removed in Phase C): render scripts into .claude/hooks/ and seed
+        # .pre-commit-config.yaml; do NOT create .claude/settings.json.
+        render_hook_scripts(targets[0], env, project_dir, ctx)
         created = _render_and_write_if_missing(
             env, "pre-commit-config.yaml.j2", project_dir / ".pre-commit-config.yaml", ctx
         )
@@ -252,6 +189,10 @@ def init(
         else:
             rprint("  [dim]= Kept existing .pre-commit-config.yaml[/dim]")
             rprint("    [dim]Add the ADE `repo: local` hooks block manually — see docs.[/dim]")
+    else:
+        for target in targets:
+            action = emit_hooks(target, env, project_dir, ctx)
+            rprint(f"  [green]+[/green] {action} {target.name} hooks")
 
     # Seed .claude/ade-stack.md (G5b) — ADE-tooling config, seed-if-missing, user-owned.
     stack_dest = project_dir / ".claude" / "ade-stack.md"

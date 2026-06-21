@@ -235,7 +235,9 @@ def test_init_settings_merge_is_idempotent(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     settings = json.loads((python_project / ".claude" / "settings.json").read_text())
     cmds = [h["command"] for block in settings["hooks"]["PreToolUse"] for h in block["hooks"]]
-    assert cmds.count("python .claude/hooks/block-mixed-commit.py --stdin-json") == 1
+    assert (
+        cmds.count("python .claude/hooks/block-mixed-commit.py --stdin-json --harness claude") == 1
+    )
 
 
 def test_init_settings_merge_preserves_existing(python_project: Path) -> None:

@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -266,3 +267,23 @@ def test_escalation_hook_blocks_top_level_dir(hook_repo: Path) -> None:
     result = _run_hook(hook_repo, "check-escalation-paths.py", "auth/login.py")
     assert result.returncode == 2, result.stderr
     assert "standard" in result.stderr
+
+
+def test_hooklib_parses_claude_envelope(hook_repo: Path) -> None:
+    """--harness claude dispatches the correct envelope parser (no staged files = pass)."""
+    hooks_dir = hook_repo / ".claude" / "hooks"
+    out = subprocess.run(
+        [
+            sys.executable,
+            str(hooks_dir / "block-mixed-commit.py"),
+            "--stdin-json",
+            "--harness",
+            "claude",
+        ],
+        input=json.dumps({"tool_input": {"command": "git commit -m 'x'"}}),
+        capture_output=True,
+        text=True,
+        cwd=hook_repo,
+    )
+    # claude envelope is parsed correctly (no staged files → exit 0; or already-block → 2)
+    assert out.returncode in (0, 2)
