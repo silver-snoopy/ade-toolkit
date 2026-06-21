@@ -16,6 +16,7 @@ from rich.table import Table
 
 from ade.detect import detect_project, normalize_language
 from ade.harnesses import HarnessTarget, selected_targets
+from ade.harnesses.workers import render_worker
 
 app = typer.Typer(
     name="ade",
@@ -114,6 +115,21 @@ def _render_hooks(env: Environment, hooks_dir: Path, context: dict) -> None:
         "check-escalation-paths.py",
     ):
         _render_and_write(env, f"hooks/{name}.j2", hooks_dir / name, context)
+
+
+def _emit_workers(
+    targets: list[HarnessTarget], env: Environment, project_dir: Path, ctx: dict
+) -> None:
+    """Render every templates/agents/*.md.j2 into each target's workers_dir."""
+    worker_names = [
+        t[len("agents/") : -len(".md.j2")]
+        for t in env.loader.list_templates()
+        if t.startswith("agents/") and t.endswith(".md.j2")
+    ]
+    for target in targets:
+        for name in worker_names:
+            rel, content = render_worker(target, env, name, ctx)
+            _write_file(project_dir / rel, content)
 
 
 def _emit_skills(
@@ -228,8 +244,8 @@ def init(
     ade_dir = project_dir / ".ade"
     _render_and_write(env, "ade_gitignore.j2", ade_dir / ".gitignore", ctx)
 
-    # Generate .claude/agents/*.md (from templates/agents/)
-    _render_template_dir(env, "agents/", project_dir / ".claude" / "agents", ctx)
+    # Generate worker subagent defs (from templates/agents/) via the harness adapter.
+    _emit_workers(targets, env, project_dir, ctx)
 
     # Generate skills into each target's skills dirs (from templates/skills/)
     _emit_skills(targets, env, project_dir, ctx)
