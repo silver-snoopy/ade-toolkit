@@ -4,7 +4,7 @@
 
 ADE (Agentic Development Environment) is a Python bootstrapper that scaffolds AI-driven SDLC skills and subagent definitions for Claude Code.
 
-`ade init` generates `.claude/agents/`, `.claude/skills/ade/`, `.claude/commands/`, and seeds project documentation artifacts (`CONTEXT.md`, `docs/adr/`, `docs/specs/`) — everything Claude Code needs to run a structured 10-phase development workflow with Opus as orchestrator and Sonnet/Haiku as worker subagents.
+`ade init` generates `.claude/agents/`, `.claude/skills/ade/`, `.claude/commands/`, `.claude/hooks/`, stack/routing config, and seeds project documentation artifacts (`CONTEXT.md`, `docs/adr/`, `docs/specs/`, `docs/learnings/`) — everything Claude Code needs to run a structured **9-phase SDLC (Phases 0–9)** with Opus as orchestrator and Sonnet/Haiku as worker subagents. The pipeline features blast-radius routing (G4), author-separated TDD with a deterministic hook layer (G1/G2), and a compound learnings loop (G3).
 
 ## Architecture
 
@@ -35,13 +35,17 @@ ade-toolkit/
 │   ├── cli.py                          # CLI: init, doctor, status
 │   ├── detect.py                       # Project stack auto-detection
 │   └── templates/
-│       ├── agents/                     # Subagent definition templates
+│       ├── agents/                     # 12 subagent definition templates
 │       ├── skills/
-│       │   ├── phases/                 # Per-phase skill templates (00-intent … 10-retro)
-│       │   ├── ade-*.md.j2             # Composite workflow skills
+│       │   ├── phases/                 # 10 per-phase skill templates (00-intent … 09-retro)
+│       │   ├── ade-*.md.j2             # Composite workflow skills + feature-spec template
 │       │   └── vendored/               # External skills with original LICENSE preserved
 │       ├── commands/                   # Slash command templates
-│       ├── bootstrap/                  # User-owned seeds (CONTEXT.md, ADR-0001, specs/README)
+│       ├── hooks/                      # Deterministic commit hooks (block-mixed-commit, check-leftover-stub, check-escalation-paths, _hooklib)
+│       ├── bootstrap/                  # User-owned seeds (CONTEXT.md, ADR-0001, specs/README, learnings/README, review-calibration)
+│       ├── stack.md.j2                 # Seeds .claude/ade-stack.md (detected stack commands)
+│       ├── ade-routing.json.j2         # Seeds .claude/ade-routing.json (routing tiers)
+│       ├── claude_settings.json.j2     # Seeds/merges .claude/settings.json (hook wiring)
 │       ├── claude_md_section.md.j2
 │       └── ade_gitignore.j2
 ├── docs/

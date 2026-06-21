@@ -14,21 +14,27 @@ ade-toolkit (Python)
 
 target project after `ade init`:
 .claude/
-├── agents/       → 9 subagent definitions (Markdown with YAML frontmatter)
+├── agents/        → 12 subagent definitions (Markdown with YAML frontmatter)
 ├── skills/ade/
-│   ├── phases/   → 10 phase skill files (00-intent.md … 10-retro.md)
-│   ├── ade-*.md  → 6 composite workflow skills (ade-full, ade-plan, …)
-│   └── vendored/ → external skills vendored with attribution
-└── commands/     → slash commands that invoke the composite skills
+│   ├── phases/    → 10 phase skill files (00-intent.md … 09-retro.md)
+│   ├── ade-*.md   → 7 composite workflow skills (ade-full, ade-plan, …) + feature-spec template
+│   └── vendored/  → external skills vendored with attribution
+├── commands/      → slash commands that invoke the composite skills
+├── hooks/         → 3 deterministic commit hooks + _hooklib.py (G1/G2/G4)
+├── settings.json  → PreToolUse hook wiring (--agent claude)
+├── ade-stack.md   → detected stack commands, seed-if-missing (G5)
+└── ade-routing.json → blast-radius routing config, seed-if-missing (G4)
 
-.ade/tasks/       → ephemeral per-task working state (one dir per task-id)
+.ade/tasks/        → ephemeral per-task working state (one dir per task-id)
 
 docs/
-├── adr/          → ADRs (sequential, immutable once accepted)
-└── specs/        → permanent specs (one per task, date-prefixed filename)
+├── adr/           → ADRs (sequential, immutable once accepted)
+├── specs/         → permanent specs (one per task, date-prefixed filename)
+├── learnings/     → compound-loop learnings sink (G3)
+└── review-calibration.md → accreting review finding-class corpus (G3)
 
-CONTEXT.md        → domain glossary (user-owned after seed)
-CLAUDE.md         → ADE workflow section appended on init
+CONTEXT.md         → domain glossary (user-owned after seed)
+CLAUDE.md          → ADE workflow section appended on init
 ```
 
 ## The 9-phase SDLC
@@ -283,7 +289,7 @@ prompt; for a multi-language change it runs the block for each changed language.
 
 ## Deterministic hook layer (G2)
 
-Two Python scripts committed under `.claude/hooks/` act as a hard gate on commit integrity. Because they live inside the repository (not in gitignored `.ade/`), they are present inside every git worktree without any extra setup step.
+Three Python scripts committed under `.claude/hooks/` act as a hard gate on commit integrity. Because they live inside the repository (not in gitignored `.ade/`), they are present inside every git worktree without any extra setup step.
 
 ### Checks
 
@@ -294,7 +300,7 @@ Two Python scripts committed under `.claude/hooks/` act as a hard gate on commit
   public-API) below the task's routed floor. Baseline globs are compiled in;
   `.claude/ade-routing.json` may only extend them. No-op off an `ade/*` branch.
 
-Both scripts share common detection logic via `_hooklib.py` (also in `.claude/hooks/`), so they work identically regardless of which substrate wires them.
+All three scripts share common detection logic via `_hooklib.py` (also in `.claude/hooks/`), so they work identically regardless of which substrate wires them.
 
 ### Wiring — `ade init --agent {claude,copilot}`
 
@@ -305,7 +311,7 @@ The hook substrate is selected once at project initialization:
 
 ### Failure behavior
 
-Both hooks are a **hard gate**: a violation rejects the commit with a human-readable explanation. The orchestrator does not retry past a hook failure — the violation must be corrected before the commit is retried.
+All three hooks are a **hard gate**: a violation rejects the commit with a human-readable explanation. The orchestrator does not retry past a hook failure — the violation must be corrected before the commit is retried.
 
 ## Subagent catalog
 
@@ -323,6 +329,8 @@ All subagents are defined as Markdown files under `.claude/agents/` with YAML fr
 | `security-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `test-runner` | haiku | Read, Bash | Phase 5 |
 | `plan-reviewer` | sonnet | Read, Grep, Glob | Phase 2 (architecture tier) |
+| `pr-reviewer` | sonnet | Read, Grep, Glob, Bash | `/ade-pr-review` GitHub loop |
+| `compounder` | sonnet | Read, Grep, Glob | Phase 9 (Codify) |
 
 The orchestrator (Claude Opus in the main session) is the only actor that dispatches subagents. Subagents do not invoke other subagents — composition is orchestrator-driven.
 

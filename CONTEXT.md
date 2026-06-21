@@ -5,10 +5,10 @@ detail. Update when a term is coined, sharpened, or changes meaning.
 
 ## Pipeline
 
-- **Phase** — one of the ten… now **nine** numbered stages (0–9) of the ADE SDLC:
+- **Phase** — one of the **nine** numbered stages (0–9) of the ADE SDLC:
   0 Intent, 1 Research, 2 Plan, 3 Design-check, 4 Implement, 5 Quality-gate, 6 Review,
-  7 Docs, 8 Ship, 9 Retro. Live verification was removed in G5; the suite is the
-  acceptance mechanism.
+  7 Docs, 8 Ship, 9 Retro. (Formerly ten — live verification was removed in G5; the test
+  suite, via the acceptance-coverage gate, is now the acceptance mechanism.)
 - **Orchestrator** — the main-session Claude (Opus) that owns context and the write path
   and dispatches subagents. It never writes application code itself.
 
