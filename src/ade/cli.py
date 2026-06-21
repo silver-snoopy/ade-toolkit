@@ -15,6 +15,7 @@ from rich import print as rprint
 from rich.table import Table
 
 from ade.detect import detect_project, normalize_language
+from ade.harnesses import selected_targets
 
 app = typer.Typer(
     name="ade",
@@ -179,9 +180,16 @@ def init(
         rprint(f"[red]Error: {project_dir} is not a directory[/red]")
         raise typer.Exit(1)
 
-    if agent not in {"claude", "copilot"}:
-        rprint(f"[red]Error: --agent must be 'claude' or 'copilot', got '{agent}'[/red]")
-        raise typer.Exit(1)
+    if agent == "copilot":
+        legacy_copilot = True
+        targets = selected_targets("claude")  # v2 shim: Claude tree + pre-commit  # noqa: F841
+    else:
+        legacy_copilot = False
+        try:
+            targets = selected_targets(agent)  # noqa: F841
+        except KeyError as exc:
+            rprint(f"[red]Error: unknown --agent value: {exc}[/red]")
+            raise typer.Exit(1) from exc
 
     rprint(f"[bold]Initializing ADE in {project_dir}[/bold]")
 
@@ -216,10 +224,10 @@ def init(
     # .claude/hooks/ dir so they exist inside git worktrees; wiring is mode-specific.
     _render_hooks(env, project_dir / ".claude" / "hooks", ctx)
 
-    if agent == "claude":
+    if not legacy_copilot:
         action = _emit_claude_hooks(env, project_dir, ctx)
         rprint(f"  [green]+[/green] {action} .claude/settings.json (hook wiring)")
-    else:  # copilot
+    else:  # legacy copilot (v2 pre-commit path)
         created = _render_and_write_if_missing(
             env, "pre-commit-config.yaml.j2", project_dir / ".pre-commit-config.yaml", ctx
         )
