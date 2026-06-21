@@ -2,39 +2,87 @@
 
 This document describes ADE's current architecture: what `ade init` produces, how the resulting Claude Code installation runs the 9-phase SDLC, and the invariants that govern orchestration.
 
-ADE is a *scaffolder*, not a runtime. The Python package writes a self-contained `.claude/` tree, seeds project documentation artifacts (`CONTEXT.md`, `docs/adr/`, `docs/specs/`), and exits. Claude Code is the runtime: subagent dispatch, worktree isolation, file I/O, and shell execution all use native Claude Code capabilities.
+ADE is a *scaffolder*, not a runtime. The Python package writes skills, worker definitions, hook wiring, and documentation seeds into the target project, then exits. The selected harness (Claude Code, Gemini CLI, GitHub Copilot, or OpenAI Codex) is the runtime: subagent dispatch, worktree isolation, file I/O, and shell execution are all native to each harness.
+
+See `docs/superpowers/specs/2026-06-21-platform-agnostic-ade-design.md` and `docs/adr/0003-platform-agnostic-skills-first.md` for the design rationale behind v3.
 
 ## Architecture at a glance
 
+### Bootstrapper (ade-toolkit Python package)
+
 ```
-ade-toolkit (Python)
-├── ade init      → writes templates into the target project
-├── ade doctor    → verifies external tools + project state
-└── ade status    → reads .ade/tasks/ to summarize active work
+src/ade/
+├── cli.py              → init / migrate / eval / doctor / status
+├── detect.py           → stack detection (unchanged)
+├── eval.py             → static skill-quality checks (frontmatter, description cap)
+└── harnesses/          → thin per-harness adapter layer
+    ├── __init__.py     → TARGETS registry + selected_targets()
+    ├── base.py         → HarnessTarget (frozen dataclass: skills_dirs, workers_dir, hook_substrate, …)
+    ├── workers.py      → render_worker(target, env, name, ctx) → (relpath, content)
+    ├── hooks.py        → emit_hooks(target, env, project_dir, ctx) — per-substrate wiring
+    └── memory.py       → emit_memory_pointer(target, env, project_dir, ctx)
+```
 
-target project after `ade init`:
+`ade init --agent <harness>` accepts `claude`, `gemini`, `copilot`, `codex`, a comma-separated list, or `all` (default `claude`).
+
+### Generated output (target project after `ade init --agent all`)
+
+```
 .claude/
-├── agents/        → 12 subagent definitions (Markdown with YAML frontmatter)
-├── skills/ade/
-│   ├── phases/    → 10 phase skill files (00-intent.md … 09-retro.md)
-│   ├── ade-*.md   → 7 composite workflow skills (ade-full, ade-plan, …) + feature-spec template
-│   └── vendored/  → external skills vendored with attribution
-├── commands/      → slash commands that invoke the composite skills
-├── hooks/         → 3 deterministic commit hooks + _hooklib.py (G1/G2/G4)
-├── settings.json  → PreToolUse hook wiring (--agent claude)
-├── ade-stack.md   → detected stack commands, seed-if-missing (G5)
-└── ade-routing.json → blast-radius routing config, seed-if-missing (G4)
+├── skills/            → phase skills (SKILL.md folders, shared with .agents/skills/)
+├── agents/            → worker subagent definitions (12 × .md)
+├── hooks/             → deterministic commit hooks + _hooklib.py (G1/G2/G4)
+└── settings.json      → PreToolUse hook wiring (claude harness)
 
-.ade/tasks/        → ephemeral per-task working state (one dir per task-id)
+.gemini/
+├── skills/            → phase skills (SKILL.md folders, shared with .agents/skills/)
+├── agents/            → worker subagent definitions (12 × .md)
+├── hooks/             → deterministic hooks (same scripts, gemini wiring)
+└── settings.json      → PreToolUse hook wiring (gemini harness)
+
+.github/
+├── skills/            → phase skills (SKILL.md folders, shared with .agents/skills/)
+├── agents/            → worker subagent definitions (12 × .agent.md)
+├── hooks/             → deterministic hooks (copilot wiring)
+└── copilot-instructions.md   → thin ADE memory pointer
+
+.codex/
+├── agents/            → worker subagent definitions (12 × .toml)
+└── hooks/             → deterministic hooks (codex wiring, hooks.json / config.toml)
+
+.agents/
+└── skills/            → shared SKILL.md folders (Copilot + Gemini read this directly)
+    ├── ade-intent/SKILL.md
+    ├── ade-research/SKILL.md
+    ├── ade-plan/SKILL.md
+    ├── ade-design-check/SKILL.md
+    ├── ade-implement/SKILL.md
+    ├── ade-quality-gate/SKILL.md
+    ├── ade-review/SKILL.md
+    ├── ade-docs/SKILL.md
+    ├── ade-ship/SKILL.md
+    ├── ade-retro/SKILL.md
+    ├── ade-pipeline/SKILL.md   → end-to-end driver (user-invoked; sequences Phases 0→9)
+    ├── ade-pr-review/SKILL.md
+    └── grill-with-docs/SKILL.md  → vendored (MIT, attributed)
+
+.ade/
+├── ade-routing.json   → blast-radius routing config, seed-if-missing (G4; user-owned)
+├── ade-stack.md       → detected stack commands, seed-if-missing (user-owned)
+├── .gitignore         → ignores .ade/tasks/ and .ade/worktrees/ (ephemeral state)
+└── tasks/             → ephemeral per-task working state (gitignored)
+
+AGENTS.md              → canonical harness-neutral instruction superset (ADE-generated)
+CLAUDE.md              → thin ADE memory pointer (Claude harness)
+GEMINI.md              → thin ADE memory pointer (Gemini harness)
 
 docs/
-├── adr/           → ADRs (sequential, immutable once accepted)
-├── specs/         → permanent specs (one per task, date-prefixed filename)
-├── learnings/     → compound-loop learnings sink (G3)
+├── adr/               → ADRs (sequential, immutable once accepted)
+├── specs/             → permanent specs (one per task, date-prefixed filename)
+├── learnings/         → compound-loop learnings sink (G3)
 └── review-calibration.md → accreting review finding-class corpus (G3)
 
-CONTEXT.md         → domain glossary (user-owned after seed)
-CLAUDE.md          → ADE workflow section appended on init
+CONTEXT.md             → domain glossary (user-owned after seed)
 ```
 
 ## The 9-phase SDLC
@@ -221,7 +269,7 @@ Hard rules:
 
 ### R4 — Refine (grill-with-docs)
 
-Invoke the vendored `grill-with-docs` skill against the spec. Skill location: `.claude/skills/ade/vendored/mattpocock-grill-with-docs/SKILL.md`.
+Invoke the vendored `grill-with-docs` skill against the spec. Skill location: `.claude/skills/grill-with-docs/SKILL.md` (also under `.agents/skills/grill-with-docs/SKILL.md` for multi-harness projects).
 
 Phase-prompt framing wraps the skill so the spec is treated as the "plan" the skill grills, with explicit instructions to revise the spec inline alongside the skill's native side effects (CONTEXT.md updates, ADR drafts).
 
@@ -276,16 +324,20 @@ These phases retain the structure that predates the v5 Research rewrite. They ar
 - **Phase 8 — Ship**: Commit, push, open PR. Human gate.
 - **Phase 9 — Retro**: Metrics, learnings, worktree cleanup.
 
-## Stack configuration (`.claude/ade-stack.md`)
+## Stack configuration (`.ade/ade-stack.md`)
 
 `ade init` detects each language's build/lint/format/test commands and seeds them into
-`.claude/ade-stack.md` (seed-if-missing, user-owned thereafter). Phase skills reference
+`.ade/ade-stack.md` (seed-if-missing, user-owned thereafter). Phase skills reference
 this file generically rather than hardcoding commands, which is what makes the pipeline
 stack-neutral. Three slot states keep it honest: a real command; `none` for a
 known-language slot that does not apply (e.g. python has no build), which phases skip; and
 `# set your <slot> command` for an unknown/undetected stack, which the user fills in. The
 orchestrator reads the file and injects the concrete command into each subagent's dispatch
 prompt; for a multi-language change it runs the block for each changed language.
+
+The routing config (`.ade/ade-routing.json`) and stack config (`.ade/ade-stack.md`) are
+both emitted to `.ade/` (v3 layout). `ade migrate` moves them from the v2 `.claude/`
+location, preserving any user edits.
 
 ## Deterministic hook layer (G2)
 
@@ -302,12 +354,16 @@ Three Python scripts committed under `.claude/hooks/` act as a hard gate on comm
 
 All three scripts share common detection logic via `_hooklib.py` (also in `.claude/hooks/`), so they work identically regardless of which substrate wires them.
 
-### Wiring — `ade init --agent {claude,copilot}`
+### Wiring — native PreToolUse hooks on all four harnesses
 
-The hook substrate is selected once at project initialization:
+All four harnesses ship native PreToolUse (blocking) hooks, all consuming the same JSON-over-stdin contract that ADE's `_hooklib` already uses. `ade init` wires the three hook scripts into each selected harness's native hook system via the `harnesses/hooks.py` adapter:
 
-- **`--agent claude`** (default): writes `.claude/settings.json` with PreToolUse(Bash) hook entries, merged idempotently into any pre-existing settings file. Claude Code runs the checks before each relevant Bash tool call.
-- **`--agent copilot`**: seeds `.pre-commit-config.yaml` with pre-commit hook entries. After init, run `pre-commit install --hook-type pre-commit --hook-type commit-msg` to activate. Git runs the checks at commit time.
+- **`--agent claude`** (default): writes `.claude/settings.json` with PreToolUse(Bash) entries.
+- **`--agent gemini`**: writes `.gemini/settings.json` with PreToolUse(Bash) entries.
+- **`--agent copilot`**: writes `.github/hooks/*.json` (`preToolUse` deny entries). `_hooklib` handles Copilot's camelCase field names via the per-harness envelope parser.
+- **`--agent codex`**: writes `hooks.json` / `[hooks]` in `config.toml` under `.codex/hooks/`.
+
+`git pre-commit` (`.pre-commit-config.yaml`) is demoted to an **optional belt-and-suspenders fallback** for non-ADE commits or CI, not the primary gate.
 
 ### Failure behavior
 
@@ -329,7 +385,7 @@ All subagents are defined as Markdown files under `.claude/agents/` with YAML fr
 | `security-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `test-runner` | haiku | Read, Bash | Phase 5 |
 | `plan-reviewer` | sonnet | Read, Grep, Glob | Phase 2 (architecture tier) |
-| `pr-reviewer` | sonnet | Read, Grep, Glob, Bash | `/ade-pr-review` GitHub loop |
+| `pr-reviewer` | sonnet | Read, Grep, Glob, Bash | `ade-pr-review` skill (GitHub PR loop) |
 | `compounder` | sonnet | Read, Grep, Glob | Phase 9 (Codify) |
 
 The orchestrator (Claude Opus in the main session) is the only actor that dispatches subagents. Subagents do not invoke other subagents — composition is orchestrator-driven.
@@ -357,30 +413,41 @@ The line between ephemeral and permanent maps to ownership: `.ade/tasks/` is per
 
 Anthropic does not support declarative peer-dependencies for Claude Code skills ([anthropics/claude-code#27113](https://github.com/anthropics/claude-code/issues/27113), closed as not planned). ADE's distribution model is shaped by that constraint:
 
-- **Vendor with attribution** for skills ADE depends on structurally. Source files are copied into `src/ade/templates/skills/vendored/{author-skill-name}/`, original LICENSE preserved, vendoring source noted. Currently vendored:
-  - `mattpocock-grill-with-docs` (MIT, copyright 2026 Matt Pocock)
+- **Vendor with attribution** for skills ADE depends on structurally. Source files are in `src/ade/templates/skills/grill-with-docs/`, original LICENSE preserved, vendoring source noted. Currently vendored:
+  - `grill-with-docs` (MIT, copyright 2026 Matt Pocock) — used in R4 for domain alignment, glossary, and ADR capture
 - **Reference by name** for plugins that improve quality but aren't structurally required. ADE phase prompts use a "preferred mechanism + native fallback" pattern. The phase still works without the plugin installed; quality is lower. Currently referenced:
   - `pr-review-toolkit` (Phase 6 multi-aspect review)
 
-Vendored skills resolve identically to user-installed plugin skills at runtime — Claude Code walks `.claude/skills/**/SKILL.md` for discovery, so nesting under `vendored/` doesn't affect resolution.
+Vendored skills resolve identically to user-installed plugin skills at runtime — each harness walks its skills directories (including `.agents/skills/`) for SKILL.md discovery, so the location doesn't affect resolution.
 
 ## Bootstrap and `ade init` lifecycle
 
 `ade init` is idempotent and divides outputs into two categories by ownership:
 
 **ADE-owned (regenerated every init)**:
-- `.claude/agents/*.md`
-- `.claude/skills/ade/**`
-- `.claude/commands/*.md`
+- Per-harness skills dirs (`<harness>/skills/<skill>/SKILL.md`)
+- Shared skills dir (`.agents/skills/<skill>/SKILL.md`)
+- Per-harness worker defs (`<harness>/agents/<worker>.md|.agent.md|.toml`)
+- Per-harness hook wiring (`<harness>/settings.json` or hooks config)
+- Hook scripts (`<harness>/hooks/*.py`)
+- `AGENTS.md` (root canonical instruction file)
+- Per-harness memory pointers (thin ADE block in `CLAUDE.md`, `GEMINI.md`, etc.)
 - `.ade/.gitignore`
-- The ADE section appended to `CLAUDE.md`
 
 **User-owned (seeded once, never overwritten)**:
 - `CONTEXT.md`
 - `docs/adr/0001-record-architecture-decisions.md`
 - `docs/specs/README.md`
+- `docs/learnings/README.md`
+- `docs/review-calibration.md`
+- `.ade/ade-routing.json`
+- `.ade/ade-stack.md`
 
 The CLI helper `_render_and_write_if_missing` enforces the user-owned contract: if the destination already exists, the file is preserved verbatim. Second-init output marks these as `= Kept existing <path>` rather than `+ Created <path>`.
+
+**`ade migrate`** (idempotent) upgrades a v2 ADE tree to v3: moves `.claude/ade-routing.json` and `.claude/ade-stack.md` to `.ade/`, removes stale `.claude/skills/ade/` and `.claude/commands/`, strips the old CLAUDE.md ADE heading, then runs the full v3 emission.
+
+**`ade eval`** statically checks all generated skills under `.claude/skills/` and `.agents/skills/` for missing YAML frontmatter and oversized descriptions (Codex's 8 KB discovery-list cap, ≤350 characters per skill). Exits 0 on PASS, 1 if any errors.
 
 ## Orchestrator invariants
 
@@ -413,7 +480,9 @@ These rules govern the orchestrator's behavior. Violations break the architectur
 
 | Command | Purpose | Project-dir aware? |
 |---|---|---|
-| `ade init` | Generate `.claude/` + seed user-owned docs | Yes (`--project-dir`, default `.`) |
+| `ade init` | Generate per-harness trees + seed user-owned docs (`--agent` list or `all`) | Yes (`--project-dir`, default `.`) |
+| `ade migrate` | Upgrade a v2 ADE tree to the v3 layout (idempotent) | Yes (`--project-dir`, default `.`) |
+| `ade eval` | Statically check generated skills (frontmatter, description cap) | Yes (`--project-dir`, default `.`) |
 | `ade doctor` | Verify external tools, project state, list recommended plugins | Yes (`--project-dir`, default `.`) |
 | `ade status` | List active tasks under `.ade/tasks/` | Yes (`--project-dir`, default `.`) |
 

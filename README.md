@@ -1,62 +1,71 @@
 # ADE — Agentic Development Environment
 
-A Python bootstrapper that scaffolds AI-driven SDLC skills and subagent definitions for [Claude Code](https://claude.com/claude-code).
+A Python bootstrapper that scaffolds AI-driven SDLC skills and subagent definitions for [Claude Code](https://claude.com/claude-code), Gemini CLI, GitHub Copilot, and OpenAI Codex.
 
-`ade init` generates a `.claude/` tree — subagent definitions, skill files, slash commands, deterministic commit hooks, stack/routing config — plus bootstrap project documentation (`CONTEXT.md`, `docs/adr/`, `docs/specs/`, `docs/learnings/`). Claude Code is the runtime — ADE does not run agents, execute code, or manage state.
+`ade init --agent <harness>` generates per-harness skills trees (one `SKILL.md` per phase + `ade-pipeline` driver), worker subagent definitions, deterministic hook wiring, the shared `AGENTS.md` root instruction file, `.ade/` user-config, and bootstrap project documentation (`CONTEXT.md`, `docs/adr/`, `docs/specs/`, `docs/learnings/`). The selected harness is the runtime — ADE does not run agents, execute code, or manage state.
 
 The pipeline runs a **9-phase SDLC (Phases 0–9)** with Opus as orchestrator and Sonnet/Haiku worker subagents. Its signature properties: blast-radius **routing** that scales ceremony to change size, **author-separated TDD** (the agent that writes the tests is never the one that writes the code), a **deterministic hook layer** that gates commit integrity off the model loop, and a **compound loop** that codifies each task's learnings for the next one.
 
 ## What it generates
 
+`ade init --agent all` (all four harnesses) produces:
+
 ```
 your-project/
 ├── .claude/
-│   ├── agents/                        # 12 subagent definitions (model + tools in frontmatter)
-│   │   ├── scout.md                   # Haiku  — codebase scouting (R2.1)
-│   │   ├── web-researcher.md          # Sonnet — grounded web research, IPI-hardened (R2.3)
-│   │   ├── synthesizer.md             # Sonnet — spec draft + CoVe revision (R3.1, R5)
-│   │   ├── spec-verifier.md           # Sonnet — CoVe verifier, never sees the spec (R5)
-│   │   ├── test-writer.md             # Sonnet — writes FAILING tests only (Phase 4a)
-│   │   ├── implementer.md             # Sonnet — language-agnostic impl, never edits tests (Phase 4b)
-│   │   ├── plan-reviewer.md           # Sonnet — adversarial plan review (architecture tier)
-│   │   ├── code-reviewer.md           # Sonnet — logic / correctness review (Phase 6 fallback)
-│   │   ├── security-reviewer.md       # Sonnet — OWASP review (Phase 6 fallback)
-│   │   ├── pr-reviewer.md             # Sonnet — GitHub PR review-and-fix loop (/ade-pr-review)
-│   │   ├── test-runner.md             # Haiku  — build + tests (Phase 5)
-│   │   └── compounder.md              # Sonnet — Codify: learnings + calibration (Phase 9)
-│   ├── skills/ade/
-│   │   ├── ade-full.md                # Complete cycle, Phases 0–9
-│   │   ├── ade-plan.md                # Phases 0–2 (Intent + Research + Plan)
-│   │   ├── ade-code.md                # Phases 3–5 (Design + Implement + Quality gate)
-│   │   ├── ade-review.md              # Phases 6–7 (Review + Docs)
-│   │   ├── ade-ship.md                # Phases 8–9 (Ship + Retro)
-│   │   ├── ade-pr-review.md           # GitHub PR review-and-fix loop
-│   │   ├── ade-status.md              # Task dashboard
-│   │   ├── feature-spec.md            # Spec template
-│   │   ├── phases/                    # 10 per-phase skill files (00-intent … 09-retro)
-│   │   └── vendored/
-│   │       └── mattpocock-grill-with-docs/   # MIT, attributed
-│   ├── commands/                      # Slash commands (/ade-full, /ade-plan, /ade-pr-review, …)
+│   ├── agents/                        # 12 worker defs (model + tools in frontmatter) — .md
+│   ├── skills/                        # Phase skills — SKILL.md folders
+│   │   ├── ade-intent/SKILL.md        # Phase 0 — intent + routing
+│   │   ├── ade-research/SKILL.md      # Phase 1 — R1–R5 research
+│   │   ├── ade-plan/SKILL.md          # Phase 2 — implementation plan
+│   │   ├── ade-design-check/SKILL.md  # Phase 3 — stubs in worktree
+│   │   ├── ade-implement/SKILL.md     # Phase 4 — author-separated TDD
+│   │   ├── ade-quality-gate/SKILL.md  # Phase 5 — lint/format/tests
+│   │   ├── ade-review/SKILL.md        # Phase 6 — multi-aspect review
+│   │   ├── ade-docs/SKILL.md          # Phase 7 — documentation updates
+│   │   ├── ade-ship/SKILL.md          # Phase 8 — commit + PR
+│   │   ├── ade-retro/SKILL.md         # Phase 9 — retro + codify
+│   │   ├── ade-pipeline/SKILL.md      # End-to-end driver (user-invoked, Phases 0→9)
+│   │   ├── ade-pr-review/SKILL.md     # GitHub PR review-and-fix loop
+│   │   └── grill-with-docs/SKILL.md  # Vendored (MIT, attributed)
 │   ├── hooks/                         # Deterministic commit-integrity hooks (Python)
 │   │   ├── block-mixed-commit.py      # blocks commits mixing tests + impl (Phase 4)
 │   │   ├── check-leftover-stub.py     # blocks shipped stub markers
 │   │   ├── check-escalation-paths.py  # blocks commits above the routed tier's floor
 │   │   └── _hooklib.py                # shared detection logic
-│   ├── settings.json                  # PreToolUse hook wiring (--agent claude)
-│   ├── ade-stack.md                   # Detected stack commands (build/lint/format/test) — seeded
-│   └── ade-routing.json               # Blast-radius routing config — seeded
+│   └── settings.json                  # PreToolUse hook wiring (claude harness)
+├── .gemini/
+│   ├── agents/                        # 12 worker defs — .md
+│   ├── skills/                        # Phase skills (same SKILL.md content, gemini target)
+│   ├── hooks/                         # Deterministic hooks (gemini wiring)
+│   └── settings.json                  # PreToolUse hook wiring (gemini harness)
+├── .github/
+│   ├── agents/                        # 12 worker defs — .agent.md
+│   ├── skills/                        # Phase skills (copilot target)
+│   ├── hooks/                         # Deterministic hooks (copilot preToolUse wiring)
+│   └── copilot-instructions.md        # Thin ADE memory pointer
+├── .codex/
+│   ├── agents/                        # 12 worker defs — .toml
+│   └── hooks/                         # Deterministic hooks (codex wiring)
+├── .agents/
+│   └── skills/                        # Shared SKILL.md folders (Copilot + Gemini read this)
+│       └── …                          # (same 12 skill folders as .claude/skills/)
 ├── .ade/
-│   └── tasks/                         # Ephemeral per-task working state
+│   ├── ade-routing.json               # Blast-radius routing config — seeded (user-owned)
+│   ├── ade-stack.md                   # Detected stack commands — seeded (user-owned)
+│   └── tasks/                         # Ephemeral per-task working state (gitignored)
+├── AGENTS.md                          # Canonical instruction superset (ADE-generated)
+├── CLAUDE.md                          # Thin ADE memory pointer (claude harness)
+├── GEMINI.md                          # Thin ADE memory pointer (gemini harness)
 ├── docs/
 │   ├── adr/0001-record-architecture-decisions.md   # Architecture Decision Records
 │   ├── specs/README.md                # Permanent specs (one per task)
 │   ├── learnings/README.md            # Compound-loop learnings sink
 │   └── review-calibration.md          # Accreting review finding-class corpus
-├── CONTEXT.md                         # Domain glossary (user-owned, ADE-seeded)
-└── CLAUDE.md                          # ADE workflow section appended
+└── CONTEXT.md                         # Domain glossary (user-owned, ADE-seeded)
 ```
 
-`ade init` only **seeds if missing** the user-owned artifacts (`CONTEXT.md`, `docs/adr/0001-…`, `docs/specs/README.md`, `docs/learnings/README.md`, `docs/review-calibration.md`, `.claude/ade-stack.md`, `.claude/ade-routing.json`). The rest of `.claude/` is regenerated on every init. With `--agent copilot`, hooks are wired through a `.pre-commit-config.yaml` instead of `.claude/settings.json`.
+`ade init` only **seeds if missing** the user-owned artifacts (`CONTEXT.md`, `docs/adr/0001-…`, `docs/specs/README.md`, `docs/learnings/README.md`, `docs/review-calibration.md`, `.ade/ade-routing.json`, `.ade/ade-stack.md`). Skills, worker defs, hook scripts, `AGENTS.md`, and memory pointers are ADE-owned and regenerated on every init.
 
 ## Quickstart
 
@@ -114,7 +123,7 @@ The closing sub-step of Phase 0 assigns a **tier** that masks which phases run, 
 - **`standard`** — the full flow (default).
 - **`architecture`** — adds a Plan Soundness Review (`plan-reviewer`) before any code, requires an ADR, and forces a confirmation gate after routing.
 
-Routing is hybrid: the orchestrator judges trivial-vs-standard within a free band, but **forced-escalation rules in `.claude/ade-routing.json` always win** — security / auth / secrets / crypto / data-loss floor at `standard`; schema / migration / public-API / model changes floor at `architecture`; an unparseable config is treated as `≥ standard`. The `check-escalation-paths` hook is a deterministic Ship-time backstop against the real diff.
+Routing is hybrid: the orchestrator judges trivial-vs-standard within a free band, but **forced-escalation rules in `.ade/ade-routing.json` always win** — security / auth / secrets / crypto / data-loss floor at `standard`; schema / migration / public-API / model changes floor at `architecture`; an unparseable config is treated as `≥ standard`. The `check-escalation-paths` hook is a deterministic Ship-time backstop against the real diff.
 
 ## Research phase (Phase 1) — five sub-steps
 
@@ -138,7 +147,7 @@ Phase 4 splits implementation across two structurally distinct agents:
 1. **`test-writer`** writes one failing test per automatable acceptance criterion and commits them alone (`test:`).
 2. One or more **`implementer`** subagents (disjoint file assignments) drive those tests to green and commit alone (`feat:`/`fix:`). The orchestrator does **not** pass the test-writer's reasoning to the implementer, and the implementer is forbidden from editing test files.
 
-Three Python hooks under `.claude/hooks/` (sharing `_hooklib.py`) enforce this off the model loop — wired as PreToolUse(Bash) under `--agent claude`, or as git pre-commit hooks under `--agent copilot`:
+Three Python hooks (sharing `_hooklib.py`) enforce this off the model loop — wired as **native PreToolUse hooks on all four harnesses** (Claude, Gemini, Copilot, Codex), in-session and blocking. `git pre-commit` is an optional fallback for non-ADE commits:
 
 - **`block-mixed-commit.py`** — rejects a commit containing both test and non-test source files (bypass: `[test-refactor]` in the message). Makes the Phase 4a/4b separation a hard VCS-level guarantee.
 - **`check-leftover-stub.py`** — rejects committed non-test source still containing stub markers (`NotImplementedError`, `TODO: implement`, `Not implemented`).
@@ -168,7 +177,7 @@ Claude Sonnet  (subagents)
 ├── test-writer      (Phase 4a — failing tests only)
 ├── implementer      (Phase 4b — code only, in worktrees)
 ├── code-reviewer / security-reviewer (Phase 6 fallback)
-├── pr-reviewer      (/ade-pr-review GitHub loop)
+├── pr-reviewer      (ade-pr-review skill — GitHub PR loop)
 └── compounder       (Phase 9 Codify, read-only)
 
 Claude Haiku  (subagents)
@@ -176,7 +185,7 @@ Claude Haiku  (subagents)
 └── test-runner      (Phase 5)
 ```
 
-No runtime framework. Skills and agents are Markdown files. `ade init` writes them. Claude Code is the runtime — its native Agent tool dispatches subagents, native worktree support isolates implementation, native Edit/Write/Bash handle the work, and native hooks enforce the deterministic gates.
+No runtime framework. Skills are SKILL.md folders; workers are Markdown or TOML. `ade init` writes them. The selected harness is the runtime — its native Agent tool dispatches subagents, native worktree support isolates implementation, native Edit/Write/Bash handle the work, and native PreToolUse hooks enforce the deterministic gates.
 
 ## Orchestrator invariants
 
@@ -193,7 +202,7 @@ No runtime framework. Skills and agents are Markdown files. `ade init` writes th
 
 ADE vendors a small set of external skills into its template tree, with original LICENSE files preserved:
 
-- `mattpocock-grill-with-docs` (MIT) — used in R4 for domain alignment, glossary, and ADR capture
+- `grill-with-docs` (MIT, Matt Pocock) — used in R4 for domain alignment, glossary, and ADR capture
 
 ADE references peer-installable Claude Code plugins by name (graceful degradation: the phase still works via inline fallback):
 
@@ -203,10 +212,10 @@ Anthropic does not support declarative skill peer-dependencies, so ADE's distrib
 
 ## Prerequisites
 
-- [Claude Code](https://claude.com/claude-code) CLI
 - Git
-- Python 3.11+ (for the bootstrapper only)
-- `pre-commit` (optional — only for `ade init --agent copilot`)
+- Python 3.11+ (for the bootstrapper only — or run zero-install with `uvx`)
+- At least one harness CLI: [Claude Code](https://claude.com/claude-code), Gemini CLI, GitHub Copilot, or OpenAI Codex
+- `pre-commit` (optional — belt-and-suspenders fallback; native PreToolUse hooks are the primary gate)
 
 ## CLI commands
 
