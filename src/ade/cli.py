@@ -15,7 +15,7 @@ from rich.table import Table
 
 from ade.detect import detect_project, normalize_language
 from ade.harnesses import HarnessTarget, selected_targets
-from ade.harnesses.hooks import emit_hooks, render_hook_scripts
+from ade.harnesses.hooks import emit_hooks
 from ade.harnesses.memory import emit_memory_pointer
 from ade.harnesses.workers import render_worker
 
@@ -153,9 +153,8 @@ def _emit_v3(
 ) -> None:
     """Emit the full v3 tree for the selected targets (excluding hook wiring).
 
-    Used by both init() and migrate(). Hook wiring is NOT done here — init()
-    has a legacy_copilot shim that must render scripts + .pre-commit-config.yaml
-    and must NOT write .claude/settings.json, so hooks stay in the callers.
+    Used by both init() and migrate(). Hook wiring is handled by the callers
+    so that each target is wired independently.
     """
     _render_and_write(env, "ade_gitignore.j2", project_dir / ".ade" / ".gitignore", ctx)
     _emit_skills(targets, env, project_dir, ctx)
@@ -250,16 +249,11 @@ def init(
     ).exists():
         rprint("[yellow]Detected a v2 ADE tree. Run `ade migrate` to upgrade.[/yellow]")
 
-    if agent == "copilot":
-        legacy_copilot = True
-        targets = selected_targets("claude")  # v2 shim: Claude tree + pre-commit
-    else:
-        legacy_copilot = False
-        try:
-            targets = selected_targets(agent)
-        except KeyError as exc:
-            rprint(f"[red]Error: unknown --agent value: {exc}[/red]")
-            raise typer.Exit(1) from exc
+    try:
+        targets = selected_targets(agent)
+    except KeyError as exc:
+        rprint(f"[red]Error: unknown --agent value: {exc}[/red]")
+        raise typer.Exit(1) from exc
 
     rprint(f"[bold]Initializing ADE in {project_dir}[/bold]")
 
@@ -277,31 +271,12 @@ def init(
     ctx = {"info": info}
 
     # Emit the full v3 tree (skills, workers, AGENTS.md, memory pointer, config seeds,
-    # bootstrap seeds) — hooks are handled below, separately, due to the legacy_copilot shim.
+    # bootstrap seeds) then wire deterministic hooks per target.
     _emit_v3(targets, env, project_dir, info, ctx)
 
-    # Deterministic commit hooks (G1/G2) — scripts always emitted to the committed
-    # .claude/hooks/ dir so they exist inside git worktrees; wiring is mode-specific.
-    if legacy_copilot:
-        # v2 copilot shim (removed in Phase C): render scripts into .claude/hooks/ and seed
-        # .pre-commit-config.yaml; do NOT create .claude/settings.json.
-        render_hook_scripts(targets[0], env, project_dir, ctx)
-        created = _render_and_write_if_missing(
-            env, "pre-commit-config.yaml.j2", project_dir / ".pre-commit-config.yaml", ctx
-        )
-        if created:
-            rprint("  [green]+[/green] Created .pre-commit-config.yaml")
-            rprint(
-                "    [dim]run: pre-commit install"
-                " --hook-type pre-commit --hook-type commit-msg[/dim]"
-            )
-        else:
-            rprint("  [dim]= Kept existing .pre-commit-config.yaml[/dim]")
-            rprint("    [dim]Add the ADE `repo: local` hooks block manually — see docs.[/dim]")
-    else:
-        for target in targets:
-            action = emit_hooks(target, env, project_dir, ctx)
-            rprint(f"  [green]+[/green] {action} {target.name} hooks")
+    for target in targets:
+        action = emit_hooks(target, env, project_dir, ctx)
+        rprint(f"  [green]+[/green] {action} {target.name} hooks")
 
     rprint("\n[green]ADE initialized successfully![/green]")
     rprint("  Next steps:")

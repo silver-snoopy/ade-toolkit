@@ -29,7 +29,7 @@ def _render_scripts(env: Environment, hooks_dir: Path, ctx: dict) -> None:
 def render_hook_scripts(
     target: HarnessTarget, env: Environment, project_dir: Path, ctx: dict
 ) -> None:
-    """Render hook scripts into target's hooks_dir (public helper for the legacy_copilot path)."""
+    """Render hook scripts into target's hooks_dir."""
     _render_scripts(env, project_dir / target.hooks_dir, ctx)
 
 
@@ -101,7 +101,19 @@ def _wire_gemini(target: HarnessTarget, env: Environment, project_dir: Path, ctx
 
 
 def _wire_copilot(target: HarnessTarget, env: Environment, project_dir: Path, ctx: dict) -> str:
-    raise NotImplementedError("wired in Task C1/C2/C3")
+    """Write .github/hooks/ade.json (ADE-owned; always overwrite).
+
+    The hook schema uses PascalCase 'PreToolUse' so the payload arrives as snake_case
+    tool_input (matching Claude/Codex). The 'matcher' key targets Copilot's shell tool;
+    the exact shell-tool name is UNVERIFIED in C0 — 'shell' is the best-guess and is
+    runtime-validated. The hook commands self-guard on 'git commit', so a broad match is safe.
+    """
+    dest = project_dir / ".github" / "hooks" / "ade.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    action = "Refreshed" if dest.exists() else "Created"
+    content = env.get_template("copilot_hooks.json.j2").render(**ctx)
+    dest.write_text(content, encoding="utf-8")
+    return action
 
 
 def _wire_codex(target: HarnessTarget, env: Environment, project_dir: Path, ctx: dict) -> str:

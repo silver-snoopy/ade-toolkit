@@ -30,7 +30,7 @@ def test_init_does_not_generate_v3_artifacts(python_project: Path) -> None:
     assert not (python_project / ".ade" / "config.yaml").exists()
     assert not (python_project / ".ade" / "crew").exists()
     assert not (python_project / ".ade" / "modelfiles").exists()
-    # Default (claude) mode does not seed a pre-commit config; copilot mode does.
+    # Default (claude) mode does not seed a pre-commit config.
     assert not (python_project / ".pre-commit-config.yaml").exists()
 
 
@@ -188,20 +188,6 @@ def test_init_claude_mode_emits_settings_and_hooks(python_project: Path) -> None
     assert "check-escalation-paths.py" in settings.read_text()
 
 
-def test_init_copilot_mode_emits_precommit_config(python_project: Path) -> None:
-    result = runner.invoke(
-        app, ["init", "--project-dir", str(python_project), "--agent", "copilot"]
-    )
-    assert result.exit_code == 0
-    cfg = python_project / ".pre-commit-config.yaml"
-    assert cfg.exists()
-    assert "ade-block-mixed-commit" in cfg.read_text()
-    assert (python_project / ".claude" / "hooks" / "block-mixed-commit.py").exists()
-    assert not (python_project / ".claude" / "settings.json").exists()
-    assert "ade-check-escalation-paths" in cfg.read_text()
-    assert (python_project / ".claude" / "hooks" / "check-escalation-paths.py").exists()
-
-
 def test_init_rejects_unknown_agent(python_project: Path) -> None:
     result = runner.invoke(
         app, ["init", "--project-dir", str(python_project), "--agent", "cursor"]
@@ -227,13 +213,6 @@ def test_init_settings_merge_preserves_existing(python_project: Path) -> None:
     merged = json.loads(settings_path.read_text())
     assert merged["permissions"]["allow"] == ["Bash(ls)"]
     assert "PreToolUse" in merged["hooks"]
-
-
-def test_init_copilot_seed_if_missing_preserves_existing(python_project: Path) -> None:
-    cfg = python_project / ".pre-commit-config.yaml"
-    cfg.write_text("repos: []  # user owned\n")
-    runner.invoke(app, ["init", "--project-dir", str(python_project), "--agent", "copilot"])
-    assert "user owned" in cfg.read_text()
 
 
 def test_doctor_checks_hook_scripts(python_project: Path) -> None:

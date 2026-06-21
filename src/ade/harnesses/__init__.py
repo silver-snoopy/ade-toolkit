@@ -28,7 +28,19 @@ GEMINI = HarnessTarget(
     supports_at_import=False,
 )
 
-TARGETS: dict[str, HarnessTarget] = {"claude": CLAUDE, "gemini": GEMINI}
+COPILOT = HarnessTarget(
+    name="copilot",
+    skills_dirs=(".github/skills", ".agents/skills"),
+    workers_dir=".github/agents",
+    worker_ext=".agent.md",
+    worker_format="markdown",
+    hooks_dir=".github/hooks",
+    hook_substrate="copilot_hooks",
+    memory_file=".github/copilot-instructions.md",
+    supports_at_import=False,
+)
+
+TARGETS: dict[str, HarnessTarget] = {"claude": CLAUDE, "gemini": GEMINI, "copilot": COPILOT}
 
 
 def selected_targets(agent: str) -> list[HarnessTarget]:

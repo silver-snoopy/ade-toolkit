@@ -100,7 +100,7 @@ def _harness() -> str:
 _ENVELOPE = {
     "claude": lambda p: str(p.get("tool_input", {}).get("command", "")),
     "gemini": lambda p: str(p.get("tool_input", {}).get("command", "")),
-    "copilot": lambda p: str(p.get("toolInput", {}).get("command", "")),
+    "copilot": lambda p: str(p.get("tool_input", {}).get("command", "")),
     "codex": lambda p: str(p.get("tool_input", {}).get("command", "")),
 }
 

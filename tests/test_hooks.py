@@ -287,3 +287,44 @@ def test_hooklib_parses_claude_envelope(hook_repo: Path) -> None:
     )
     # claude envelope is parsed correctly (no staged files → exit 0; or already-block → 2)
     assert out.returncode in (0, 2)
+
+
+def test_hooklib_parses_copilot_envelope(hook_repo: Path) -> None:
+    """--harness copilot with PascalCase PreToolUse payload (tool_input, not toolInput)."""
+    hooks_dir = hook_repo / ".claude" / "hooks"
+    out = subprocess.run(
+        [
+            sys.executable,
+            str(hooks_dir / "block-mixed-commit.py"),
+            "--stdin-json",
+            "--harness",
+            "copilot",
+        ],
+        input=json.dumps({"tool_input": {"command": "git commit -m 'x'"}}),
+        capture_output=True,
+        text=True,
+        cwd=hook_repo,
+    )
+    # copilot envelope (PascalCase → tool_input) is parsed correctly (no staged files → exit 0)
+    assert out.returncode in (0, 2)
+
+
+def test_hooklib_copilot_old_toolinput_ignored(hook_repo: Path) -> None:
+    """The buggy 'toolInput' key must NOT be recognised; non-commit payload exits 0."""
+    hooks_dir = hook_repo / ".claude" / "hooks"
+    out = subprocess.run(
+        [
+            sys.executable,
+            str(hooks_dir / "block-mixed-commit.py"),
+            "--stdin-json",
+            "--harness",
+            "copilot",
+        ],
+        # Deliberately use the OLD buggy key — must be ignored (parsed as empty command).
+        input=json.dumps({"toolInput": {"command": "git commit -m 'x'"}}),
+        capture_output=True,
+        text=True,
+        cwd=hook_repo,
+    )
+    # command resolves to "" → "git commit" not in "" → treated as non-commit → exit 0
+    assert out.returncode == 0
