@@ -1,0 +1,129 @@
+---
+name: ade-implement
+description: ADE Phase 4 — author-separated TDD. Dispatch test-writer (RED) then implementer (GREEN); commits stay test-only / impl-only, enforced by the block-mixed-commit hook.
+---
+
+# Phase 4 — Implement
+
+## Purpose
+
+Turn the spec into working code using **author-separated TDD**. Phase 4 runs in two
+ordered sub-steps inside the worktree created during Design Check
+(`.ade/worktrees/<task-id>`). The Phase-3 stubs define the shape; the tests define the
+behavior; the implementer makes the tests pass.
+
+## 4a — Test-writer (RED)
+
+Dispatch the `test-writer` subagent. It:
+- Reads the spec's acceptance criteria and the Phase-3 stub signatures.
+- Writes FAILING tests (test files only).
+- Confirms the suite is RED for the right reason (assertion failures, not import errors).
+- Commits a **test-only** commit: `test: add failing tests for <task-id>`.
+- Maps **each automatable acceptance criterion** from Phase 0 to at least one test.
+  Criteria tagged `(manual)` are skipped (no test) — a human verifies them outside the loop.
+
+## 4b — Implementer (GREEN)
+
+Dispatch the `implementer` subagent(s) — multiple instances with disjoint file
+assignments when units are independent. They:
+- Receive the spec, the committed failing tests, and the stubs.
+- Write the minimum code to turn the suite GREEN.
+- Must NOT create or edit test files, and must leave no stub markers in committed source.
+- Commit an **implementation-only** commit: `feat:` / `fix:`.
+
+## Author-separation invariant
+
+The orchestrator dispatches 4b **without** passing the test-writer's reasoning — the
+implementer sees only the spec, the failing tests on disk, and the stubs. The
+`block-mixed-commit` hook rejects any commit that mixes tests with implementation
+(bypass only with a `[test-refactor]` marker, used in the optional refactor step). This
+makes the generator≠verifier separation structural, not advisory.
+
+## Worktree
+
+All implementation happens in the worktree created during Design Check:
+`.ade/worktrees/<task-id>`
+
+If the worktree doesn't exist yet (e.g., Design Check was skipped for small tasks):
+```bash
+git worktree add .ade/worktrees/<task-id> -b ade/<task-id>
+```
+
+## Build / Dependency Order
+
+Build dependencies before dependents — the plan's ordered task list / DAG defines the
+order; there is no fixed package order. After completing each unit of work, run the
+project's `build` command (see `.ade/ade-stack.md`) for the affected module before
+moving on. If `build` is `none` or unset for this stack, rely on the `test` command
+instead. Do not accumulate build errors across tasks.
+
+## Subagent File Ownership Rules
+
+When splitting work across subagents:
+
+- **No two agents may edit the same file.** This is a hard rule — no exceptions.
+- If two tasks need to modify the same file, they must be serialized (one completes before
+  the other starts).
+- Shared contract/type files are especially prone to conflicts — assign all shared-type
+  work to a single agent.
+
+### Splitting Strategy
+
+| Pattern | When to use |
+|---------|------------|
+| **By module** | One agent per top-level module with clear boundaries (most common) |
+| **By feature slice** | Each agent owns a vertical slice (contract + entrypoint + view) |
+| **By layer** | One agent does all data queries, another all entrypoints |
+
+The "by module" split is safest because modules have clear boundaries.
+
+## Convention Reference
+
+Before writing code, read these project conventions:
+
+- **CLAUDE.md** — coding style, indentation, import patterns
+- **Existing files in the same directory** — match naming, export style, error handling
+- **Test files nearby** — understand the testing pattern used
+
+Key conventions come from the project, not from ADE:
+- Indentation, quoting, and line width: follow CLAUDE.md and the existing files in the
+  same directory.
+- Lint/format rules are enforced by the project's `lint`/`format` commands
+  (see `.ade/ade-stack.md`) — run them rather than hand-applying style rules.
+- Match the naming, export, and error-handling style of neighboring code.
+
+## Implementation Checklist
+
+For each task in the plan:
+
+- [ ] Replace stub with working implementation
+- [ ] Follow existing patterns in the codebase
+- [ ] Add error handling (don't just throw generic errors)
+- [ ] Add input validation where applicable
+- [ ] Write unit tests alongside the implementation
+- [ ] Verify the build passes after changes
+
+## Running Builds After Significant Changes
+
+"Significant" means:
+- New file created
+- Interface or type changed
+- Import structure modified
+- Package dependency added
+
+Run the appropriate build command and fix any errors before continuing. Do not accumulate
+build errors across multiple tasks.
+
+## When Implementation Diverges from Plan
+
+If you discover during implementation that the plan needs adjustment:
+
+1. **Minor adjustment** (different function name, extra helper file) — proceed and note
+   the deviation.
+2. **Moderate adjustment** (new file not in plan, different data flow) — proceed but flag
+   for review phase.
+3. **Major adjustment** (scope increase, architectural change) — STOP. This triggers scope
+   drift detection. Present to the user before continuing.
+
+Scope drift threshold: if actual file changes exceed the plan's file table by more than 2x,
+pause for re-scoping.

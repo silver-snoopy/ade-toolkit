@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "PreToolUse": [
+      { "type": "command", "matcher": "shell", "command": "python .github/hooks/block-mixed-commit.py --stdin-json --harness copilot" },
+      { "type": "command", "matcher": "shell", "command": "python .github/hooks/check-leftover-stub.py --stdin-json --harness copilot" },
+      { "type": "command", "matcher": "shell", "command": "python .github/hooks/check-escalation-paths.py --stdin-json --harness copilot" }
+    ]
+  }
+}

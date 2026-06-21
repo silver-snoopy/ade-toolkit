@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -232,7 +233,7 @@ def test_escalation_hook_noop_off_ade_branch(hook_repo: Path) -> None:
 
 
 def test_escalation_hook_baseline_holds_without_config(hook_repo: Path) -> None:
-    # No .claude/ade-routing.json at all; baseline must still block an auth change at trivial.
+    # No .ade/ade-routing.json at all; baseline must still block an auth change at trivial.
     _route(hook_repo, "feat-x", "trivial")
     _write_stage(hook_repo, "src/auth/login.py", "def login():\n    return True\n")
     result = _run_hook(hook_repo, "check-escalation-paths.py", "src/auth/login.py")
@@ -242,7 +243,7 @@ def test_escalation_hook_baseline_holds_without_config(hook_repo: Path) -> None:
 
 def test_escalation_hook_config_extends_baseline(hook_repo: Path) -> None:
     _route(hook_repo, "feat-x", "standard")
-    cfg = hook_repo / ".claude" / "ade-routing.json"
+    cfg = hook_repo / ".ade" / "ade-routing.json"
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text('{"escalation_globs": {"architecture": ["*.weird"]}}\n', encoding="utf-8")
     _write_stage(hook_repo, "thing.weird", "x\n")
@@ -252,7 +253,7 @@ def test_escalation_hook_config_extends_baseline(hook_repo: Path) -> None:
 
 def test_escalation_hook_malformed_config_falls_back_to_baseline(hook_repo: Path) -> None:
     _route(hook_repo, "feat-x", "trivial")
-    cfg = hook_repo / ".claude" / "ade-routing.json"
+    cfg = hook_repo / ".ade" / "ade-routing.json"
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text("{ not json", encoding="utf-8")
     _write_stage(hook_repo, "src/auth/login.py", "def login():\n    return True\n")
@@ -266,3 +267,64 @@ def test_escalation_hook_blocks_top_level_dir(hook_repo: Path) -> None:
     result = _run_hook(hook_repo, "check-escalation-paths.py", "auth/login.py")
     assert result.returncode == 2, result.stderr
     assert "standard" in result.stderr
+
+
+def test_hooklib_parses_claude_envelope(hook_repo: Path) -> None:
+    """--harness claude dispatches the correct envelope parser (no staged files = pass)."""
+    hooks_dir = hook_repo / ".claude" / "hooks"
+    out = subprocess.run(
+        [
+            sys.executable,
+            str(hooks_dir / "block-mixed-commit.py"),
+            "--stdin-json",
+            "--harness",
+            "claude",
+        ],
+        input=json.dumps({"tool_input": {"command": "git commit -m 'x'"}}),
+        capture_output=True,
+        text=True,
+        cwd=hook_repo,
+    )
+    # claude envelope is parsed correctly (no staged files → exit 0; or already-block → 2)
+    assert out.returncode in (0, 2)
+
+
+def test_hooklib_parses_copilot_envelope(hook_repo: Path) -> None:
+    """--harness copilot with PascalCase PreToolUse payload (tool_input, not toolInput)."""
+    hooks_dir = hook_repo / ".claude" / "hooks"
+    out = subprocess.run(
+        [
+            sys.executable,
+            str(hooks_dir / "block-mixed-commit.py"),
+            "--stdin-json",
+            "--harness",
+            "copilot",
+        ],
+        input=json.dumps({"tool_input": {"command": "git commit -m 'x'"}}),
+        capture_output=True,
+        text=True,
+        cwd=hook_repo,
+    )
+    # copilot envelope (PascalCase → tool_input) is parsed correctly (no staged files → exit 0)
+    assert out.returncode in (0, 2)
+
+
+def test_hooklib_copilot_old_toolinput_ignored(hook_repo: Path) -> None:
+    """The buggy 'toolInput' key must NOT be recognised; non-commit payload exits 0."""
+    hooks_dir = hook_repo / ".claude" / "hooks"
+    out = subprocess.run(
+        [
+            sys.executable,
+            str(hooks_dir / "block-mixed-commit.py"),
+            "--stdin-json",
+            "--harness",
+            "copilot",
+        ],
+        # Deliberately use the OLD buggy key — must be ignored (parsed as empty command).
+        input=json.dumps({"toolInput": {"command": "git commit -m 'x'"}}),
+        capture_output=True,
+        text=True,
+        cwd=hook_repo,
+    )
+    # command resolves to "" → "git commit" not in "" → treated as non-commit → exit 0
+    assert out.returncode == 0

@@ -1,0 +1,190 @@
+---
+name: ade-retro
+description: ADE Phase 9 — record retro metrics then Codify: a read-only compounder folds findings into the calibration corpus and writes a learning. Closes the compound loop.
+---
+
+# Phase 9 — Retrospective
+
+## Purpose
+
+Capture metrics, learnings, and follow-ups from the development cycle. The retrospective
+enables continuous improvement of the ADE process itself.
+
+## What to Record in retro.json
+
+Save to: `.ade/tasks/<task-id>/retro.json`
+
+```json
+{
+  "taskId": "<task-id>",
+  "type": "feature | bugfix | refactor",
+  "completedAt": "2026-04-06T14:30:00Z",
+
+  "cycleTime": {
+    "total": "2h 15m",
+    "phases": {
+      "intent": "5m",
+      "research": "15m",
+      "userGate": "10m (waiting)",
+      "plan": "10m",
+      "designCheck": "8m",
+      "implement": "45m",
+      "qualityGate": "12m",
+      "review": "15m",
+      "docs": "5m",
+      "ship": "5m"
+    }
+  },
+
+  "iterations": {
+    "designCheck": 1,
+    "codeReviewCycles": 2,
+    "qaFixAttempts": 1,
+    "totalIterations": 4
+  },
+
+  "circuitBreakers": {
+    "triggered": false,
+    "details": null
+  },
+
+  "scope": {
+    "estimated": "M",
+    "actual": "M",
+    "filesPlanned": 8,
+    "filesActual": 9,
+    "driftDetected": false
+  },
+
+  "qualityGate": {
+    "lintErrors": 3,
+    "formatIssues": 1,
+    "buildErrors": 0,
+    "testFailures": 2,
+    "allResolved": true
+  },
+
+  "review": {
+    "highFindings": 1,
+    "mediumFindings": 2,
+    "lowFindings": 3,
+    "allHighMediumResolved": true
+  },
+
+  "learnings": [
+    "The existing CSV utility in shared package could have been reused — check shared utils first",
+    "Fastify reply.header must be set before reply.send for streaming responses"
+  ],
+
+  "followUps": [
+    "Add rate limiting to export endpoint (LOW finding from review)",
+    "Consider pagination for large date ranges"
+  ]
+}
+```
+
+## Fields Explained
+
+### cycleTime
+Wall-clock time per phase. Includes waiting time for user gates (marked separately).
+Helps identify bottleneck phases.
+
+### iterations
+Count of loops within each phase. Lower is better.
+- **designCheck** — how many stub revision rounds (max 2)
+- **codeReviewCycles** — how many code-fix-review loops (max 3)
+- **qaFixAttempts** — how many quality gate fix attempts (max 3)
+
+### circuitBreakers
+Whether any iteration limit was hit and required user escalation.
+
+### scope
+Compare planned vs actual to calibrate future estimates.
+
+### learnings
+Concrete, actionable insights. Not "it went well" but "the mock setup pattern for
+Fastify routes needs X because of Y."
+
+### followUps
+Items that were identified during the cycle but deferred. Each should be actionable
+enough to become its own task.
+
+## Worktree Cleanup After Merge
+
+Once the PR is merged:
+
+```bash
+# Remove the worktree
+git worktree remove .ade/worktrees/<task-id>
+
+# Delete the local branch
+git branch -d ade/<task-id>
+
+# The remote branch is deleted automatically if "Delete branch on merge" is enabled,
+# otherwise:
+git push origin --delete ade/<task-id>
+```
+
+## Status File Final Update
+
+Update `.ade/tasks/<task-id>/status.json`:
+
+```json
+{
+  "taskId": "<task-id>",
+  "status": "completed",
+  "phase": "retro",
+  "branch": "ade/<task-id>",
+  "pr": "#123",
+  "mergedAt": "2026-04-06T15:00:00Z",
+  "completedAt": "2026-04-06T15:05:00Z"
+}
+```
+
+## Task Directory Structure (Final)
+
+After completion, the task directory should contain:
+
+```
+.ade/tasks/<task-id>/
+├── intent.md
+├── plan.md
+├── status.json
+└── retro.json
+```
+
+These files are retained for historical reference and process improvement analysis.
+The worktree is removed but the task artifacts remain.
+
+## Codify — the closing sub-step (skipped for `trivial`)
+
+The retrospective above looks *back* (per-task metrics). **Codify** turns that reflection
+*forward* into durable, reloadable knowledge so the next task is cheaper. It is **skipped
+entirely for the `trivial` tier** (consistent with routing); standard and architecture tiers
+always run it.
+
+1. **Gather inputs.** Confirm `.ade/tasks/<task-id>/review.md` exists (Phase 6 persists it).
+   Optionally fetch bot comments from a recently-merged *prior* PR
+   (`gh pr view <n> --comments`) into a temp file — best-effort; skip silently if `gh`, a
+   prior PR, or bots are absent. (Bot reviews for *this* task's PR arrive asynchronously,
+   after Codify runs, so they fold into a *later* task's Codify, not this one.)
+
+2. **Dispatch the `compounder` subagent** (sonnet, read-only) via the Agent tool. Pass the
+   file paths: `review.md`, `retro.json`, the spec, the diff, `docs/review-calibration.md`,
+   and the optional prior-PR comments file. It returns (a) corpus-merge instructions and
+   (b) a Learning body or the literal `NO LEARNING — <reason>`.
+
+3. **Apply the corpus merge (always).** Update `docs/review-calibration.md` per the
+   compounder's instructions: increment matched finding-classes' `Frequency` and append
+   examples; add new classes (severity from the finding's badness, frequency 1); re-order
+   most-frequent first. Never promote severity by frequency. Zero findings -> no-op.
+
+4. **Write the Learning (only if returned).** If the compounder returned a Learning body,
+   save it to `docs/learnings/{YYYY-MM-DD}_{slug}.md` (today's date; slug = the task slug).
+   If it returned `NO LEARNING`, write nothing and note "routine — no Learning" in the retro.
+
+5. **Surface the review-findings signal.** Report the per-task finding count and any class
+   that has reached multi-task frequency — e.g. "6 findings; class 'silent-fallback' now seen
+   in 3 tasks." This is a health signal, not a gate.
+
+**Exit criteria:** corpus merged; Learning written or explicitly skipped; signal surfaced.

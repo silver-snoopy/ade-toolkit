@@ -1,0 +1,79 @@
+---
+name: ade-design-check
+description: ADE Phase 3 — dispatch a subagent in a worktree to create file stubs; review for plan alignment (max 2 iterations).
+---
+
+# Phase 3 — Design Check
+
+## Purpose
+
+Create implementation stubs (interfaces, type signatures, function signatures, module
+structure) in a worktree before writing real code. Stubs serve as a lightweight
+architecture validation — they catch structural problems early without the cost of full
+implementation.
+
+## Worktree Setup
+
+Create a dedicated worktree for the task:
+
+```bash
+git worktree add .ade/worktrees/<task-id> -b ade/<task-id>
+```
+
+All stub work happens in the worktree, not the main working tree.
+
+## What Stubs Should Contain
+
+Stubs define the **shape** of the code, not the logic. Regardless of language, a stub is:
+
+- **Type / data definitions** — written in full (the contract the rest of the code binds
+  to): record/struct/interface shapes, enums, and the fields each carries.
+- **Function / method signatures** — name, parameters with types, and return type, with a
+  body that is a placeholder that fails loudly (raise/throw "not implemented", or the
+  language's equivalent).
+- **Entrypoint shells** — route/handler/command registration with the signature wired up
+  but the body a placeholder.
+- **Component / view shells** — the props/inputs contract plus an empty or null render.
+- **Accessor / hook shells** — the signature and the returned shape, with placeholder
+  values.
+
+The placeholder marker must be one the `check-leftover-stub` hook recognizes so it can
+never be shipped as real code (`Not implemented` / `NotImplementedError` /
+`TODO: implement`).
+
+## What Stubs Should NOT Contain
+
+- Business logic or algorithms
+- SQL queries
+- API calls
+- Complex JSX rendering
+- Test implementations (test files are not stubbed)
+
+## Validating Stubs Against Plan
+
+After creating stubs, verify:
+
+1. **Coverage** — Every file in the plan's file table (Section 3) that is marked CREATE
+   has a corresponding stub.
+2. **Type consistency** — shared contracts/types flow correctly to every module that
+   depends on them (dependencies before dependents).
+3. **Build check** — run the project's `build` command (see `.ade/ade-stack.md`) for
+   the foundation module to verify the shared contracts compile. Dependent modules may not
+   build yet (stubs fail loudly), but there should be no contract/type errors. If `build`
+   is `none` or unset for this stack, skip this check.
+4. **Import check** — All imports resolve. No circular dependencies introduced.
+
+## Iteration Limit
+
+- **Maximum 2 iterations** of stub creation and validation.
+- If stubs still don't pass validation after 2 rounds, escalate to the user with:
+  - What's failing
+  - Why the plan may need adjustment
+  - Proposed resolution
+
+## Output
+
+Stubs committed to the worktree branch (`ade/<task-id>`) with message:
+`chore: add implementation stubs for <task-id>`
+
+This commit will be squashed or amended during the implementation phase.

@@ -1,0 +1,219 @@
+---
+name: ade-research
+description: ADE Phase 1 — produce a verified durable spec via R1–R5 (iterative-retrieval scouts, synthesis, grill, Chain-of-Verification with a spec-blind verifier).
+---
+
+# Phase 1 — Research
+
+## Purpose
+
+Produce a verified, durable specification grounded in both internal codebase reality and external context. The Research phase has five sub-steps (R1–R5) and accumulates three artifacts that compound across tasks: a permanent spec, an updated domain glossary, and zero-or-more architecture decision records.
+
+## Inputs
+
+- `.ade/tasks/<task-id>/intent.md` (from Phase 0)
+- Project: `CONTEXT.md`, `docs/adr/*`, `docs/learnings/*`, codebase
+- Optional flags: `--deep` (user opt-in for Tier 1 web tooling), explicit web-research request in intent
+
+## Outputs
+
+| Artifact | Location | Lifecycle |
+|---|---|---|
+| Final spec | `docs/specs/{YYYY-MM-DD}_{slug}.spec.md` | Permanent (version controlled) |
+| Domain glossary updates | `CONTEXT.md` | Permanent (additive) |
+| ADRs | `docs/adr/NNNN-*.md` | Permanent (sequential, immutable once accepted) |
+| Working research bundles | `.ade/tasks/<task-id>/research/` | Ephemeral |
+
+## R1 — Intent
+
+Already produced by Phase 0. The S/M/L scope estimate remains in `intent.md` as informational metadata only — it does **not** route the Research phase. Cost-adaptiveness comes from R2.2 (orchestrator confidence) and "trivial-when-not-needed" behavior at R4 and R5.
+
+## R2 — Investigate
+
+### R2.1 — Code scouting with iterative retrieval
+
+Pattern: **DISPATCH → EVALUATE → REFINE → LOOP** (max 3 cycles).
+
+**DISPATCH cycle 1** (always):
+
+Launch two `scout` subagents in parallel via the Agent tool:
+
+- `scout` with `current-state` scope: "What exists related to this task? Find call sites, entry points, current behavior."
+- `scout` with `available-surface` scope: "What can this feature compose with? Utilities, helpers, types, fixtures, test surfaces."
+
+Pass the task description (from intent.md) and any relevant CONTEXT.md vocabulary as context. Also tell the scouts to grep `docs/learnings/` for prior Learnings touching this task's area and to cite any that apply — past discoveries make this task cheaper. Each scout writes its output to `.ade/tasks/<task-id>/research/scout-<scope>-cycle<N>.md`.
+
+**EVALUATE** scout returns against the stop criterion:
+
+- ≥3 high-relevance findings (relevance ≥ 0.8) across both scouts, AND
+- No critical gaps in `coverage_caveats`, AND
+- No terminology mismatch flagged (e.g., scout reports "the code uses `policies`, not `permissions`")
+
+If stop criterion met → proceed to R2.2.
+
+**REFINE → cycle 2** (when stop criterion not met):
+
+Extract terminology signals from cycle-1 returns:
+- Identifiers seen in partial-match findings
+- Vocabulary from CONTEXT.md
+- Domain language from file/path tokens
+
+Dispatch scouts again with the refined search terms. Tell them this is cycle 2 and pass the new vocabulary explicitly.
+
+**LOOP** (max 3 cycles total). After cycle 3, proceed with best-available findings and flag remaining gaps prominently for R3.
+
+### R2.2 — Orchestrator confidence check
+
+Review scout outputs:
+
+- Are scout `open_questions[]` resolved by the findings, or do they remain unanswered?
+- Do any open questions reference external concepts (library names, framework conventions, API specs, vendor services, security standards) not present in `CONTEXT.md`?
+- Does the task description mention external systems the scouts couldn't fully investigate?
+
+**Web research is needed if any of these hold:**
+
+- The user explicitly requested web research at R1 (in intent description or via `--research-web` flag), OR
+- Any scout open question references an external library, framework, API, service name, or domain concept not present in CONTEXT.md, OR
+- Scouts found that the task fundamentally depends on infrastructure or conventions not visible in the local codebase
+
+If yes → proceed to R2.3. If no → skip to R3.
+
+You must **justify** the decision in writing to `.ade/tasks/<task-id>/research/r2.2-decision.md`. If you spawn web research, state the specific topics and sub-questions. If you skip, state why (e.g., "scouts resolved all open questions internally; no external dependencies referenced").
+
+### R2.3 — Web research (conditional)
+
+For each distinct external topic identified at R2.2, dispatch a `web-researcher` subagent.
+
+- **Topic count**: one subagent per topic (typically 1–3 total, no fixed cap)
+- **Tooling tier**: Tier 0 by default (WebSearch + WebFetch + Context7 MCP). Tier 1 (Tavily, Exa via MCP) only if corresponding env vars are set, OR user passed `--deep`. Tier 2 (paid) never automatic — requires explicit user-configured MCP servers.
+
+**Sequencing:**
+
+- If user opted in at R1: web researchers run **parallel with R2.1 scouts** (start of R2)
+- If R2.2 decided: web researchers run **sequential after scouts** (after R2.2 decision)
+
+Each `web-researcher` writes to `.ade/tasks/<task-id>/research/web-<topic-slug>.md` and enforces the citation invariants and IPI hardening defined in its agent prompt.
+
+## R3 — Specify
+
+### R3.1 — Synthesizer drafts
+
+Dispatch `synthesizer` subagent with **Role A — research consolidation**:
+
+- Input: research bundles in `.ade/tasks/<task-id>/research/` (scout-*.md, web-*.md if any)
+- Output: draft spec written to `docs/specs/{YYYY-MM-DD}_{slug}.spec.md`
+
+Slug derivation: from `intent.md` goal, take 2–4 words, kebab-case. On same-day filename collision, append `_2`, `_3`, etc. before the `.spec.md` suffix.
+
+The synthesizer follows the single-writer pattern (no parallelization), dedupes hot anchors across bundles, cross-checks coverage caveats against intent, and preserves citation chains end-to-end.
+
+### R3.2 — Orchestrator interview
+
+You (the orchestrator) refine the draft through Socratic Q&A with the user. Use the 10-category ambiguity taxonomy as your scanning checklist.
+
+**The 10 ambiguity categories:**
+
+1. **Functional Scope** — what's in, what's out
+2. **Data Model** — entities, relationships, cardinality
+3. **UX Flow** — user journey, states, transitions
+4. **Non-Functional Attributes** — performance, scale, availability, latency targets
+5. **Integration** — external systems, APIs, contracts
+6. **Edge Cases** — empty, max, error, concurrent, partial
+7. **Constraints** — regulatory, technical, time, team
+8. **Terminology** — overloaded or undefined terms
+9. **Completion Signals** — what "done" looks like, observable acceptance
+10. **Misc** — anything genuinely uncategorizable
+
+**Scan the draft against the 10 categories.** For each material gap found, generate ONE question.
+
+**Question format:**
+
+- Tag the question with its category (display the tag to the user)
+- Prefer multi-choice (2–5 options) with one marked as **recommended**
+- The recommended option must be paired with exactly **one alternative** (the 2nd best) — not all possible alternatives
+- If multi-choice doesn't fit, use short-phrase answer (≤5 words expected from user)
+- Only ask if the answer materially impacts architecture, data modeling, testing, UX, operations, or compliance
+- Favor high-impact, high-uncertainty categories first
+
+**Asking rules:**
+
+- **One question at a time.** Wait for the user's answer before posing the next question.
+- **Update the spec atomically after each answer** (Edit, not Write — preserve all unrelated content).
+- **Hard cap: 5 questions total per spec.** Past 5, stop and proceed with what you have.
+- **Stop early** when no high-impact, high-uncertainty items remain in any category.
+
+**On completion**: present the final spec to the user and confirm before proceeding to R4.
+
+## R4 — Refine
+
+Invoke the vendored `grill-with-docs` skill against the spec.
+
+**Skill location**: `.claude/skills/grill-with-docs/SKILL.md`
+
+**Phase-prompt framing for the skill invocation**:
+
+> "Run grill-with-docs on the spec at `docs/specs/{filename}`. Treat the spec as the 'plan' the skill grills. In addition to grill-with-docs's normal outputs (CONTEXT.md updates, ADRs sparingly), revise the spec file inline as terms get sharpened."
+
+Pass the spec file path and the existing CONTEXT.md and docs/adr/ context.
+
+**R4 always runs.** It is *trivial* when the spec already uses CONTEXT.md vocabulary and reflects existing ADRs — the Socratic loop ends quickly with zero updates. It is *substantive* when the spec introduces new terms or architectural decisions.
+
+After R4, the spec file may have been revised by grill-with-docs, CONTEXT.md may have new entries, and 0+ new ADRs may exist under `docs/adr/`.
+
+## R5 — Verify (Chain of Verification, factor+revise)
+
+Execute CoVe on the spec. This is a built-in directive — no external skill is invoked.
+
+### R5.1 — Extract claims
+
+Read the spec and extract a list of verification claims — typically 8–15 per spec. Each claim is a statement the spec asserts about the world or the project. Examples:
+
+- "Acceptance criterion #3 (`{verbatim text}`) is mechanically testable against the current codebase"
+- "No existing utility in `<area>` already implements `<behavior>`"
+- "The proposed integration with `<external service>` does not require new authentication infrastructure"
+- "Edge case `<X>` is handled by `<proposed mechanism>`"
+- "The terms `<X>` and `<Y>` are consistently defined in CONTEXT.md"
+
+Tag each claim with one of the 10 ambiguity categories. Write the claims list to `.ade/tasks/<task-id>/research/r5-claims.md`.
+
+### R5.2 — Dispatch verifiers (the "factor" step)
+
+For each claim, dispatch a `spec-verifier` subagent in parallel.
+
+**Critical structural rule** — the defining property of factor+revise CoVe:
+
+> **The verifier MUST NOT receive the spec text.** Pass only the single claim/question, its category, and a pointer to the project's code and docs. The verifier answers from project state alone, free of bias from the spec's framing.
+
+Verifiers run in parallel (factored — each in independent context). Each writes to `.ade/tasks/<task-id>/research/r5-verifier-<n>.md`.
+
+### R5.3 — Revise (the "revise" step)
+
+Dispatch `synthesizer` subagent with **Role B — spec revision**:
+
+- Input: the spec file + all verifier outputs from R5.2
+- For each verifier finding:
+  - **Material discrepancy** (verifier evidence contradicts a spec claim, or surfaces a gap the spec doesn't address) → revise the spec
+  - **Soft signal** (verifier flagged low confidence or concerns about the question itself) → note in the spec's risks/assumptions section
+  - **No issue** (verifier confirmed the claim) → no action
+
+Synthesizer rewrites the spec file to address material findings. **Never silently soften the spec to make findings go away** — if a finding is real, the spec must address it; if it's wrong, document why.
+
+### Ready-for-Development gate
+
+Once R5 completes:
+
+1. Summarize for the user:
+   - The finalized spec path
+   - New CONTEXT.md entries (count + topics)
+   - New ADRs (count + titles)
+   - Any verifier findings that were noted-but-not-revised (with rationale)
+2. Confirm explicitly: **ready to proceed to Plan (D1)?**
+
+The spec is now the contract for the Development phase. Phase 2 (Plan) consumes the spec file directly.
+
+## Phase-level rules
+
+- The orchestrator never edits the spec directly during R3. R3.1 is the synthesizer's write; R3.2 updates happen via the orchestrator's `Edit` calls in response to user answers; R4 changes flow through grill-with-docs; R5 changes flow through synthesizer Role B.
+- The R2.1 iterative loop is hard-capped at 3 cycles. If 3 cycles still leave critical gaps, escalate to the user — do not silently proceed with thin research.
+- Every claim in every artifact must trace back to a citation: scouts cite files+lines, web-researchers cite URLs+verbatim quotes, the synthesizer preserves the citation chain end-to-end.
+- The Research phase status file (`.ade/tasks/<task-id>/status.md`) should be updated at each sub-step transition: `R2.1 cycle 1`, `R2.2 confidence check`, `R2.3 web research`, `R3.1 synthesizer draft`, `R3.2 interview`, `R4 grill`, `R5 CoVe`, `R5 ready-for-dev`.

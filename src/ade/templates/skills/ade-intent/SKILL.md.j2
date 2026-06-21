@@ -1,0 +1,144 @@
+---
+name: ade-intent
+description: ADE Phase 0 — extract structured intent (type/goal/acceptance/scope) and assign a routing tier (trivial/standard/architecture) with forced-escalation. Run first.
+---
+
+# Phase 0 — Intent Extraction
+
+## Purpose
+
+Extract structured requirements from a task description, feature spec, bug report, or
+conversation. The intent document is the single source of truth for what "done" looks like
+and gates every subsequent phase.
+
+## Input Sources
+
+| Source | How to handle |
+|--------|--------------|
+| Feature spec file | Parse directly — sections map 1:1 to intent fields |
+| One-line description | Ask clarifying questions before proceeding |
+| Bug report / issue | Extract reproduction steps as implicit acceptance criteria |
+| Conversation context | Summarize the agreed-upon scope; confirm with user |
+
+## Output Format
+
+Save to `.ade/tasks/<task-id>/intent.md` with this exact structure:
+
+```markdown
+# Intent: <task-id>
+
+**Type:** feature | bugfix | refactor
+**Goal:** One-sentence summary of what this change accomplishes.
+
+## Acceptance Criteria
+- [ ] Criterion 1 — specific, automatable outcome
+- [ ] Criterion 2 — specific, automatable outcome
+- [ ] Criterion 3 (manual) — visual/perceptual, verified by a human outside the loop
+
+## Affected Areas
+- <area / module>: <what changes>
+- <area / module>: <what changes>
+
+## Estimated Scope
+- **Size:** S (< 3 files) | M (3–10 files) | L (> 10 files)
+- **Rationale:** Brief explanation of scope estimate
+```
+
+## Field Guidelines
+
+### Type
+- **feature** — new user-facing capability or entirely new internal system
+- **bugfix** — correcting behavior that deviates from existing intent
+- **refactor** — restructuring without behavior change (no new tests needed beyond existing)
+
+### Goal
+One sentence, imperative mood. Good: "Add CSV export to the nutrition daily endpoint."
+Bad: "We need to maybe look into adding some kind of export functionality."
+
+### Acceptance Criteria
+Each criterion must be independently verifiable, and must be **expressible as an
+automated test** to count as in-loop. Use this test: could a reviewer write a test that
+confirms yes/no whether this criterion is met?
+
+A criterion that is inherently visual or perceptual (e.g. "the toast appears", "the
+layout looks right") cannot be captured by a test. Tag it `(manual)` — it is verified by
+a human *outside* the ADE loop, not by the pipeline. The pipeline guarantees exactly what
+the tests guarantee; it does not pretend a shallow render-test stands in for human review.
+
+Bad: "The UI looks good." (subjective — tag `(manual)` if it must be kept)
+Good: "The export endpoint returns CSV with one row per day in the range." (automatable)
+
+### Affected Areas
+List every area or module that will have file changes. This helps scope the research
+phase and informs the plan's dependency-ordered task list. If unsure, list as "possibly
+affected" and confirm during research.
+
+### Estimated Scope
+Be honest. Underestimating scope leads to drift detection triggers later. When in doubt,
+round up. A task estimated as S that turns into M is a yellow flag; S turning into L is a
+red flag that requires re-scoping.
+
+## Handling Ambiguous Inputs
+
+When the input is vague or incomplete:
+
+1. **Identify gaps** — Which intent fields cannot be filled from the input alone?
+2. **Propose defaults** — Suggest reasonable values based on codebase context.
+3. **Ask the user** — Present the draft intent with `[NEEDS CLARIFICATION]` markers.
+4. **Do NOT proceed** past the user gate with unresolved markers.
+
+Example:
+> User says: "Fix the workout page"
+>
+> Response: "I need more detail to extract intent. What specifically is broken on the
+> workout page? Are you seeing an error, incorrect data, or a UI rendering issue?"
+
+## Task ID Convention
+
+Format: `<type>-<short-name>` using kebab-case.
+Examples: `feature-csv-export`, `bugfix-workout-null-dates`, `refactor-query-layer`.
+
+The task ID is used for directory names, branch names (`ade/<task-id>`), and worktree
+paths — keep it short but descriptive.
+
+## 0d — Route (closing sub-step of Phase 0)
+
+Once intent is captured, assign the task a **routing tier** from `Type` + `Affected Areas`
++ `Estimated Scope`. This masks which later phases run. There are three tiers:
+
+- **trivial** — a tiny, self-contained change (a copy/comment/config one-liner, or a small
+  isolated fix). Cut-down path: lightweight inline research, short inline plan, no
+  design-check, single review pass, no retro — but ALWAYS author-separated TDD, the
+  deterministic quality gate, and the merge gate.
+- **standard** — the full nine-phase flow. The default.
+- **architecture** — standard plus extra rigor: at least one ADR and an adversarial Plan
+  Soundness Review before code.
+
+### Classification
+
+1. **Forced-escalation first (deterministic).** Read `.ade/ade-routing.json`. If any
+   declared affected area (or the intent text) matches an `escalation_globs.architecture`
+   path or an `architecture` keyword → tier is **architecture**. Else if it matches an
+   `escalation_globs.standard` path or a `standard` keyword (security/auth/secrets/crypto/
+   data-loss) → floor is **standard** (never trivial). If the config is missing or
+   unparseable, treat the change as **≥ standard** (conservative).
+2. **Size judgment (only within the non-forced band).** A change with no escalation match
+   and a small, single-area scope (≈ size `S`) → **trivial**; otherwise **standard**.
+
+A forced-escalation floor can never be overridden downward — and the
+`check-escalation-paths` commit hook enforces it against the real diff at Ship time, so a
+mis-route is caught even though Phase 0 has no diff yet.
+
+### Record, announce, gate
+
+- Write the tier + a one-line rationale to `.ade/tasks/<task-id>/routing.md` as a line
+  `Tier: <trivial|standard|architecture>` (the hook reads this), and update `status.md`
+  with `Routed: <tier>`.
+- **Announce** the tier + rationale.
+- **trivial / standard:** auto-proceed (announced); the user may interject to re-tier up.
+- **architecture, or any forced-escalation:** require explicit user confirmation before
+  proceeding. Overriding **up** is always allowed; overriding **down out of a forced
+  floor** is refused.
+
+> Routing accuracy depends on the intent: name security/auth/schema/public-API impact
+> explicitly in `Affected Areas` when present.

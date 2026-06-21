@@ -33,3 +33,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# uv lockfile — project is pip-based (CLAUDE.md), do not track
+uv.lock
+.venv/

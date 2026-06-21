@@ -2,7 +2,7 @@
 """Block an ADE-routed task from committing escalation-path changes below its floor (G4).
 
 Scoped to ADE-routed work: acts only on an `ade/<task-id>` branch with a routing.md.
-A hardcoded baseline of escalation globs is enforced even if .claude/ade-routing.json is
+A hardcoded baseline of escalation globs is enforced even if .ade/ade-routing.json is
 missing or malformed; the config may only EXTEND the baseline, never shrink it.
 """
 from __future__ import annotations

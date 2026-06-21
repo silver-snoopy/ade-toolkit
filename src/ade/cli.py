@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import copy
-import json
+import re
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,14 +14,17 @@ from rich import print as rprint
 from rich.table import Table
 
 from ade.detect import detect_project, normalize_language
+from ade.eval import run_eval
+from ade.harnesses import TARGETS, HarnessTarget, selected_targets
+from ade.harnesses.hooks import emit_hooks
+from ade.harnesses.memory import emit_memory_pointer
+from ade.harnesses.workers import render_worker
 
 app = typer.Typer(
     name="ade",
     help="ADE — Agentic Development Environment toolkit",
     no_args_is_help=True,
 )
-
-ADE_SECTION_MARKER = "## ADE — Agentic Development Environment"
 
 
 def _get_template_env() -> Environment:
@@ -62,102 +64,174 @@ def _render_and_write_if_missing(
     return True
 
 
-def _update_claude_md(project_dir: Path, ade_section: str) -> None:
-    """Append ADE section to CLAUDE.md, or create it."""
-    claude_md = project_dir / "CLAUDE.md"
-
-    if claude_md.exists():
-        existing = claude_md.read_text(encoding="utf-8")
-        if ADE_SECTION_MARKER in existing:
-            return
-        content = existing.rstrip() + "\n\n" + ade_section
-    else:
-        content = ade_section
-
-    claude_md.write_text(content, encoding="utf-8")
-
-
 def _check_command(name: str) -> bool:
     """Check if a command is available on PATH."""
     return shutil.which(name) is not None
 
 
-def _render_template_dir(
-    env: Environment,
-    template_prefix: str,
-    dest_dir: Path,
-    context: dict,
-    suffix: str = ".j2",
+def _emit_workers(
+    targets: list[HarnessTarget], env: Environment, project_dir: Path, ctx: dict
 ) -> None:
-    """Render all templates under a prefix directory to a destination."""
-    for template_name in env.loader.list_templates():
-        if template_name.startswith(template_prefix) and template_name.endswith(suffix):
-            relative = template_name[len(template_prefix) :]
-            # Strip .j2 suffix from output filename
-            dest_name = relative[: -len(suffix)] if relative.endswith(suffix) else relative
-            # Convert underscores to dashes for Claude Code conventions
-            dest_name = dest_name.replace("_", "-")
-            _render_and_write(env, template_name, dest_dir / dest_name, context)
+    """Render every templates/agents/*.md.j2 into each target's workers_dir."""
+    worker_names = [
+        t[len("agents/") : -len(".md.j2")]
+        for t in env.loader.list_templates()
+        if t.startswith("agents/") and t.endswith(".md.j2")
+    ]
+    for target in targets:
+        for name in worker_names:
+            rel, content = render_worker(target, env, name, ctx)
+            _write_file(project_dir / rel, content)
 
 
-def _render_hooks(env: Environment, hooks_dir: Path, context: dict) -> None:
-    """Render the deterministic hook scripts, preserving exact filenames.
+def _emit_skills(
+    targets: list[HarnessTarget], env: Environment, project_dir: Path, ctx: dict
+) -> None:
+    """Render every templates/skills/<skill>/** file into each target's skills dirs.
 
-    Rendered explicitly (not via _render_template_dir) so the leading-underscore
-    helper `_hooklib.py` is not mangled into a dashed name.
+    SKILL.md content is identical on every harness; only the destination dirs differ.
+    Each unique dir across the selected targets is written once.
     """
-    for name in (
-        "_hooklib.py",
-        "block-mixed-commit.py",
-        "check-leftover-stub.py",
-        "check-escalation-paths.py",
-    ):
-        _render_and_write(env, f"hooks/{name}.j2", hooks_dir / name, context)
+    dest_dirs = {d for t in targets for d in t.skills_dirs}
+    prefix = "skills/"
+    for template_name in env.loader.list_templates():
+        if not template_name.startswith(prefix) or not template_name.endswith(".j2"):
+            continue
+        rel = template_name[len(prefix) : -len(".j2")]  # e.g. "ade-implement/SKILL.md"
+        for d in dest_dirs:
+            _render_and_write(env, template_name, project_dir / d / rel, ctx)
 
 
-def _merge_hooks(current: dict, ade: dict) -> dict:
-    """Idempotently merge ADE PreToolUse hook commands into an existing settings dict."""
-    merged = copy.deepcopy(current)
-    hooks = merged.setdefault("hooks", {})
-    if not isinstance(hooks, dict):
-        hooks = {}
-        merged["hooks"] = hooks
-    for event, blocks in ade.get("hooks", {}).items():
-        existing_blocks = hooks.setdefault(event, [])
-        for ade_block in blocks:
-            target = next(
-                (b for b in existing_blocks if b.get("matcher") == ade_block.get("matcher")),
-                None,
-            )
-            if target is None:
-                existing_blocks.append(ade_block)
-                continue
-            target_hooks = target.setdefault("hooks", [])
-            seen = {h.get("command") for h in target_hooks}
-            for hook in ade_block.get("hooks", []):
-                if hook.get("command") not in seen:
-                    target_hooks.append(hook)
-    return merged
+def _seed_config(env: Environment, project_dir: Path, ctx: dict) -> list[tuple[str, Path]]:
+    """Seed .ade/ routing and stack config files (seed-if-missing, user-owned).
 
-
-def _emit_claude_hooks(env: Environment, project_dir: Path, context: dict) -> str:
-    """Create or idempotently merge .claude/settings.json hooks. Returns action word."""
-    dest = project_dir / ".claude" / "settings.json"
-    ade_settings = json.loads(env.get_template("claude_settings.json.j2").render(**context))
-    if dest.exists():
-        try:
-            current = json.loads(dest.read_text(encoding="utf-8"))
-            if not isinstance(current, dict):
-                current = {}
-        except json.JSONDecodeError:
-            current = {}
-        merged = _merge_hooks(current, ade_settings)
-        action = "Merged hooks into"
+    Returns a list of (action, path) pairs for progress reporting.
+    """
+    results: list[tuple[str, Path]] = []
+    stack_dest = project_dir / ".ade" / "ade-stack.md"
+    if _render_and_write_if_missing(env, "stack.md.j2", stack_dest, ctx):
+        results.append(("created", stack_dest))
     else:
-        merged = ade_settings
-        action = "Created"
-    _write_file(dest, json.dumps(merged, indent=2) + "\n")
-    return action
+        results.append(("kept", stack_dest))
+
+    routing_dest = project_dir / ".ade" / "ade-routing.json"
+    if _render_and_write_if_missing(env, "ade-routing.json.j2", routing_dest, ctx):
+        results.append(("created", routing_dest))
+    else:
+        results.append(("kept", routing_dest))
+
+    return results
+
+
+def _seed_bootstrap(env: Environment, project_dir: Path, ctx: dict) -> list[tuple[str, Path]]:
+    """Seed project bootstrap artifacts (CONTEXT.md, docs/adr, etc.) — seed-if-missing.
+
+    Returns a list of (action, path) pairs for progress reporting.
+    """
+    bootstrap_targets = [
+        ("bootstrap/CONTEXT.md.j2", project_dir / "CONTEXT.md"),
+        (
+            "bootstrap/adr-0001-record-architecture-decisions.md.j2",
+            project_dir / "docs" / "adr" / "0001-record-architecture-decisions.md",
+        ),
+        ("bootstrap/specs-README.md.j2", project_dir / "docs" / "specs" / "README.md"),
+        ("bootstrap/learnings-README.md.j2", project_dir / "docs" / "learnings" / "README.md"),
+        ("bootstrap/review-calibration.md.j2", project_dir / "docs" / "review-calibration.md"),
+    ]
+    results: list[tuple[str, Path]] = []
+    for template_name, dest in bootstrap_targets:
+        created = _render_and_write_if_missing(env, template_name, dest, ctx)
+        results.append(("created" if created else "kept", dest))
+    return results
+
+
+def _emit_v3(
+    targets: list[HarnessTarget],
+    env: Environment,
+    project_dir: Path,
+    info: object,
+    ctx: dict,
+) -> list[tuple[str, Path]]:
+    """Emit the full v3 tree for the selected targets (excluding hook wiring).
+
+    Used by both init() and migrate(). Hook wiring is handled by the callers
+    so that each target is wired independently.
+
+    Returns the combined seed results (action, path) from _seed_config and
+    _seed_bootstrap so callers can report per-file progress if desired.
+    """
+    _render_and_write(env, "ade_gitignore.j2", project_dir / ".ade" / ".gitignore", ctx)
+    _emit_skills(targets, env, project_dir, ctx)
+    _emit_workers(targets, env, project_dir, ctx)
+    _render_and_write(env, "AGENTS.md.j2", project_dir / "AGENTS.md", ctx)
+    for target in targets:
+        emit_memory_pointer(target, env, project_dir, ctx)
+    seed_results = _seed_config(env, project_dir, ctx)
+    seed_results += _seed_bootstrap(env, project_dir, ctx)
+    return seed_results
+
+
+_OLD_ADE_SECTION_RE = re.compile(
+    r"(?ms)^##\s+ADE — Agentic Development Environment.*?(?=^##\s|\Z)"
+)
+_V3_ADE_BLOCK_RE = re.compile(r"(?ms)<!--\s*ADE:START\s*-->.*?<!--\s*ADE:END\s*-->\n?")
+
+
+def _strip_old_claude_section(md_path: Path) -> None:
+    """Remove any ADE-owned section from CLAUDE.md, preserving all other content.
+
+    Strips both the old v2 ``## ADE — Agentic Development Environment`` heading
+    section and the v3 ``<!-- ADE:START -->...<!-- ADE:END -->`` delimited block so
+    that ``emit_memory_pointer`` can write a fresh, single copy.
+    """
+    if not md_path.exists():
+        return
+    text = md_path.read_text(encoding="utf-8")
+    # Strip v3 delimited block first (avoids partial regex matches below).
+    text = _V3_ADE_BLOCK_RE.sub("", text)
+    # Strip old v2 heading section (anything left after the v3 removal).
+    text = _OLD_ADE_SECTION_RE.sub("", text).rstrip() + "\n"
+    md_path.write_text(text, encoding="utf-8")
+
+
+@app.command()
+def migrate(
+    project_dir: Annotated[Path, typer.Option(help="Project directory to migrate")] = Path("."),
+    agent: Annotated[str, typer.Option(help="Target harness(es): list or 'all'")] = "claude",
+) -> None:
+    """Upgrade a v2 ADE tree to the v3 layout (idempotent)."""
+    project_dir = project_dir.resolve()
+    try:
+        targets = selected_targets(agent)
+    except KeyError as exc:
+        valid = ", ".join(sorted(TARGETS))
+        rprint(f"[red]Error: unknown --agent value {exc}. Valid: {valid}, or 'all'.[/red]")
+        raise typer.Exit(1) from exc
+    info = detect_project(project_dir)
+    env = _get_template_env()
+    ctx = {"info": info}
+
+    # 1. Move user-owned config (preserve edits: only if dest missing).
+    for src_rel, dst_rel in (
+        (".claude/ade-routing.json", ".ade/ade-routing.json"),
+        (".claude/ade-stack.md", ".ade/ade-stack.md"),
+    ):
+        src, dst = project_dir / src_rel, project_dir / dst_rel
+        if src.exists() and not dst.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(src), str(dst))
+
+    # 2. Remove stale generated trees.
+    shutil.rmtree(project_dir / ".claude" / "skills" / "ade", ignore_errors=True)
+    shutil.rmtree(project_dir / ".claude" / "commands", ignore_errors=True)
+
+    # 3. Strip the old CLAUDE.md ADE section, then re-emit v3 (pointer replaces it).
+    _strip_old_claude_section(project_dir / "CLAUDE.md")
+    _emit_v3(targets, env, project_dir, info, ctx)
+    for target in targets:
+        emit_hooks(target, env, project_dir, ctx)
+
+    rprint("[green]Migrated to ADE v3 layout.[/green]")
 
 
 @app.command()
@@ -179,9 +253,23 @@ def init(
         rprint(f"[red]Error: {project_dir} is not a directory[/red]")
         raise typer.Exit(1)
 
-    if agent not in {"claude", "copilot"}:
-        rprint(f"[red]Error: --agent must be 'claude' or 'copilot', got '{agent}'[/red]")
+    # Nudge users with an existing v2 tree to run migrate instead.
+    if (project_dir / ".claude" / "skills" / "ade").exists() or (
+        project_dir / ".claude" / "commands"
+    ).exists():
+        rprint(
+            "[yellow]Detected a v2 ADE tree.[/yellow] Run [bold]ade migrate[/bold] to upgrade "
+            "in place — it moves your config to .ade/ and removes the stale v2 layout. "
+            "`ade init` will not run on a v2 tree (it would leave a mixed v2/v3 state)."
+        )
         raise typer.Exit(1)
+
+    try:
+        targets = selected_targets(agent)
+    except KeyError as exc:
+        valid = ", ".join(sorted(TARGETS))
+        rprint(f"[red]Error: unknown --agent value {exc}. Valid: {valid}, or 'all'.[/red]")
+        raise typer.Exit(1) from exc
 
     rprint(f"[bold]Initializing ADE in {project_dir}[/bold]")
 
@@ -198,87 +286,26 @@ def init(
     env = _get_template_env()
     ctx = {"info": info}
 
-    # Generate .ade/.gitignore
-    ade_dir = project_dir / ".ade"
-    _render_and_write(env, "ade_gitignore.j2", ade_dir / ".gitignore", ctx)
+    # Emit the full v3 tree (skills, workers, AGENTS.md, memory pointer, config seeds,
+    # bootstrap seeds) then wire deterministic hooks per target.
+    seed_results = _emit_v3(targets, env, project_dir, info, ctx)
 
-    # Generate .claude/agents/*.md (from templates/agents/)
-    _render_template_dir(env, "agents/", project_dir / ".claude" / "agents", ctx)
-
-    # Generate .claude/skills/ade/ (from templates/skills/)
-    _render_template_dir(env, "skills/", project_dir / ".claude" / "skills" / "ade", ctx)
-
-    # Generate .claude/commands/*.md (from templates/commands/)
-    commands_dir = project_dir / ".claude" / "commands"
-    _render_template_dir(env, "commands/", commands_dir, ctx)
-
-    # Deterministic commit hooks (G1/G2) — scripts always emitted to the committed
-    # .claude/hooks/ dir so they exist inside git worktrees; wiring is mode-specific.
-    _render_hooks(env, project_dir / ".claude" / "hooks", ctx)
-
-    if agent == "claude":
-        action = _emit_claude_hooks(env, project_dir, ctx)
-        rprint(f"  [green]+[/green] {action} .claude/settings.json (hook wiring)")
-    else:  # copilot
-        created = _render_and_write_if_missing(
-            env, "pre-commit-config.yaml.j2", project_dir / ".pre-commit-config.yaml", ctx
-        )
-        if created:
-            rprint("  [green]+[/green] Created .pre-commit-config.yaml")
-            rprint(
-                "    [dim]run: pre-commit install"
-                " --hook-type pre-commit --hook-type commit-msg[/dim]"
-            )
-        else:
-            rprint("  [dim]= Kept existing .pre-commit-config.yaml[/dim]")
-            rprint("    [dim]Add the ADE `repo: local` hooks block manually — see docs.[/dim]")
-
-    # Seed .claude/ade-stack.md (G5b) — ADE-tooling config, seed-if-missing, user-owned.
-    stack_dest = project_dir / ".claude" / "ade-stack.md"
-    if _render_and_write_if_missing(env, "stack.md.j2", stack_dest, ctx):
-        rprint("  [green]+[/green] Created .claude/ade-stack.md")
-    else:
-        rprint("  [dim]= Kept existing .claude/ade-stack.md[/dim]")
-
-    # Seed .claude/ade-routing.json (G4) — routing config, seed-if-missing, user-owned.
-    routing_dest = project_dir / ".claude" / "ade-routing.json"
-    if _render_and_write_if_missing(env, "ade-routing.json.j2", routing_dest, ctx):
-        rprint("  [green]+[/green] Created .claude/ade-routing.json")
-    else:
-        rprint("  [dim]= Kept existing .claude/ade-routing.json[/dim]")
-
-    # Update CLAUDE.md with ADE section
-    ade_section_template = env.get_template("claude_md_section.md.j2")
-    ade_section = ade_section_template.render(**ctx)
-    _update_claude_md(project_dir, ade_section)
-
-    # Bootstrap project artifacts (CONTEXT.md glossary, docs/adr/, docs/specs/).
-    # These are user-owned project artifacts ADE seeds at init time but never
-    # overwrites afterward — grill-with-docs and the Research phase populate
-    # them incrementally during normal use.
-    bootstrap_targets = [
-        ("bootstrap/CONTEXT.md.j2", project_dir / "CONTEXT.md"),
-        (
-            "bootstrap/adr-0001-record-architecture-decisions.md.j2",
-            project_dir / "docs" / "adr" / "0001-record-architecture-decisions.md",
-        ),
-        ("bootstrap/specs-README.md.j2", project_dir / "docs" / "specs" / "README.md"),
-        ("bootstrap/learnings-README.md.j2", project_dir / "docs" / "learnings" / "README.md"),
-        ("bootstrap/review-calibration.md.j2", project_dir / "docs" / "review-calibration.md"),
-    ]
-    for template_name, dest in bootstrap_targets:
-        created = _render_and_write_if_missing(env, template_name, dest, ctx)
-        rel = dest.relative_to(project_dir)
-        if created:
+    for action, path in seed_results:
+        rel = path.relative_to(project_dir)
+        if action == "created":
             rprint(f"  [green]+[/green] Created {rel}")
         else:
             rprint(f"  [dim]= Kept existing {rel}[/dim]")
+
+    for target in targets:
+        action = emit_hooks(target, env, project_dir, ctx)
+        rprint(f"  [green]+[/green] {action} {target.name} hooks")
 
     rprint("\n[green]ADE initialized successfully![/green]")
     rprint("  Next steps:")
     rprint("    1. ade doctor          # Verify prerequisites")
     rprint("    2. claude              # Start Claude Code")
-    rprint("    3. /ade-full <task>    # Run a full SDLC cycle")
+    rprint("    3. ade-pipeline skill (run a full SDLC cycle)")
 
 
 @app.command()
@@ -322,16 +349,13 @@ def doctor(
     # Required: ADE-generated files. Their absence means `ade init` was not run
     # (or the generated tree was deleted). Recovery is a single command.
     required_paths = [
-        (".claude/skills/ade", "ADE skills directory"),
+        (".claude/skills", "ADE skills directory"),
         (".claude/agents/scout.md", "Scout agent (R2.1)"),
         (".claude/agents/synthesizer.md", "Synthesizer agent (R3.1, R5)"),
         (".claude/agents/spec-verifier.md", "Spec-verifier agent (R5 CoVe)"),
         (".claude/agents/web-researcher.md", "Web-researcher agent (R2.3)"),
-        (
-            ".claude/skills/ade/vendored/mattpocock-grill-with-docs/SKILL.md",
-            "Vendored grill-with-docs skill (R4)",
-        ),
-        (".claude/skills/ade/phases/01-research.md", "Research phase skill"),
+        (".claude/skills/grill-with-docs/SKILL.md", "Vendored grill-with-docs skill (R4)"),
+        (".claude/skills/ade-research/SKILL.md", "Research phase skill"),
         (".claude/hooks/_hooklib.py", "Hook library: _hooklib (G1/G2 dependency)"),
         (".claude/hooks/block-mixed-commit.py", "Commit hook: block-mixed-commit (G1)"),
         (".claude/hooks/check-leftover-stub.py", "Commit hook: check-leftover-stub (G2)"),
@@ -407,6 +431,10 @@ def doctor(
             rprint(f"[yellow]All required checks pass with {warnings} warning(s).[/yellow]")
         else:
             rprint("[green]All checks pass.[/green]")
+        rprint(
+            "  [dim]Tip: run ADE without installing — "
+            "`uvx ade-toolkit init --agent all` (zero-install, like npx)[/dim]"
+        )
     else:
         rprint("[red]Required checks failed. Fix issues above before running ADE workflows.[/red]")
         raise typer.Exit(1)
@@ -460,3 +488,33 @@ def status(
         table.add_row(task_id, phase, last_updated)
 
     rprint(table)
+
+
+@app.command()
+def eval(  # noqa: A001 - intentional command name
+    project_dir: Annotated[Path, typer.Option(help="Project directory")] = Path("."),
+) -> None:
+    """Statically check generated skills for quality (frontmatter, lean descriptions)."""
+    project_dir = project_dir.resolve()
+    roots = [
+        project_dir / ".claude" / "skills",
+        project_dir / ".agents" / "skills",
+    ]
+    seen: set[str] = set()
+    findings = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for f in run_eval(root):
+            key = f"{f.skill}:{f.message}"
+            if key not in seen:
+                seen.add(key)
+                findings.append(f)
+    errors = [f for f in findings if f.level == "error"]
+    for f in findings:
+        color = "red" if f.level == "error" else "yellow"
+        rprint(f"  [{color}]{f.level.upper()}[/{color}]  {f.skill}: {f.message}")
+    if errors:
+        rprint(f"[red]{len(errors)} error(s).[/red]")
+        raise typer.Exit(1)
+    rprint("[green]PASS — skills well-formed.[/green]")

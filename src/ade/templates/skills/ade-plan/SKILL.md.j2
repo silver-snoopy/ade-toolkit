@@ -1,0 +1,171 @@
+---
+name: ade-plan
+description: ADE Phase 2 — write the implementation plan (6 sections: context, ordered tasks, files, dependencies, test strategy, risks) from the Phase 1 spec.
+---
+
+# Phase 2 — Plan
+
+## Purpose
+
+Write a detailed, actionable implementation plan that any developer (or agent) could
+execute without needing to re-research. The plan is the contract between research and
+implementation.
+
+## Plan File Location
+
+Save to: `.ade/tasks/<task-id>/plan.md`
+
+## Required Sections (All 6 Mandatory)
+
+### Section 1: Context
+
+Why this change is being made. Link to the intent document. Summarize the user-approved
+approach from Phase 1.
+
+```markdown
+## 1. Context
+
+This task implements [goal from intent]. The user approved [approach] during research
+review. See `.ade/tasks/<task-id>/intent.md` for acceptance criteria.
+
+Key decisions:
+- [Decision 1 and rationale]
+- [Decision 2 and rationale]
+```
+
+### Section 2: Ordered Task List
+
+Dependency-aware, numbered task list. Each task must be specific enough that an agent can
+execute it without ambiguity.
+
+**Dependency-order rule:** build dependencies before dependents. The plan's ordered task
+list / DAG defines the order — there is no fixed package order.
+
+```markdown
+## 2. Task List
+
+### Foundation (build first — shared contracts / types)
+1. Add the `ExportFormat` contract in the shared/contracts module
+2. Re-export it from the module's public surface
+
+### Core
+3. Add the `export` query/operation in the data layer
+4. Add the export entrypoint (route / handler / command)
+5. Add unit tests for the query/operation
+6. Add tests for the entrypoint
+
+### Edge (depends on Core)
+7. Add the client-side `useExport` accessor
+8. Wire the Export action into the relevant view
+9. Add view-level tests
+```
+
+**What makes a task "specific enough to execute":**
+- Names the exact file to create or modify
+- Describes the function/component/type to add
+- References the pattern to follow (e.g., "follow the same pattern as `useNutritionDaily`")
+- Has a clear done state
+
+**Bad task:** "Implement the backend logic"
+**Good task:** "Add `queryNutritionCsv(pool, startDate, endDate)` function to
+`db/queries/measurements.ts` that returns CSV-formatted string using the same date
+filtering as `queryDailyNutritionSummary`"
+
+### Section 3: Files to Create/Modify
+
+Table format for quick reference:
+
+```markdown
+## 3. Files
+
+| Action | Path | Description |
+|--------|------|-------------|
+| CREATE | `<shared>/contracts/export.<ext>` | ExportFormat contract |
+| MODIFY | `<shared>/index.<ext>` | Re-export new contract |
+| MODIFY | `<core>/data/export_query.<ext>` | Add export query |
+| MODIFY | `<core>/entrypoints/export.<ext>` | Add export entrypoint |
+| CREATE | `<core>/entrypoints/export_test.<ext>` | Entrypoint tests |
+| MODIFY | `<edge>/views/Export.<ext>` | Add export action |
+| CREATE | `<edge>/accessors/use_export.<ext>` | Export accessor |
+| MODIFY | `docs/product-capabilities.md` | Add export capability |
+| MODIFY | `docs/architecture.md` | Add export entrypoint to the surface table |
+```
+
+**Documentation row rule:** If the task adds a route, table, service, or user-facing
+feature, the Files table MUST include a row for the affected doc file. Documentation
+is a deliverable, not an afterthought.
+
+### Section 4: Dependencies
+
+New packages, environment variables, database migrations, or external services.
+
+```markdown
+## 4. Dependencies
+
+- **New packages:** none
+- **New env vars:** none
+- **DB migrations:** none
+- **External services:** none
+```
+
+If there are dependencies, be explicit about installation commands and configuration steps.
+
+### Section 5: Test Strategy
+
+What tests to write at each level:
+
+```markdown
+## 5. Test Strategy
+
+### Unit Tests
+- `export_query` — verify output format, filtering, empty-result handling
+- Export action component — render and trigger behavior
+
+### Integration Tests
+- None needed (no new external dependencies), or list them explicitly
+
+### End-to-end / acceptance Tests
+- Map each automatable Phase-0 acceptance criterion to at least one test here
+```
+
+### Section 6: Risk Areas
+
+What could break, performance concerns, edge cases:
+
+```markdown
+## 6. Risk Areas
+
+- **Large date ranges** could produce very large CSV files — consider pagination or limit
+- **Unicode in food names** — ensure CSV encoding handles special characters
+- **Empty data** — export with no data in range should show user-friendly message, not empty file
+```
+
+## Decomposing Large Features (Scope L)
+
+For tasks affecting > 10 files, decompose into a task DAG (directed acyclic graph):
+
+```
+          ┌─ Task A (shared types) ─┐
+          │                          │
+Start ────┼─ Task B (DB migration) ──┼──── Task E (frontend) ──── Done
+          │                          │
+          └─ Task C (backend route) ─┘
+                    │
+                    └── Task D (backend tests)
+```
+
+Rules:
+- Tasks with no dependency arrows between them can run in parallel
+- Tasks that share files CANNOT run in parallel
+- Each task in the DAG maps to a subagent assignment in Phase 4
+
+## Plan Gate
+
+Before proceeding to Phase 3, verify:
+- [ ] Plan file exists at `.ade/tasks/<task-id>/plan.md`
+- [ ] All 6 sections are present and non-empty
+- [ ] Task list is dependency-ordered (dependencies before dependents)
+- [ ] Every acceptance criterion from intent is covered by at least one task
+- [ ] Test strategy covers all new behavior
+
+Do NOT proceed if the plan is incomplete.
