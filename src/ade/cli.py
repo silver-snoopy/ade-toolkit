@@ -14,7 +14,7 @@ from rich import print as rprint
 from rich.table import Table
 
 from ade.detect import detect_project, normalize_language
-from ade.harnesses import HarnessTarget, selected_targets
+from ade.harnesses import TARGETS, HarnessTarget, selected_targets
 from ade.harnesses.hooks import emit_hooks
 from ade.harnesses.memory import emit_memory_pointer
 from ade.harnesses.workers import render_worker
@@ -252,7 +252,8 @@ def init(
     try:
         targets = selected_targets(agent)
     except KeyError as exc:
-        rprint(f"[red]Error: unknown --agent value: {exc}[/red]")
+        valid = ", ".join(sorted(TARGETS))
+        rprint(f"[red]Error: unknown --agent value {exc}. Valid: {valid}, or 'all'.[/red]")
         raise typer.Exit(1) from exc
 
     rprint(f"[bold]Initializing ADE in {project_dir}[/bold]")

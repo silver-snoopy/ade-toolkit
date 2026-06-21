@@ -95,3 +95,28 @@ def test_gemini_layout(python_project: Path) -> None:
     md = (python_project / "GEMINI.md").read_text()
     assert "<!-- ADE:START -->" in md
     assert "AGENTS.md" in md
+
+
+def test_agent_all_emits_every_harness(python_project: Path) -> None:
+    result = runner.invoke(app, ["init", "--project-dir", str(python_project), "--agent", "all"])
+    assert result.exit_code == 0, result.output
+    assert (python_project / ".claude" / "skills" / "ade-research" / "SKILL.md").exists()
+    assert (python_project / ".gemini" / "agents" / "implementer.md").exists()
+    assert (python_project / ".github" / "agents" / "implementer.agent.md").exists()
+    assert (python_project / ".codex" / "agents" / "implementer.toml").exists()
+    assert (python_project / ".agents" / "skills" / "ade-research" / "SKILL.md").exists()
+    assert (python_project / "AGENTS.md").exists()
+
+
+def test_agent_list_emits_subset(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project), "--agent", "claude,gemini"])
+    assert (python_project / ".gemini" / "skills" / "ade-research" / "SKILL.md").exists()
+    assert not (python_project / ".github").exists()
+
+
+def test_unknown_agent_lists_valid_names(python_project: Path) -> None:
+    result = runner.invoke(
+        app, ["init", "--project-dir", str(python_project), "--agent", "cursor"]
+    )
+    assert result.exit_code != 0
+    assert "claude" in result.output and "gemini" in result.output
