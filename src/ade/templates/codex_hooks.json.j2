@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "python .codex/hooks/block-mixed-commit.py --stdin-json --harness codex", "timeout": 30 },
+        { "type": "command", "command": "python .codex/hooks/check-leftover-stub.py --stdin-json --harness codex", "timeout": 30 },
+        { "type": "command", "command": "python .codex/hooks/check-escalation-paths.py --stdin-json --harness codex", "timeout": 30 }
+      ]}
+    ]
+  }
+}

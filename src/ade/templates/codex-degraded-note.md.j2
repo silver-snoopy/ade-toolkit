@@ -1,0 +1,8 @@
+# Codex degraded tier
+
+Codex CLI cannot autonomously dispatch subagents (openai/codex#18513), so ADE's
+author-separation and spec-blind verification run as **in-context conventions** here:
+either grant the requested delegation when ADE asks, or run phases **sequentially** in a
+single context. The deterministic gates still hold — native Codex PreToolUse hooks enforce
+G1 (author separation), G2 (no leftover stubs), and G4 (escalation floor), and `git
+pre-commit` remains as a fallback. Upgrade path: revisit when #18513 lands.

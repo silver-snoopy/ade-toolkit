@@ -40,7 +40,24 @@ COPILOT = HarnessTarget(
     supports_at_import=False,
 )
 
-TARGETS: dict[str, HarnessTarget] = {"claude": CLAUDE, "gemini": GEMINI, "copilot": COPILOT}
+CODEX = HarnessTarget(
+    name="codex",
+    skills_dirs=(".agents/skills",),
+    workers_dir=".codex/agents",
+    worker_ext=".toml",
+    worker_format="toml",
+    hooks_dir=".codex/hooks",
+    hook_substrate="codex_toml",
+    memory_file="AGENTS.md",
+    supports_subagents=False,
+)
+
+TARGETS: dict[str, HarnessTarget] = {
+    "claude": CLAUDE,
+    "gemini": GEMINI,
+    "copilot": COPILOT,
+    "codex": CODEX,
+}
 
 
 def selected_targets(agent: str) -> list[HarnessTarget]:

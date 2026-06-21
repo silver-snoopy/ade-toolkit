@@ -36,6 +36,37 @@ def test_copilot_layout(python_project: Path) -> None:
     assert "AGENTS.md" in md
 
 
+def test_codex_layout(python_project: Path) -> None:
+    result = runner.invoke(app, ["init", "--project-dir", str(python_project), "--agent", "codex"])
+    assert result.exit_code == 0, result.output
+
+    # Skills emitted to .agents/skills (the only Codex skills dir — no .codex/skills)
+    assert (python_project / ".agents" / "skills" / "ade-research" / "SKILL.md").exists()
+
+    # Worker subagent definition (TOML format)
+    toml_path = python_project / ".codex" / "agents" / "implementer.toml"
+    assert toml_path.exists()
+    toml_text = toml_path.read_text()
+    assert "developer_instructions =" in toml_text
+    assert "'''" in toml_text  # literal multi-line string
+
+    # Codex reads AGENTS.md natively
+    assert (python_project / "AGENTS.md").exists()
+
+    # Degraded-tier note emitted
+    assert (python_project / ".ade" / "codex-degraded.md").exists()
+
+    # Hook wiring: .codex/hooks.json (JSON, not TOML)
+    hook_json = python_project / ".codex" / "hooks.json"
+    assert hook_json.exists()
+    hook_text = hook_json.read_text()
+    assert "--harness codex" in hook_text
+    assert "PreToolUse" in hook_text
+
+    # Codex memory IS AGENTS.md natively — no separate memory pointer file
+    assert not (python_project / ".codex" / "copilot-instructions").exists()
+
+
 def test_gemini_layout(python_project: Path) -> None:
     result = runner.invoke(
         app, ["init", "--project-dir", str(python_project), "--agent", "gemini"]

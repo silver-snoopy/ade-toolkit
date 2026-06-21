@@ -117,4 +117,11 @@ def _wire_copilot(target: HarnessTarget, env: Environment, project_dir: Path, ct
 
 
 def _wire_codex(target: HarnessTarget, env: Environment, project_dir: Path, ctx: dict) -> str:
-    raise NotImplementedError("wired in Task C1/C2/C3")
+    """Write .codex/hooks.json (ADE-owned; always overwrite) and the degraded-tier note."""
+    hooks_dest = project_dir / ".codex" / "hooks.json"
+    hooks_dest.parent.mkdir(parents=True, exist_ok=True)
+    hooks_dest.write_text(env.get_template("codex_hooks.json.j2").render(**ctx), encoding="utf-8")
+    note = project_dir / ".ade" / "codex-degraded.md"
+    note.parent.mkdir(parents=True, exist_ok=True)
+    note.write_text(env.get_template("codex-degraded-note.md.j2").render(**ctx), encoding="utf-8")
+    return "Created"

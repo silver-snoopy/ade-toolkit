@@ -43,3 +43,11 @@ def test_render_worker_markdown_for_claude() -> None:
     assert rel == ".claude/agents/implementer.md"
     assert "model: sonnet" in content
     assert "implementer" in content.lower()
+
+
+def test_render_worker_toml_for_codex() -> None:
+    rel, content = render_worker(TARGETS["codex"], _env(), "implementer", {"info": None})
+    assert rel == ".codex/agents/implementer.toml"
+    assert "name =" in content
+    assert "developer_instructions =" in content
+    assert "'''" in content  # body as a TOML literal multi-line string
