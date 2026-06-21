@@ -30,24 +30,24 @@ src/ade/
 ```
 .claude/
 ├── skills/            → phase skills (SKILL.md folders, shared with .agents/skills/)
-├── agents/            → worker subagent definitions (12 × .md)
+├── agents/            → worker subagent definitions (13 × .md)
 ├── hooks/             → deterministic commit hooks + _hooklib.py (G1/G2/G4)
 └── settings.json      → PreToolUse hook wiring (claude harness)
 
 .gemini/
 ├── skills/            → phase skills (SKILL.md folders, shared with .agents/skills/)
-├── agents/            → worker subagent definitions (12 × .md)
+├── agents/            → worker subagent definitions (13 × .md)
 ├── hooks/             → deterministic hooks (same scripts, gemini wiring)
 └── settings.json      → PreToolUse hook wiring (gemini harness)
 
 .github/
 ├── skills/            → phase skills (SKILL.md folders, shared with .agents/skills/)
-├── agents/            → worker subagent definitions (12 × .agent.md)
+├── agents/            → worker subagent definitions (13 × .agent.md)
 ├── hooks/             → deterministic hooks (copilot wiring)
 └── copilot-instructions.md   → thin ADE memory pointer
 
 .codex/
-├── agents/            → worker subagent definitions (12 × .toml)
+├── agents/            → worker subagent definitions (13 × .toml)
 └── hooks/             → deterministic hooks (codex wiring, hooks.json / config.toml)
 
 .agents/
@@ -92,7 +92,7 @@ CONTEXT.md             → domain glossary (user-owned after seed)
 | 0 — Intent | Extract structured requirements | Orchestrator | `.ade/tasks/<id>/intent.md` |
 | 1 — Research | Produce verified durable spec | R1–R5 (see below) | `docs/specs/{date}_{slug}.spec.md`, `CONTEXT.md` updates, `docs/adr/NNNN-*.md` |
 | 2 — Plan | Write implementation plan | Orchestrator | `.ade/tasks/<id>/plan.md` (6 mandatory sections) |
-| 3 — Design check | Generate stubs in worktree | Sonnet subagent | Stub files matching plan |
+| 3 — Design check | Generate stubs in worktree, then blind-review them | Sonnet subagent (stubs) + `stub-reviewer` (blind) | Stub files matching plan; reviewer `APPROVE`/`REJECT` |
 | 4 — Implement | Author-separated TDD: write failing tests then drive them to green | `test-writer` (RED) → `implementer` (GREEN) | Tests + code in worktree |
 | 5 — Quality gate | Lint, format, build, tests | Haiku subagent | Pass/fail with fix loop (max 3) |
 | 6 — Review | Multi-aspect code review | `pr-review-toolkit` (preferred) or 3 parallel Sonnet subagents (fallback) | Findings table (Critical / Important / Suggestions / Positive) |
@@ -318,7 +318,9 @@ User confirms readiness. The spec is now the contract for the Development phase.
 These phases retain the structure that predates the v5 Research rewrite. They are functional and produce useful work, but they would benefit from the same rigor pass applied to Phase 1. A future thread will rework them.
 
 - **Phase 2 — Plan**: 6 mandatory sections (Context, Ordered task list, Files, Dependencies, Test strategy, Risk areas). Primary input: the spec from R5.
-- **Phase 3 — Design check**: Subagent in worktree generates file stubs from plan. Max 2 iterations.
+- **Phase 3 — Design check**: Subagent in worktree generates file stubs from plan; a blind
+  `stub-reviewer` (sees spec + plan + stubs, never the author's reasoning) then rejects
+  wrong-but-compiling contracts. Standard + architecture tiers. Max 2 iterations (shared).
 - **Phase 4 — Implement**: Author-separated TDD. Phase 4a: `test-writer` writes failing tests covering the plan's acceptance criteria and commits them alone (RED). Phase 4b: one or more `implementer` subagents (disjoint file assignments) drive those tests to GREEN, never editing test files. Build dependencies before dependents (the task DAG defines order). The `block-mixed-commit` hook enforces the commit boundary between phases.
 - **Phase 5 — Quality gate**: Lint, format, build, tests. Fix loop max 3.
 - **Phase 6 — Review**: `pr-review-toolkit` preferred; fallback is 3 parallel subagents (Logic / Conventions / Security). Findings classified Critical / Important / Suggestions / Positive. Review-fix cycle max 3.
@@ -406,6 +408,7 @@ All subagents are defined as Markdown files under `.claude/agents/` with YAML fr
 | `security-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `test-runner` | haiku | Read, Bash | Phase 5 |
 | `plan-reviewer` | sonnet | Read, Grep, Glob | Phase 2 (standard: coverage matrix; architecture: full refutation) |
+| `stub-reviewer` | sonnet | Read, Grep, Glob | Phase 3 (blind stub review, standard + architecture) |
 | `pr-reviewer` | sonnet | Read, Grep, Glob, Bash | `ade-pr-review` skill (GitHub PR loop) |
 | `compounder` | sonnet | Read, Grep, Glob | Phase 9 (Codify) |
 

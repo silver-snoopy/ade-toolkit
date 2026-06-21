@@ -61,8 +61,10 @@ Dependencies, Test strategy, Risk areas. The plan consumes the spec at
 
 **◆ PLAN GATE ◆**: Verify plan completeness before proceeding.
 
-**Phase 3 — DESIGN CHECK**: Dispatch a Sonnet subagent in a worktree to
-create file stubs. Review for plan alignment (max 2 iterations).
+**Phase 3 — DESIGN CHECK**: Dispatch a Sonnet subagent in a worktree to create file stubs.
+Self-check coverage/build/imports, then dispatch the blind `stub-reviewer` (sees spec + plan
++ stubs, never the author's reasoning) to reject wrong-but-compiling contracts. Standard +
+architecture tiers; max 2 iterations (shared).
 
 **Phase 4 — IMPLEMENT**: test-writer (RED) → implementer (GREEN), author-separated.
 Step 4a: `test-writer` subagent writes FAILING tests, commits them alone (`test:`).

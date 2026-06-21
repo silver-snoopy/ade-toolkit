@@ -371,6 +371,23 @@ def test_init_generates_plan_reviewer_agent(python_project: Path) -> None:
     assert "@vitals" not in content
 
 
+def test_init_generates_stub_reviewer_agent(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agent = python_project / ".claude" / "agents" / "stub-reviewer.md"
+    assert agent.exists()
+    content = agent.read_text()
+    assert "model:" in content and "sonnet" in content
+    # blind: reviews stubs against spec + plan, never the stub author's reasoning
+    assert "stub" in content.lower()
+    assert "blind" in content.lower() or "reasoning" in content.lower()
+    # produces a binding verdict like the other independent reviewers
+    assert "APPROVE" in content and "REJECT" in content
+    # read-only: no Write/Edit/Bash in the tool list
+    assert "Write" not in content and "Edit" not in content and "Bash" not in content
+    # language-agnostic
+    assert "@vitals" not in content
+
+
 def test_init_generates_compounder_agent(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     agent_path = python_project / ".claude" / "agents" / "compounder.md"

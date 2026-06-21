@@ -42,7 +42,7 @@ ade-toolkit/
 │   │   ├── hooks.py                    # emit_hooks() — per-substrate wiring
 │   │   └── memory.py                   # emit_memory_pointer() — thin ADE block
 │   └── templates/
-│       ├── agents/                     # 12 worker subagent definition templates
+│       ├── agents/                     # 13 worker subagent definition templates
 │       ├── skills/                     # One <skill>/SKILL.md.j2 folder per phase
 │       │   ├── ade-intent/SKILL.md.j2
 │       │   ├── ade-research/SKILL.md.j2
