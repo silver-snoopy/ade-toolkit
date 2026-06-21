@@ -185,7 +185,7 @@ Claude Haiku  (subagents)
 └── test-runner      (Phase 5)
 ```
 
-No runtime framework. Skills are SKILL.md folders; workers are Markdown or TOML. `ade init` writes them. The selected harness is the runtime — its native Agent tool dispatches subagents, native worktree support isolates implementation, native Edit/Write/Bash handle the work, and native PreToolUse hooks enforce the deterministic gates.
+No runtime framework. Skills are SKILL.md folders; workers are Markdown or TOML. `ade init` writes them. The selected harness is the runtime — its native Agent tool dispatches subagents, native worktree support isolates implementation, native Edit/Write/Bash handle the work, and native PreToolUse hooks enforce the deterministic gates. **Codex is a degraded tier**: it cannot yet autonomously dispatch subagents (openai/codex#18513), so author-separation and the blind verifier run as in-context conventions there — but Codex's native PreToolUse hooks still deterministically enforce the hard gates.
 
 ## Orchestrator invariants
 

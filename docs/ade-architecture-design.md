@@ -116,7 +116,7 @@ The closing sub-step of Phase 0 assigns a **tier** that masks which phases run:
 deterministic rule set decides **forced-escalation** — security/auth/secrets/crypto/
 data-loss force a floor of `standard`, and schema/migrations/public-API/ADR-or-model force
 `architecture`, regardless of estimated size. Rules + globs live in the user-owned
-`.claude/ade-routing.json`.
+`.ade/ade-routing.json`.
 
 **Two-layer enforcement.** Phase 0 applies the rules to the *declared* affected areas (no
 diff exists yet). The `check-escalation-paths` commit hook re-checks the *actual* diff at
@@ -275,7 +275,7 @@ Phase-prompt framing wraps the skill so the spec is treated as the "plan" the sk
 
 `grill-with-docs` outputs:
 
-- **CONTEXT.md updates** — incrementally, inline. Glossary entries follow the format in `vendored/mattpocock-grill-with-docs/CONTEXT-FORMAT.md`.
+- **CONTEXT.md updates** — incrementally, inline. Glossary entries follow the format in `grill-with-docs/CONTEXT-FORMAT.md`.
 - **ADRs (sparingly)** — `docs/adr/NNNN-slug.md`, sequential numbering. Three-criteria gate: hard-to-reverse, surprising-without-context, real trade-off. If any criterion is missing, the skill skips the ADR.
 
 R4 **always runs**. It is *trivial* when the spec already uses CONTEXT.md vocabulary and reflects existing ADRs (Socratic loop ends quickly, zero updates). It is *substantive* when the spec introduces new terms or architectural decisions.
@@ -350,7 +350,7 @@ Three Python scripts committed under `.claude/hooks/` act as a hard gate on comm
 - **`check-escalation-paths.py`** — for an ADE-routed task (`ade/<task-id>` branch), rejects
   a commit whose diff touches escalation paths (security/auth/secrets, schema/migrations,
   public-API) below the task's routed floor. Baseline globs are compiled in;
-  `.claude/ade-routing.json` may only extend them. No-op off an `ade/*` branch.
+  `.ade/ade-routing.json` may only extend them. No-op off an `ade/*` branch.
 
 All three scripts share common detection logic via `_hooklib.py` (also in `.claude/hooks/`), so they work identically regardless of which substrate wires them.
 
@@ -361,7 +361,7 @@ All four harnesses ship native PreToolUse (blocking) hooks, all consuming the sa
 - **`--agent claude`** (default): writes `.claude/settings.json` with PreToolUse(Bash) entries.
 - **`--agent gemini`**: writes `.gemini/settings.json` with PreToolUse(Bash) entries.
 - **`--agent copilot`**: writes `.github/hooks/*.json` (`preToolUse` deny entries). `_hooklib` handles Copilot's camelCase field names via the per-harness envelope parser.
-- **`--agent codex`**: writes `hooks.json` / `[hooks]` in `config.toml` under `.codex/hooks/`.
+- **`--agent codex`**: writes `hooks.json` / `[hooks]` in `config.toml` under `.codex/hooks/`. **Codex is a degraded tier**: it cannot yet autonomously dispatch subagents (openai/codex#18513), so author-separation and the blind verifier run as in-context conventions there — but Codex's native PreToolUse hooks still deterministically enforce the hard gates (G1/G2/G4).
 
 `git pre-commit` (`.pre-commit-config.yaml`) is demoted to an **optional belt-and-suspenders fallback** for non-ADE commits or CI, not the primary gate.
 

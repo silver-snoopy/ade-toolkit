@@ -12,7 +12,7 @@ ADE (Agentic Development Environment) is a Python bootstrapper that scaffolds AI
 - **Skills are Markdown** — one `<skill>/SKILL.md` folder per phase, emitted to each harness's skills directory (and the shared `.agents/skills/`)
 - **Workers are Markdown (or TOML for Codex)** — per-harness worker subagent definitions (`.md` / `.agent.md` / `.toml`) carry model + tool assignments and live in each harness's workers directory
 - **The bootstrapper only scaffolds** — it doesn't run agents, execute code, or manage state
-- **Each harness IS the runtime** — Claude Code, Gemini CLI, Copilot, or Codex dispatches subagents, handles worktree isolation, and runs file I/O natively
+- **Each harness IS the runtime** — Claude Code, Gemini CLI, Copilot, or Codex dispatches subagents, handles worktree isolation, and runs file I/O natively. **Codex is a degraded tier**: it cannot yet autonomously dispatch subagents (openai/codex#18513), so author-separation and the blind verifier run as in-context conventions there — but Codex's native PreToolUse hooks still deterministically enforce the hard gates.
 - **External skills are vendored with attribution** under `src/ade/templates/skills/grill-with-docs/` (currently `grill-with-docs`, MIT)
 
 ## Research phase (Phase 1) at a glance
