@@ -513,3 +513,15 @@ def test_doctor_mentions_uvx(python_project: Path) -> None:
     # We check for the specific command prefix, not just "uvx" (which may appear in the
     # pytest tmp-path that contains the test function name).
     assert "uvx ade-toolkit" in result.output
+
+
+def test_init_on_v2_tree_exits_without_emitting(python_project: Path) -> None:
+    # simulate a v2 tree
+    (python_project / ".claude" / "commands").mkdir(parents=True)
+    (python_project / ".claude" / "commands" / "ade_full.md").write_text("old\n")
+    result = runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert result.exit_code != 0
+    assert "migrate" in result.output
+    # init must NOT have emitted v3 artifacts
+    assert not (python_project / "AGENTS.md").exists()
+    assert not (python_project / ".claude" / "skills" / "ade-pipeline").exists()

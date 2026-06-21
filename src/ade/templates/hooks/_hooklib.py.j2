@@ -96,7 +96,8 @@ def _harness() -> str:
 
 
 # Each parser maps the harness's PreToolUse JSON envelope to the shell command string.
-# Field names differ per harness (Copilot uses camelCase); verified at build time in Phase C.
+# All four harnesses' PreToolUse payloads expose the shell command at `tool_input.command`
+# (Copilot via the PascalCase `PreToolUse` event); see docs/harness-locations.md.
 _ENVELOPE = {
     "claude": lambda p: str(p.get("tool_input", {}).get("command", "")),
     "gemini": lambda p: str(p.get("tool_input", {}).get("command", "")),

@@ -151,11 +151,14 @@ def _emit_v3(
     project_dir: Path,
     info: object,
     ctx: dict,
-) -> None:
+) -> list[tuple[str, Path]]:
     """Emit the full v3 tree for the selected targets (excluding hook wiring).
 
     Used by both init() and migrate(). Hook wiring is handled by the callers
     so that each target is wired independently.
+
+    Returns the combined seed results (action, path) from _seed_config and
+    _seed_bootstrap so callers can report per-file progress if desired.
     """
     _render_and_write(env, "ade_gitignore.j2", project_dir / ".ade" / ".gitignore", ctx)
     _emit_skills(targets, env, project_dir, ctx)
@@ -163,8 +166,9 @@ def _emit_v3(
     _render_and_write(env, "AGENTS.md.j2", project_dir / "AGENTS.md", ctx)
     for target in targets:
         emit_memory_pointer(target, env, project_dir, ctx)
-    _seed_config(env, project_dir, ctx)
-    _seed_bootstrap(env, project_dir, ctx)
+    seed_results = _seed_config(env, project_dir, ctx)
+    seed_results += _seed_bootstrap(env, project_dir, ctx)
+    return seed_results
 
 
 _OLD_ADE_SECTION_RE = re.compile(
@@ -253,7 +257,12 @@ def init(
     if (project_dir / ".claude" / "skills" / "ade").exists() or (
         project_dir / ".claude" / "commands"
     ).exists():
-        rprint("[yellow]Detected a v2 ADE tree. Run `ade migrate` to upgrade.[/yellow]")
+        rprint(
+            "[yellow]Detected a v2 ADE tree.[/yellow] Run [bold]ade migrate[/bold] to upgrade "
+            "in place — it moves your config to .ade/ and removes the stale v2 layout. "
+            "`ade init` will not run on a v2 tree (it would leave a mixed v2/v3 state)."
+        )
+        raise typer.Exit(1)
 
     try:
         targets = selected_targets(agent)
@@ -279,7 +288,14 @@ def init(
 
     # Emit the full v3 tree (skills, workers, AGENTS.md, memory pointer, config seeds,
     # bootstrap seeds) then wire deterministic hooks per target.
-    _emit_v3(targets, env, project_dir, info, ctx)
+    seed_results = _emit_v3(targets, env, project_dir, info, ctx)
+
+    for action, path in seed_results:
+        rel = path.relative_to(project_dir)
+        if action == "created":
+            rprint(f"  [green]+[/green] Created {rel}")
+        else:
+            rprint(f"  [dim]= Kept existing {rel}[/dim]")
 
     for target in targets:
         action = emit_hooks(target, env, project_dir, ctx)
