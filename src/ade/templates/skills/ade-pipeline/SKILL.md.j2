@@ -1,3 +1,9 @@
+---
+name: ade-pipeline
+description: ADE end-to-end SDLC driver — sequences Phases 0→9 (intent→research→plan→design-check→implement→quality-gate→review→docs→ship→retro) with routing-tier masking and circuit breakers. Invoke explicitly to run a full cycle.
+disable-model-invocation: true
+---
+
 Run the complete ADE SDLC cycle for: $ARGUMENTS
 
 You are executing a structured development pipeline. Follow each phase sequentially.
@@ -47,7 +53,7 @@ Update `.ade/tasks/<task-id>/status.md`: `Phase 0/9 — Intent captured`
 **Preferred mechanism:** Read spec file directly.
 **Allowed fallback:** Parse text description; ask clarifying questions if ambiguous.
 
-For detailed instructions, see [phases/00-intent.md](phases/00-intent.md).
+For detailed instructions, see [ade-intent/SKILL.md](../ade-intent/SKILL.md).
 
 **Then route (closing sub-step 0d):** assign a tier — `trivial` / `standard` /
 `architecture` — from Type + Affected Areas + Scope, applying the forced-escalation rules
@@ -56,7 +62,7 @@ in `.claude/ade-routing.json` first (security/auth/secrets/crypto/data-loss → 
 treat as ≥ standard). Record `Tier: <tier>` to `.ade/tasks/<task-id>/routing.md`, announce
 it, and — for `architecture` or any forced-escalation — get explicit user confirmation
 before Phase 1. The tier masks which phases run (see each phase heading). See
-[phases/00-intent.md](phases/00-intent.md) for the full routing rules.
+[ade-intent/SKILL.md](../ade-intent/SKILL.md) for the full routing rules.
 
 **Exit criteria:** Goal and acceptance criteria clearly stated. Intent file saved. Tier
 assigned, recorded, and (if architecture/forced) confirmed.
@@ -83,7 +89,7 @@ Produce a verified, durable spec in five sub-steps (R1–R5). The phase accumula
 
 **Allowed fallback:** If subagent dispatch fails, the orchestrator may run R2.1 / R2.3 inline using Read/Grep/Glob / WebSearch / WebFetch directly. The iterative-retrieval discipline, citation invariants, ambiguity taxonomy, and CoVe verifier-isolation rule still apply.
 
-For detailed instructions, see [phases/01-research.md](phases/01-research.md).
+For detailed instructions, see [ade-research/SKILL.md](../ade-research/SKILL.md).
 
 **Exit criteria:** Spec file finalized at `docs/specs/{date}_{slug}.spec.md`. CONTEXT.md and `docs/adr/` reflect any new domain knowledge. User confirmed readiness to proceed.
 
@@ -127,7 +133,7 @@ Required sections:
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 2/9 — Plan written`
 
-For detailed instructions, see [phases/02-plan.md](phases/02-plan.md).
+For detailed instructions, see [ade-plan/SKILL.md](../ade-plan/SKILL.md).
 
 **Exit criteria:** Plan file written with all 6 sections. Each task specific enough to execute.
 
@@ -172,7 +178,7 @@ Review stubs for plan alignment. Re-dispatch if needed (max 2 iterations).
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 3/9 — Stubs generated`
 
-For detailed instructions, see [phases/03-design-check.md](phases/03-design-check.md).
+For detailed instructions, see [ade-design-check/SKILL.md](../ade-design-check/SKILL.md).
 
 **Exit criteria:** Stub files created in worktree. Module structure matches plan.
 
@@ -201,7 +207,7 @@ impl commit) and the RED→GREEN discipline still applies.
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 4/9 — Implementing`
 
-For detailed instructions, see [phases/04-implement.md](phases/04-implement.md).
+For detailed instructions, see [ade-implement/SKILL.md](../ade-implement/SKILL.md).
 
 **Exit criteria:** All tests pass. Build passes. No stub markers in committed source.
 
@@ -228,7 +234,7 @@ If failures: dispatch a Sonnet fixer subagent (max 3 attempts).
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 5/9 — QA gate [PASS|FAIL]`
 
-For detailed instructions, see [phases/05-quality-gate.md](phases/05-quality-gate.md).
+For detailed instructions, see [ade-quality-gate/SKILL.md](../ade-quality-gate/SKILL.md).
 
 **Exit criteria:** All automated checks pass. No unresolved failures.
 
@@ -275,7 +281,7 @@ Multi-lens code review to catch issues before verification.
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 6/9 — Review [APPROVED|FIXING]`
 
-For detailed instructions, see [phases/06-review.md](phases/06-review.md).
+For detailed instructions, see [ade-review/SKILL.md](../ade-review/SKILL.md).
 
 **Exit criteria:** No unresolved Critical/Important findings. Build still passes. Simplification pass complete.
 
@@ -299,7 +305,7 @@ Required updates (conditional on change type):
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 7/9 — Docs updated`
 
-For detailed instructions, see [phases/07-docs.md](phases/07-docs.md).
+For detailed instructions, see [ade-docs/SKILL.md](../ade-docs/SKILL.md).
 
 **Exit criteria:** All affected documentation updated. New features have UC entries.
 
@@ -322,7 +328,7 @@ Steps:
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 8/9 — PR created`
 
-For detailed instructions, see [phases/08-ship.md](phases/08-ship.md).
+For detailed instructions, see [ade-ship/SKILL.md](../ade-ship/SKILL.md).
 
 **Exit criteria:** PR created. URL returned to user.
 
@@ -353,7 +359,7 @@ Save to `.ade/tasks/<task-id>/retro.json`:
 `docs/review-calibration.md`. Always merge findings into `docs/review-calibration.md`
 (frequency orders, never promotes severity); write `docs/learnings/{date}_{slug}.md` only
 when a transferable Learning is returned. Surface the review-findings signal. Full procedure
-in `phases/09-retro.md`.
+in `ade-retro/SKILL.md`.
 
 Clean up worktree after merge: `git worktree remove .ade/worktrees/<task-id>`
 

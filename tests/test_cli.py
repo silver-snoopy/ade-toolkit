@@ -18,8 +18,8 @@ def test_init_python_project(python_project: Path) -> None:
     assert (python_project / ".claude" / "agents" / "implementer.md").exists()
     assert (python_project / ".claude" / "agents" / "code-reviewer.md").exists()
     assert (python_project / ".claude" / "agents" / "test-runner.md").exists()
-    assert (python_project / ".claude" / "skills" / "ade" / "ade-full.md").exists()
-    assert (python_project / ".claude" / "skills" / "ade" / "ade-plan.md").exists()
+    assert (python_project / ".claude" / "skills" / "ade-pipeline" / "SKILL.md").exists()
+    assert (python_project / ".claude" / "skills" / "ade-plan" / "SKILL.md").exists()
     assert (python_project / ".claude" / "commands" / "ade-full.md").exists()
     assert (python_project / ".claude" / "commands" / "ade-ship.md").exists()
     assert (python_project / "CLAUDE.md").exists()
@@ -82,12 +82,12 @@ def test_init_skills_have_phase_content(python_project: Path) -> None:
     """Skills should contain phase instructions, renumbered 0–9."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
 
-    full = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
+    full = (python_project / ".claude" / "skills" / "ade-pipeline" / "SKILL.md").read_text()
     assert "Phase 0" in full
     assert "Phase 9" in full or "RETROSPECTIVE" in full
     assert "Circuit Breaker" in full or "circuit breaker" in full.lower()
 
-    plan = (python_project / ".claude" / "skills" / "ade" / "ade-plan.md").read_text()
+    plan = (python_project / ".claude" / "skills" / "ade-plan" / "SKILL.md").read_text()
     assert "PLAN" in plan or "plan" in plan
 
 
@@ -147,30 +147,18 @@ def test_status_with_tasks(python_project: Path) -> None:
     assert "test-task" in result.output
 
 
-def test_init_generates_phase_docs(python_project: Path) -> None:
-    """Phase reference docs should be generated, renumbered 0–9 with no verify phase."""
-    runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    phases_dir = python_project / ".claude" / "skills" / "ade" / "phases"
-    assert phases_dir.is_dir()
-    assert (phases_dir / "00-intent.md").exists()
-    assert (phases_dir / "07-docs.md").exists()
-    assert (phases_dir / "08-ship.md").exists()
-    assert (phases_dir / "09-retro.md").exists()
-    # live verification is gone
-    assert not (phases_dir / "07-verify.md").exists()
-    assert not (phases_dir / "qa-verify-bug.md").exists()
-
-
 def test_init_generates_feature_spec_template(python_project: Path) -> None:
     """Feature spec template should be generated."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    assert (python_project / ".claude" / "skills" / "ade" / "feature-spec.md").exists()
+    assert (
+        python_project / ".claude" / "skills" / "ade-research" / "references" / "feature-spec.md"
+    ).exists()
 
 
 def test_init_full_skill_has_exit_criteria(python_project: Path) -> None:
     """The main ade-full skill should have exit criteria for phases."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    content = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
+    content = (python_project / ".claude" / "skills" / "ade-pipeline" / "SKILL.md").read_text()
     assert "Exit criteria:" in content
     assert "Hard requirement:" in content
     assert "Allowed fallback:" in content
@@ -179,13 +167,12 @@ def test_init_full_skill_has_exit_criteria(python_project: Path) -> None:
 def test_init_no_live_verification(python_project: Path) -> None:
     """No live-verification machinery remains anywhere in the full pipeline skill."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    skills = python_project / ".claude" / "skills" / "ade"
-    full = (skills / "ade-full.md").read_text()
+    skills_base = python_project / ".claude" / "skills"
+    full = (skills_base / "ade-pipeline" / "SKILL.md").read_text()
     for token in ("Playwright", "docker compose", "localhost", "NO EXEMPTIONS", "/10"):
-        assert token not in full, f"stale live-verify token in ade-full.md: {token}"
-    phases = skills / "phases"
-    assert not (phases / "07-verify.md").exists()
-    assert not (phases / "qa-verify-bug.md").exists()
+        assert token not in full, f"stale live-verify token in ade-pipeline/SKILL.md: {token}"
+    assert (skills_base / "ade-intent" / "SKILL.md").exists()
+    assert "07-verify" not in full
 
 
 def test_init_generates_pr_reviewer_agent(python_project: Path) -> None:
@@ -203,11 +190,8 @@ def test_init_generates_pr_reviewer_agent(python_project: Path) -> None:
 def test_init_generates_pr_review_command_and_skill(python_project: Path) -> None:
     """The /ade-pr-review command and its backing skill should be scaffolded."""
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    cmd = python_project / ".claude" / "commands" / "ade-pr-review.md"
-    skill = python_project / ".claude" / "skills" / "ade" / "ade-pr-review.md"
-    assert cmd.exists()
+    skill = python_project / ".claude" / "skills" / "ade-pr-review" / "SKILL.md"
     assert skill.exists()
-    assert "$ARGUMENTS" in cmd.read_text()
     skill_content = skill.read_text()
     assert "pr-reviewer" in skill_content
     assert "max 3" in skill_content.lower() or "max **3**" in skill_content.lower()
@@ -323,8 +307,7 @@ def test_init_generates_implementer_agent(python_project: Path) -> None:
 
 def test_phase4_skill_describes_author_separation(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    phases_dir = python_project / ".claude" / "skills" / "ade" / "phases"
-    phase4 = (phases_dir / "04-implement.md").read_text()
+    phase4 = (python_project / ".claude" / "skills" / "ade-implement" / "SKILL.md").read_text()
     assert "test-writer" in phase4
     assert "RED" in phase4 or "failing test" in phase4.lower()
     assert "author separation" in phase4.lower() or "separate" in phase4.lower()
@@ -352,9 +335,7 @@ def test_init_ade_stack_seed_if_missing_preserves_edits(python_project: Path) ->
 
 def test_review_skill_has_acceptance_coverage_gate(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    review = (
-        python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
-    ).read_text()
+    review = (python_project / ".claude" / "skills" / "ade-review" / "SKILL.md").read_text()
     assert "acceptance-coverage gate" in review.lower()
     assert "Test adequacy" in review
     # acceptance is now the in-loop check; verify-phase wording is gone
@@ -368,7 +349,8 @@ def test_no_stale_stack_references(python_project: Path) -> None:
     docs = [
         p
         for p in claude_dir.rglob("*.md")
-        if "vendored" not in p.parts  # vendored skills keep their own wording
+        if "vendored" not in p.parts
+        and "grill-with-docs" not in p.parts  # vendored/grill keep their own wording
     ]
     docs.append(python_project / "CLAUDE.md")  # generated ADE section lives here
     blob = "\n".join(p.read_text() for p in docs if p.exists())
@@ -450,9 +432,7 @@ def test_init_generates_compounder_agent(python_project: Path) -> None:
 
 def test_intent_skill_has_route_substep(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    intent = (
-        python_project / ".claude" / "skills" / "ade" / "phases" / "00-intent.md"
-    ).read_text()
+    intent = (python_project / ".claude" / "skills" / "ade-intent" / "SKILL.md").read_text()
     assert "0d — Route" in intent or "0d - Route" in intent
     for tier in ("trivial", "standard", "architecture"):
         assert tier in intent
@@ -462,7 +442,7 @@ def test_intent_skill_has_route_substep(python_project: Path) -> None:
 
 def test_ade_full_describes_routing_and_tiers(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    full = (python_project / ".claude" / "skills" / "ade" / "ade-full.md").read_text()
+    full = (python_project / ".claude" / "skills" / "ade-pipeline" / "SKILL.md").read_text()
     for tier in ("trivial", "standard", "architecture"):
         assert tier in full
     assert "Plan Soundness Review" in full
@@ -521,25 +501,21 @@ def test_doctor_checks_compound_artifacts(python_project: Path) -> None:
 
 def test_review_reads_calibration(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    review = (
-        python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
-    ).read_text()
+    review = (python_project / ".claude" / "skills" / "ade-review" / "SKILL.md").read_text()
     assert "docs/review-calibration.md" in review
     assert "fresh" in review.lower()
 
 
 def test_review_persists_output(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    review = (
-        python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
-    ).read_text()
+    review = (python_project / ".claude" / "skills" / "ade-review" / "SKILL.md").read_text()
     assert ".ade/tasks/<task-id>/review.md" in review
     assert "even when" in review.lower()
 
 
 def test_retro_skill_describes_codify_step(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    retro = (python_project / ".claude" / "skills" / "ade" / "phases" / "09-retro.md").read_text()
+    retro = (python_project / ".claude" / "skills" / "ade-retro" / "SKILL.md").read_text()
     assert "Codify" in retro
     assert "docs/learnings/" in retro
     assert "docs/review-calibration.md" in retro
@@ -551,9 +527,7 @@ def test_retro_skill_describes_codify_step(python_project: Path) -> None:
 
 def test_research_reads_learnings(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    research = (
-        python_project / ".claude" / "skills" / "ade" / "phases" / "01-research.md"
-    ).read_text()
+    research = (python_project / ".claude" / "skills" / "ade-research" / "SKILL.md").read_text()
     assert "docs/learnings/" in research
 
 

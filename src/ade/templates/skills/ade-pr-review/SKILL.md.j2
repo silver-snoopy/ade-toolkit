@@ -1,3 +1,8 @@
+---
+name: ade-pr-review
+description: ADE post-merge loop — dispatch the pr-reviewer agent against a GitHub PR (MCP or gh fallback), apply fixes in the PR worktree, re-review. Bounded to 3 cycles; never auto-merges.
+---
+
 Run the ADE GitHub PR review-and-fix loop for: $ARGUMENTS
 
 The orchestrator never edits code itself. It dispatches the `pr-reviewer` agent

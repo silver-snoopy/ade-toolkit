@@ -15,7 +15,7 @@ from rich import print as rprint
 from rich.table import Table
 
 from ade.detect import detect_project, normalize_language
-from ade.harnesses import selected_targets
+from ade.harnesses import HarnessTarget, selected_targets
 
 app = typer.Typer(
     name="ade",
@@ -116,6 +116,24 @@ def _render_hooks(env: Environment, hooks_dir: Path, context: dict) -> None:
         _render_and_write(env, f"hooks/{name}.j2", hooks_dir / name, context)
 
 
+def _emit_skills(
+    targets: list[HarnessTarget], env: Environment, project_dir: Path, ctx: dict
+) -> None:
+    """Render every templates/skills/<skill>/** file into each target's skills dirs.
+
+    SKILL.md content is identical on every harness; only the destination dirs differ.
+    Each unique dir across the selected targets is written once.
+    """
+    dest_dirs = {d for t in targets for d in t.skills_dirs}
+    prefix = "skills/"
+    for template_name in env.loader.list_templates():
+        if not template_name.startswith(prefix) or not template_name.endswith(".j2"):
+            continue
+        rel = template_name[len(prefix) : -len(".j2")]  # e.g. "ade-implement/SKILL.md"
+        for d in dest_dirs:
+            _render_and_write(env, template_name, project_dir / d / rel, ctx)
+
+
 def _merge_hooks(current: dict, ade: dict) -> dict:
     """Idempotently merge ADE PreToolUse hook commands into an existing settings dict."""
     merged = copy.deepcopy(current)
@@ -182,11 +200,11 @@ def init(
 
     if agent == "copilot":
         legacy_copilot = True
-        targets = selected_targets("claude")  # v2 shim: Claude tree + pre-commit  # noqa: F841
+        targets = selected_targets("claude")  # v2 shim: Claude tree + pre-commit
     else:
         legacy_copilot = False
         try:
-            targets = selected_targets(agent)  # noqa: F841
+            targets = selected_targets(agent)
         except KeyError as exc:
             rprint(f"[red]Error: unknown --agent value: {exc}[/red]")
             raise typer.Exit(1) from exc
@@ -213,8 +231,8 @@ def init(
     # Generate .claude/agents/*.md (from templates/agents/)
     _render_template_dir(env, "agents/", project_dir / ".claude" / "agents", ctx)
 
-    # Generate .claude/skills/ade/ (from templates/skills/)
-    _render_template_dir(env, "skills/", project_dir / ".claude" / "skills" / "ade", ctx)
+    # Generate skills into each target's skills dirs (from templates/skills/)
+    _emit_skills(targets, env, project_dir, ctx)
 
     # Generate .claude/commands/*.md (from templates/commands/)
     commands_dir = project_dir / ".claude" / "commands"
@@ -330,16 +348,13 @@ def doctor(
     # Required: ADE-generated files. Their absence means `ade init` was not run
     # (or the generated tree was deleted). Recovery is a single command.
     required_paths = [
-        (".claude/skills/ade", "ADE skills directory"),
+        (".claude/skills", "ADE skills directory"),
         (".claude/agents/scout.md", "Scout agent (R2.1)"),
         (".claude/agents/synthesizer.md", "Synthesizer agent (R3.1, R5)"),
         (".claude/agents/spec-verifier.md", "Spec-verifier agent (R5 CoVe)"),
         (".claude/agents/web-researcher.md", "Web-researcher agent (R2.3)"),
-        (
-            ".claude/skills/ade/vendored/mattpocock-grill-with-docs/SKILL.md",
-            "Vendored grill-with-docs skill (R4)",
-        ),
-        (".claude/skills/ade/phases/01-research.md", "Research phase skill"),
+        (".claude/skills/grill-with-docs/SKILL.md", "Vendored grill-with-docs skill (R4)"),
+        (".claude/skills/ade-research/SKILL.md", "Research phase skill"),
         (".claude/hooks/_hooklib.py", "Hook library: _hooklib (G1/G2 dependency)"),
         (".claude/hooks/block-mixed-commit.py", "Commit hook: block-mixed-commit (G1)"),
         (".claude/hooks/check-leftover-stub.py", "Commit hook: check-leftover-stub (G2)"),
