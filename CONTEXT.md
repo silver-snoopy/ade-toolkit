@@ -12,6 +12,27 @@ detail. Update when a term is coined, sharpened, or changes meaning.
 - **Orchestrator** — the main-session Claude (Opus) that owns context and the write path
   and dispatches subagents. It never writes application code itself.
 
+## Authoring units
+
+- **Agent Skill** — ADE's portable unit of behavior: a folder containing a `SKILL.md`
+  (with `name` + `description` frontmatter and instructions), following the open
+  [Agent Skills](https://agentskills.io) standard so the same skill runs across Claude Code,
+  Codex, Gemini CLI, and Copilot. Loaded on demand (progressive disclosure); either
+  auto-activated by description match or invoked explicitly.
+  _Avoid_: command, slash command (Claude Code merged custom commands into skills),
+  "composite/phase skill" (legacy ADE term).
+- **Driver skill** — the single, explicitly user-invoked Agent Skill that sequences
+  Phases 0→9 in order (the former `ade-full`). Its frontmatter marks it user-invoked so the
+  pipeline's ordering never depends on probabilistic auto-activation. Distinct from a
+  **phase skill** — the auto-activatable Agent Skill realizing one phase's behavior.
+- **Worker subagent** — an isolation-critical role (scout, test-writer, implementer,
+  spec-verifier, code/security-reviewer, compounder) emitted as a per-harness subagent
+  definition carrying a model tier and tool allowlist, so its **context isolation is
+  guaranteed, not merely requested**. Distinct from an **Agent Skill**, which carries
+  portable behavior but cannot itself guarantee isolation. Phase skills *dispatch* worker
+  subagents; on a harness without autonomous dispatch (Codex) they degrade to sequential
+  in-context steps, with the deterministic hooks still enforcing the hard guarantees.
+
 ## Routing (G4)
 
 - **Tier** — the routing classification assigned to a task, governing which phases run.
