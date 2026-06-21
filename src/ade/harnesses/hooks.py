@@ -69,9 +69,8 @@ def _merge_hooks(current: dict, ade: dict) -> dict:
     return merged
 
 
-def _wire_claude(target: HarnessTarget, env: Environment, project_dir: Path, ctx: dict) -> str:
-    dest = project_dir / ".claude" / "settings.json"
-    ade = json.loads(env.get_template("claude_settings.json.j2").render(**ctx))
+def _merge_into_json_settings(dest: Path, ade: dict) -> str:
+    """Create or merge ADE hook entries into a JSON settings file. Returns an action word."""
     if dest.exists():
         try:
             current = json.loads(dest.read_text(encoding="utf-8"))
@@ -89,8 +88,16 @@ def _wire_claude(target: HarnessTarget, env: Environment, project_dir: Path, ctx
     return action
 
 
+def _wire_claude(target: HarnessTarget, env: Environment, project_dir: Path, ctx: dict) -> str:
+    dest = project_dir / ".claude" / "settings.json"
+    ade = json.loads(env.get_template("claude_settings.json.j2").render(**ctx))
+    return _merge_into_json_settings(dest, ade)
+
+
 def _wire_gemini(target: HarnessTarget, env: Environment, project_dir: Path, ctx: dict) -> str:
-    raise NotImplementedError("wired in Task C1/C2/C3")
+    dest = project_dir / ".gemini" / "settings.json"
+    ade = json.loads(env.get_template("gemini_settings.json.j2").render(**ctx))
+    return _merge_into_json_settings(dest, ade)
 
 
 def _wire_copilot(target: HarnessTarget, env: Environment, project_dir: Path, ctx: dict) -> str:

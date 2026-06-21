@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          { "name": "ade-block-mixed-commit", "type": "command", "command": "python .gemini/hooks/block-mixed-commit.py --stdin-json --harness gemini", "timeout": 5000 },
+          { "name": "ade-check-leftover-stub", "type": "command", "command": "python .gemini/hooks/check-leftover-stub.py --stdin-json --harness gemini", "timeout": 5000 },
+          { "name": "ade-check-escalation-paths", "type": "command", "command": "python .gemini/hooks/check-escalation-paths.py --stdin-json --harness gemini", "timeout": 5000 }
+        ]
+      }
+    ]
+  }
+}
