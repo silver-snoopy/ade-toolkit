@@ -63,6 +63,25 @@ After creating stubs, verify:
    is `none` or unset for this stack, skip this check.
 4. **Import check** — All imports resolve. No circular dependencies introduced.
 
+The four checks above are your own (the stub author's) self-review. They confirm the stubs
+*compile and import* — they do not confirm the contracts are *correct*. The blind review
+below is what catches wrong-but-compiling shapes.
+
+## Blind Design-Check Review
+
+After the self-checks pass, dispatch the fresh-context `stub-reviewer` subagent. It sees the
+spec, the plan, and the stub files — but **not** your stub-authoring reasoning — so it cannot
+rationalize a wrong contract the way the author can. It returns `VERDICT: APPROVE | REJECT`,
+rejecting stubs whose shapes contradict the spec/plan (contract mismatch, an acceptance
+criterion the signatures make unsatisfiable, wrong dependency direction, silent contract
+drift).
+
+- On REJECT: correct the stubs and re-review. This shares the **max 2 iterations** budget
+  below — do not loop past it.
+- This step runs for `standard` and `architecture` tiers. (`trivial` skips Phase 3 entirely.)
+- On harnesses without autonomous subagent dispatch (Codex, a degraded tier), run the same
+  review as an in-context convention against the same spec/plan/stub inputs.
+
 ## Iteration Limit
 
 - **Maximum 2 iterations** of stub creation and validation.
