@@ -20,8 +20,6 @@ def test_init_python_project(python_project: Path) -> None:
     assert (python_project / ".claude" / "agents" / "test-runner.md").exists()
     assert (python_project / ".claude" / "skills" / "ade-pipeline" / "SKILL.md").exists()
     assert (python_project / ".claude" / "skills" / "ade-plan" / "SKILL.md").exists()
-    assert (python_project / ".claude" / "commands" / "ade-full.md").exists()
-    assert (python_project / ".claude" / "commands" / "ade-ship.md").exists()
     assert (python_project / "CLAUDE.md").exists()
 
 

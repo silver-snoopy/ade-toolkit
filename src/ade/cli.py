@@ -234,10 +234,6 @@ def init(
     # Generate skills into each target's skills dirs (from templates/skills/)
     _emit_skills(targets, env, project_dir, ctx)
 
-    # Generate .claude/commands/*.md (from templates/commands/)
-    commands_dir = project_dir / ".claude" / "commands"
-    _render_template_dir(env, "commands/", commands_dir, ctx)
-
     # Deterministic commit hooks (G1/G2) — scripts always emitted to the committed
     # .claude/hooks/ dir so they exist inside git worktrees; wiring is mode-specific.
     _render_hooks(env, project_dir / ".claude" / "hooks", ctx)
@@ -304,7 +300,7 @@ def init(
     rprint("  Next steps:")
     rprint("    1. ade doctor          # Verify prerequisites")
     rprint("    2. claude              # Start Claude Code")
-    rprint("    3. /ade-full <task>    # Run a full SDLC cycle")
+    rprint("    3. ade-pipeline skill (run a full SDLC cycle)")
 
 
 @app.command()

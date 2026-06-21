@@ -45,3 +45,8 @@ def test_old_phase_layout_is_gone(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     assert not (python_project / ".claude" / "skills" / "ade" / "phases").exists()
     assert not (python_project / ".claude" / "skills" / "ade" / "ade-full.md").exists()
+
+
+def test_no_command_layer_emitted(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert not (python_project / ".claude" / "commands").exists()
