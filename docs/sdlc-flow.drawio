@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="drawio" version="26.0.0">
+  <diagram name="ADE Pipeline (AS-IS)">
+    <mxGraphModel dx="1200" dy="800" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2560" pageHeight="500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="SDLC flow" style="text;html=1;align=center;verticalAlign=middle;fontSize=30;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+          <mxGeometry x="20" y="18" width="2520" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="sub" value="A 10-phase agentic SDLC &#8212; orchestrator + bounded workers. Each phase gates the next; the retrospective compounds learnings back into research." style="text;html=1;align=center;verticalAlign=middle;fontSize=15;fontColor=#555555;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="20" y="72" width="2520" height="26" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gDiscover" value="DISCOVER" style="swimlane;startSize=38;html=1;fontSize=15;fontStyle=1;fontColor=#3b5b80;fillColor=#eef4fb;strokeColor=#9bb7d4;rounded=1;arcSize=3;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="30" y="175" width="466" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="d0" value="&lt;font style=&quot;font-size:11px;color:#7a93b3&quot;&gt;PHASE 0&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Intent&lt;/b&gt;&lt;br&gt;&lt;br&gt;Extract structured&lt;br&gt;requirements&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;source of truth for &#8216;done&#8217;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="gDiscover">
+          <mxGeometry x="20" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="d1" value="&lt;font style=&quot;font-size:11px;color:#7a93b3&quot;&gt;PHASE 1&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Research&lt;/b&gt;&lt;br&gt;&lt;br&gt;Verified durable spec&lt;br&gt;(R1&#8211;R5)&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;spec + glossary + ADRs&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="gDiscover">
+          <mxGeometry x="246" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gDesign" value="DESIGN" style="swimlane;startSize=38;html=1;fontSize=15;fontStyle=1;fontColor=#6a4a86;fillColor=#f5eef8;strokeColor=#b39ac6;rounded=1;arcSize=3;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="532" y="175" width="466" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="p2" value="&lt;font style=&quot;font-size:11px;color:#9b7eb3&quot;&gt;PHASE 2&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Plan&lt;/b&gt;&lt;br&gt;&lt;br&gt;Actionable&lt;br&gt;implementation plan&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;the contract for the build&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="gDesign">
+          <mxGeometry x="20" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="p3" value="&lt;font style=&quot;font-size:11px;color:#9b7eb3&quot;&gt;PHASE 3&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Design Check&lt;/b&gt;&lt;br&gt;&lt;br&gt;Stubs &amp;amp; interfaces&lt;br&gt;in a worktree&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;validate architecture early&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="gDesign">
+          <mxGeometry x="246" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gBuild" value="BUILD" style="swimlane;startSize=38;html=1;fontSize=15;fontStyle=1;fontColor=#4a7a3a;fillColor=#eef7ec;strokeColor=#a6c79a;rounded=1;arcSize=3;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1034" y="175" width="466" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="b4" value="&lt;font style=&quot;font-size:11px;color:#7da36e&quot;&gt;PHASE 4&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Implement&lt;/b&gt;&lt;br&gt;&lt;br&gt;Author-separated TDD&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;tests first, then code&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="gBuild">
+          <mxGeometry x="20" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="b5" value="&lt;font style=&quot;font-size:11px;color:#7da36e&quot;&gt;PHASE 5&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Quality Gate&lt;/b&gt;&lt;br&gt;&lt;br&gt;Automated checks&lt;br&gt;in strict order&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;lint &#183; types &#183; tests &#183; coverage&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="gBuild">
+          <mxGeometry x="246" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gShip" value="VERIFY &amp; SHIP" style="swimlane;startSize=38;html=1;fontSize=15;fontStyle=1;fontColor=#a06a00;fillColor=#fff5ea;strokeColor=#e0bd8a;rounded=1;arcSize=3;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1536" y="175" width="692" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="v6" value="&lt;font style=&quot;font-size:11px;color:#c0913f&quot;&gt;PHASE 6&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Review&lt;/b&gt;&lt;br&gt;&lt;br&gt;Structured&lt;br&gt;multi-lens review&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;of the full diff&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="gShip">
+          <mxGeometry x="20" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="v7" value="&lt;font style=&quot;font-size:11px;color:#c0913f&quot;&gt;PHASE 7&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Documentation&lt;/b&gt;&lt;br&gt;&lt;br&gt;Update affected docs&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;a gate before shipping&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="gShip">
+          <mxGeometry x="246" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="v8" value="&lt;font style=&quot;font-size:11px;color:#c0913f&quot;&gt;PHASE 8&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Commit &amp;amp; PR&lt;/b&gt;&lt;br&gt;&lt;br&gt;Clean commits + PR&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;acceptance-coverage summary&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="gShip">
+          <mxGeometry x="472" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gLearn" value="LEARN" style="swimlane;startSize=38;html=1;fontSize=15;fontStyle=1;fontColor=#9a7d1a;fillColor=#fffae8;strokeColor=#e3d08a;rounded=1;arcSize=3;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="2264" y="175" width="240" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="r9" value="&lt;font style=&quot;font-size:11px;color:#b8a14a&quot;&gt;PHASE 9&lt;/font&gt;&lt;br&gt;&lt;b style=&quot;font-size:16px&quot;&gt;Retrospective&lt;/b&gt;&lt;br&gt;&lt;br&gt;Capture metrics&lt;br&gt;&amp;amp; learnings&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#666666&quot;&gt;feeds the compound loop&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=13;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="gLearn">
+          <mxGeometry x="20" y="54" width="200" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a01" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#555555;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;" edge="1" parent="1" source="d0" target="d1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#555555;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;" edge="1" parent="1" source="d1" target="p2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#555555;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;" edge="1" parent="1" source="p2" target="p3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a34" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#555555;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;" edge="1" parent="1" source="p3" target="b4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a45" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#555555;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;" edge="1" parent="1" source="b4" target="b5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a56" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#555555;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;" edge="1" parent="1" source="b5" target="v6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a67" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#555555;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;" edge="1" parent="1" source="v6" target="v7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a78" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#555555;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;" edge="1" parent="1" source="v7" target="v8"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a89" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#555555;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=block;" edge="1" parent="1" source="v8" target="r9"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="loop" value="compound learnings loop  &#8634;" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2.5;strokeColor=#9a7d1a;dashed=1;dashPattern=8 5;fontSize=14;fontStyle=1;fontColor=#9a7d1a;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=block;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="r9" target="d0">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2384" y="138" />
+              <mxPoint x="150" y="138" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="foot" value="Phases run in order, each gating the next. Phase 0&#8211;1 establish a verified spec; 2&#8211;3 design it; 4&#8211;5 build with author-separated TDD behind an automated gate; 6&#8211;8 review, document, and ship; Phase 9 codifies learnings that the next cycle&#8217;s research reads back &#8212; closing the compound loop." style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#777777;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="20" y="425" width="2520" height="24" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -76,6 +76,10 @@ claude                  # Start Claude Code
 
 ## The 9-phase SDLC
 
+<p align="center">
+  <img src="docs/sdlc-flow.png" alt="ADE 10-phase SDLC flow" width="900">
+</p>
+
 | Phase | Actor | Model | Output |
 |-------|-------|-------|--------|
 | 0. Intent **(+ route)** | Orchestrator | Opus | `.ade/tasks/<id>/intent.md`, `routing.md` (tier) |
