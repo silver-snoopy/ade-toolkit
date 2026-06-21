@@ -7,7 +7,7 @@ Produce a verified, durable specification grounded in both internal codebase rea
 ## Inputs
 
 - `.ade/tasks/<task-id>/intent.md` (from Phase 0)
-- Project: `CONTEXT.md`, `docs/adr/*`, codebase
+- Project: `CONTEXT.md`, `docs/adr/*`, `docs/learnings/*`, codebase
 - Optional flags: `--deep` (user opt-in for Tier 1 web tooling), explicit web-research request in intent
 
 ## Outputs
@@ -36,7 +36,7 @@ Launch two `scout` subagents in parallel via the Agent tool:
 - `scout` with `current-state` scope: "What exists related to this task? Find call sites, entry points, current behavior."
 - `scout` with `available-surface` scope: "What can this feature compose with? Utilities, helpers, types, fixtures, test surfaces."
 
-Pass the task description (from intent.md) and any relevant CONTEXT.md vocabulary as context. Each scout writes its output to `.ade/tasks/<task-id>/research/scout-<scope>-cycle<N>.md`.
+Pass the task description (from intent.md) and any relevant CONTEXT.md vocabulary as context. Also tell the scouts to grep `docs/learnings/` for prior Learnings touching this task's area and to cite any that apply — past discoveries make this task cheaper. Each scout writes its output to `.ade/tasks/<task-id>/research/scout-<scope>-cycle<N>.md`.
 
 **EVALUATE** scout returns against the stop criterion:
 

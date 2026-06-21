@@ -15,6 +15,13 @@ git diff main...ade/<task-id>
 
 Review every changed file. Do not skip files because they "look fine" or are "just tests."
 
+## Calibration corpus — read first
+
+Before reviewing, read `docs/review-calibration.md` **fresh**. It lists the finding-classes
+that recur in this project, most-frequent first. Prioritize checking the diff against the top
+classes — these are the issues this codebase keeps producing. Every tier reads the corpus
+(including `trivial`); an empty corpus simply means there is nothing to prioritize yet.
+
 ## Review Mechanism
 
 **Preferred mechanism:** Invoke `pr-review-toolkit:review-pr` with aspects:
@@ -189,6 +196,12 @@ On review pass (no Critical/Important findings):
 
 **Verdict:** NEEDS FIXES — resolve #1, #2, #3 before proceeding.
 ```
+
+## Persist the Review Output
+
+Write the Review Output (above) to `.ade/tasks/<task-id>/review.md`. The Codify sub-step of
+Phase 9 reads this file to compound the findings into `docs/review-calibration.md`. Persist it
+even when the verdict is clean (an empty findings set is a valid, useful signal).
 
 ## Iteration Limit
 

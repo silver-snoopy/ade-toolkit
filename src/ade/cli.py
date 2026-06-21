@@ -263,6 +263,8 @@ def init(
             project_dir / "docs" / "adr" / "0001-record-architecture-decisions.md",
         ),
         ("bootstrap/specs-README.md.j2", project_dir / "docs" / "specs" / "README.md"),
+        ("bootstrap/learnings-README.md.j2", project_dir / "docs" / "learnings" / "README.md"),
+        ("bootstrap/review-calibration.md.j2", project_dir / "docs" / "review-calibration.md"),
     ]
     for template_name, dest in bootstrap_targets:
         created = _render_and_write_if_missing(env, template_name, dest, ctx)
@@ -355,6 +357,8 @@ def doctor(
         ("CONTEXT.md", "Domain glossary (CONTEXT.md)"),
         ("docs/adr", "ADR directory (docs/adr/)"),
         ("docs/specs", "Specs directory (docs/specs/)"),
+        ("docs/learnings", "Learnings directory (docs/learnings/)"),
+        ("docs/review-calibration.md", "Review calibration corpus (docs/review-calibration.md)"),
     ]
     for rel, description in bootstrap_paths:
         path = project_dir / rel

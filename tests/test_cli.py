@@ -431,6 +431,23 @@ def test_init_generates_plan_reviewer_agent(python_project: Path) -> None:
     assert "@vitals" not in content
 
 
+def test_init_generates_compounder_agent(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agent_path = python_project / ".claude" / "agents" / "compounder.md"
+    assert agent_path.exists()
+    content = agent_path.read_text()
+    assert "model: sonnet" in content
+    # read-only: no Write/Edit/Bash in the tools line
+    assert "tools: [Read, Grep, Glob]" in content
+    # contract terms
+    assert "calibration" in content.lower()
+    assert "Learning" in content
+    assert "why this matters" in content.lower()
+    assert "NO LEARNING" in content
+    # never promotes severity by frequency
+    assert "never" in content.lower() and "frequency" in content.lower()
+
+
 def test_intent_skill_has_route_substep(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
     intent = (
@@ -451,3 +468,98 @@ def test_ade_full_describes_routing_and_tiers(python_project: Path) -> None:
     assert "Plan Soundness Review" in full
     assert "skipped for" in full.lower() or "skip for" in full.lower()  # masking annotations
     assert "ade-routing.json" in full or "forced-escalation" in full.lower()
+
+
+def test_init_seeds_learnings_dir(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    readme = python_project / "docs" / "learnings" / "README.md"
+    assert readme.exists()
+    content = readme.read_text()
+    assert "Why this matters" in content
+    assert "Learning" in content
+    # boundary vs ADR is spelled out so future agents pick the right artifact
+    assert "ADR" in content
+
+
+def test_init_learnings_seed_if_missing_preserves_edits(python_project: Path) -> None:
+    readme = python_project / "docs" / "learnings" / "README.md"
+    readme.parent.mkdir(parents=True, exist_ok=True)
+    readme.write_text("# my edited learnings index\n")
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert "my edited learnings index" in readme.read_text()
+
+
+def test_init_seeds_review_calibration(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    corpus = python_project / "docs" / "review-calibration.md"
+    assert corpus.exists()
+    content = corpus.read_text()
+    assert "finding-class" in content.lower()
+    assert "Frequency" in content
+    assert "Severity" in content
+
+
+def test_init_review_calibration_seed_if_missing_preserves_edits(python_project: Path) -> None:
+    corpus = python_project / "docs" / "review-calibration.md"
+    corpus.parent.mkdir(parents=True, exist_ok=True)
+    corpus.write_text("# my edited corpus\n")
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert "my edited corpus" in corpus.read_text()
+
+
+def test_doctor_checks_compound_artifacts(python_project: Path) -> None:
+    """Doctor passes but WARNs when the seeded compound artifacts are removed."""
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    (python_project / "docs" / "review-calibration.md").unlink()
+
+    with patch("ade.cli._check_command", return_value=True):
+        result = runner.invoke(app, ["doctor", "--project-dir", str(python_project)])
+    assert result.exit_code == 0
+    assert "WARN" in result.output
+    assert "review-calibration" in result.output
+
+
+def test_review_reads_calibration(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    review = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
+    ).read_text()
+    assert "docs/review-calibration.md" in review
+    assert "fresh" in review.lower()
+
+
+def test_review_persists_output(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    review = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "06-review.md"
+    ).read_text()
+    assert ".ade/tasks/<task-id>/review.md" in review
+    assert "even when" in review.lower()
+
+
+def test_retro_skill_describes_codify_step(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    retro = (python_project / ".claude" / "skills" / "ade" / "phases" / "09-retro.md").read_text()
+    assert "Codify" in retro
+    assert "docs/learnings/" in retro
+    assert "docs/review-calibration.md" in retro
+    assert "compounder" in retro
+    # conditional learning + trivial exclusion are explicit
+    assert "NO LEARNING" in retro or "no Learning" in retro
+    assert "trivial" in retro.lower()
+
+
+def test_research_reads_learnings(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    research = (
+        python_project / ".claude" / "skills" / "ade" / "phases" / "01-research.md"
+    ).read_text()
+    assert "docs/learnings/" in research
+
+
+def test_claude_md_section_describes_compound_loop(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    claude_md = (python_project / "CLAUDE.md").read_text()
+    assert "docs/learnings/" in claude_md
+    assert "review-calibration.md" in claude_md
+    assert "Codify" in claude_md

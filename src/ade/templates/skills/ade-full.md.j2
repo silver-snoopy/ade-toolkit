@@ -335,7 +335,7 @@ The agent creates the PR. The human merges it. This is non-negotiable.
 
 ---
 
-## Phase 9 — RETROSPECTIVE
+## Phase 9 — RETROSPECTIVE *(Codify sub-step skipped for `trivial`)*
 
 *(skipped for `trivial`.)*
 
@@ -348,11 +348,18 @@ Save to `.ade/tasks/<task-id>/retro.json`:
 - What worked, what didn't
 - Follow-up items identified
 
+**Codify (standard/architecture only):** dispatch the `compounder` subagent (read-only) with
+`.ade/tasks/<task-id>/review.md`, `retro.json`, the spec, the diff, and
+`docs/review-calibration.md`. Always merge findings into `docs/review-calibration.md`
+(frequency orders, never promotes severity); write `docs/learnings/{date}_{slug}.md` only
+when a transferable Learning is returned. Surface the review-findings signal. Full procedure
+in `phases/09-retro.md`.
+
 Clean up worktree after merge: `git worktree remove .ade/worktrees/<task-id>`
 
 Update `.ade/tasks/<task-id>/status.md`: `Phase 9/9 — Complete`
 
-**Exit criteria:** Retro saved. Worktree cleaned up.
+**Exit criteria:** Retro saved. Corpus merged; Learning written or skipped. Worktree cleaned up.
 
 ---
 

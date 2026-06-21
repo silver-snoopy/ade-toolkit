@@ -1,7 +1,7 @@
 # Design — G3: The compound loop
 
 **Date:** 2026-06-20
-**Status:** Draft
+**Status:** Implemented
 **Scope:** ADE toolkit (`src/ade/`) — closes gap G3 from `docs/ade-sdlc-gap-analysis.html` (Recommendations move #6).
 **Depends on:** G1 (author-separated TDD), G2 (deterministic hook layer), G5 (9-phase pipeline, stack-neutral phases), G4 (blast-radius routing) — all shipped.
 **Companion docs:** glossary terms in `CONTEXT.md` (Compound loop section); the passive/non-gating decision in `docs/adr/0002-passive-non-gating-compound-loop.md`.
