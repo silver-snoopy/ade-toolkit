@@ -294,7 +294,7 @@ def test_phase4_skill_describes_author_separation(python_project: Path) -> None:
 
 def test_init_seeds_ade_stack_file(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    stack = python_project / ".claude" / "ade-stack.md"
+    stack = python_project / ".ade" / "ade-stack.md"
     assert stack.exists()
     content = stack.read_text()
     assert "build:" in content
@@ -305,7 +305,7 @@ def test_init_seeds_ade_stack_file(python_project: Path) -> None:
 
 
 def test_init_ade_stack_seed_if_missing_preserves_edits(python_project: Path) -> None:
-    stack = python_project / ".claude" / "ade-stack.md"
+    stack = python_project / ".ade" / "ade-stack.md"
     stack.parent.mkdir(parents=True, exist_ok=True)
     stack.write_text("# my edited stack\n- test: make check\n")
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
@@ -352,7 +352,7 @@ def test_no_stale_stack_references(python_project: Path) -> None:
 
 def test_init_seeds_ade_routing_file(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    routing = python_project / ".claude" / "ade-routing.json"
+    routing = python_project / ".ade" / "ade-routing.json"
     assert routing.exists()
     data = json.loads(routing.read_text())
     assert "escalation_globs" in data
@@ -361,7 +361,7 @@ def test_init_seeds_ade_routing_file(python_project: Path) -> None:
 
 
 def test_init_ade_routing_seed_if_missing_preserves_edits(python_project: Path) -> None:
-    routing = python_project / ".claude" / "ade-routing.json"
+    routing = python_project / ".ade" / "ade-routing.json"
     routing.parent.mkdir(parents=True, exist_ok=True)
     routing.write_text('{"escalation_globs": {"architecture": ["*.custom"]}}\n')
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
@@ -516,3 +516,11 @@ def test_agents_md_describes_compound_loop(python_project: Path) -> None:
     assert "docs/learnings/" in agents_md
     assert "review-calibration.md" in agents_md
     assert "Codify" in agents_md
+
+
+def test_config_lives_in_dot_ade(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    assert (python_project / ".ade" / "ade-routing.json").exists()
+    assert (python_project / ".ade" / "ade-stack.md").exists()
+    assert not (python_project / ".claude" / "ade-routing.json").exists()
+    assert not (python_project / ".claude" / "ade-stack.md").exists()

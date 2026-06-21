@@ -57,7 +57,7 @@ For detailed instructions, see [ade-intent/SKILL.md](../ade-intent/SKILL.md).
 
 **Then route (closing sub-step 0d):** assign a tier — `trivial` / `standard` /
 `architecture` — from Type + Affected Areas + Scope, applying the forced-escalation rules
-in `.claude/ade-routing.json` first (security/auth/secrets/crypto/data-loss → floor
+in `.ade/ade-routing.json` first (security/auth/secrets/crypto/data-loss → floor
 `standard`; schema/migration/public-API/ADR-or-model → `architecture`; config unparseable →
 treat as ≥ standard). Record `Tier: <tier>` to `.ade/tasks/<task-id>/routing.md`, announce
 it, and — for `architecture` or any forced-escalation — get explicit user confirmation
@@ -227,7 +227,7 @@ Steps:
 3. Run the `build` command — must compile (skip if `none`)
 4. Run the `test` command — all tests pass
 
-Commands come from `.claude/ade-stack.md`; skip any slot that is `none` or unset. For a
+Commands come from `.ade/ade-stack.md`; skip any slot that is `none` or unset. For a
 multi-language change, run each affected language's block.
 
 If failures: dispatch a Sonnet fixer subagent (max 3 attempts).

@@ -57,7 +57,7 @@ After creating stubs, verify:
    has a corresponding stub.
 2. **Type consistency** — shared contracts/types flow correctly to every module that
    depends on them (dependencies before dependents).
-3. **Build check** — run the project's `build` command (see `.claude/ade-stack.md`) for
+3. **Build check** — run the project's `build` command (see `.ade/ade-stack.md`) for
    the foundation module to verify the shared contracts compile. Dependent modules may not
    build yet (stubs fail loudly), but there should be no contract/type errors. If `build`
    is `none` or unset for this stack, skip this check.

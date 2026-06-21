@@ -178,19 +178,19 @@ def init(
             action = emit_hooks(target, env, project_dir, ctx)
             rprint(f"  [green]+[/green] {action} {target.name} hooks")
 
-    # Seed .claude/ade-stack.md (G5b) — ADE-tooling config, seed-if-missing, user-owned.
-    stack_dest = project_dir / ".claude" / "ade-stack.md"
+    # Seed .ade/ade-stack.md (G5b) — ADE-tooling config, seed-if-missing, user-owned.
+    stack_dest = project_dir / ".ade" / "ade-stack.md"
     if _render_and_write_if_missing(env, "stack.md.j2", stack_dest, ctx):
-        rprint("  [green]+[/green] Created .claude/ade-stack.md")
+        rprint("  [green]+[/green] Created .ade/ade-stack.md")
     else:
-        rprint("  [dim]= Kept existing .claude/ade-stack.md[/dim]")
+        rprint("  [dim]= Kept existing .ade/ade-stack.md[/dim]")
 
-    # Seed .claude/ade-routing.json (G4) — routing config, seed-if-missing, user-owned.
-    routing_dest = project_dir / ".claude" / "ade-routing.json"
+    # Seed .ade/ade-routing.json (G4) — routing config, seed-if-missing, user-owned.
+    routing_dest = project_dir / ".ade" / "ade-routing.json"
     if _render_and_write_if_missing(env, "ade-routing.json.j2", routing_dest, ctx):
-        rprint("  [green]+[/green] Created .claude/ade-routing.json")
+        rprint("  [green]+[/green] Created .ade/ade-routing.json")
     else:
-        rprint("  [dim]= Kept existing .claude/ade-routing.json[/dim]")
+        rprint("  [dim]= Kept existing .ade/ade-routing.json[/dim]")
 
     # Emit the canonical instruction file once (ADE-owned, always overwritten):
     _render_and_write(env, "AGENTS.md.j2", project_dir / "AGENTS.md", ctx)

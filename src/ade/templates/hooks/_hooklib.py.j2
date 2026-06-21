@@ -154,8 +154,8 @@ def routing_tier(task_id: str) -> str | None:
 
 
 def load_routing_config() -> dict:
-    """Parse .claude/ade-routing.json; {} on missing or malformed (caller uses baseline)."""
-    path = os.path.join(".claude", "ade-routing.json")
+    """Parse .ade/ade-routing.json; {} on missing or malformed (caller uses baseline)."""
+    path = os.path.join(".ade", "ade-routing.json")
     raw = _read(path)
     if not raw:
         return {}

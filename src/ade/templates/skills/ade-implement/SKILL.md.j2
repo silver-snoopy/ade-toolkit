@@ -53,7 +53,7 @@ git worktree add .ade/worktrees/<task-id> -b ade/<task-id>
 
 Build dependencies before dependents — the plan's ordered task list / DAG defines the
 order; there is no fixed package order. After completing each unit of work, run the
-project's `build` command (see `.claude/ade-stack.md`) for the affected module before
+project's `build` command (see `.ade/ade-stack.md`) for the affected module before
 moving on. If `build` is `none` or unset for this stack, rely on the `test` command
 instead. Do not accumulate build errors across tasks.
 
@@ -89,7 +89,7 @@ Key conventions come from the project, not from ADE:
 - Indentation, quoting, and line width: follow CLAUDE.md and the existing files in the
   same directory.
 - Lint/format rules are enforced by the project's `lint`/`format` commands
-  (see `.claude/ade-stack.md`) — run them rather than hand-applying style rules.
+  (see `.ade/ade-stack.md`) — run them rather than hand-applying style rules.
 - Match the naming, export, and error-handling style of neighboring code.
 
 ## Implementation Checklist

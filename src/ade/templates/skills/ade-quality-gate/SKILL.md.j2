@@ -19,19 +19,19 @@ cd .ade/worktrees/<task-id>
 ```
 
 ### Step 1: Lint
-Run the project's `lint` command (see `.claude/ade-stack.md`). All lint errors must be
+Run the project's `lint` command (see `.ade/ade-stack.md`). All lint errors must be
 resolved. Warnings are acceptable only if pre-existing (not introduced by this task).
 
 ### Step 2: Format
-Run the project's `format` command (see `.claude/ade-stack.md`); if it reports issues,
+Run the project's `format` command (see `.ade/ade-stack.md`); if it reports issues,
 apply the fix and re-check.
 
 ### Step 3: Build
-Run the project's `build` command (see `.claude/ade-stack.md`) for each changed module,
+Run the project's `build` command (see `.ade/ade-stack.md`) for each changed module,
 dependencies before dependents. Everything must build with zero errors.
 
 ### Step 4: Tests
-Run the project's `test` command (see `.claude/ade-stack.md`). All tests must pass — zero
+Run the project's `test` command (see `.ade/ade-stack.md`). All tests must pass — zero
 failures allowed for merge.
 
 **If a command is `none` or unset for this stack, skip that step.** For a multi-language
@@ -48,7 +48,7 @@ repo, run the command block for each language whose files changed in this task.
 
 To determine if an issue is pre-existing, check if it exists on the base branch:
 ```bash
-git stash && <lint command from .claude/ade-stack.md> && git stash pop
+git stash && <lint command from .ade/ade-stack.md> && git stash pop
 ```
 
 ## Fixer Subagent Dispatch

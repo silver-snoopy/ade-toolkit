@@ -116,7 +116,7 @@ Once intent is captured, assign the task a **routing tier** from `Type` + `Affec
 
 ### Classification
 
-1. **Forced-escalation first (deterministic).** Read `.claude/ade-routing.json`. If any
+1. **Forced-escalation first (deterministic).** Read `.ade/ade-routing.json`. If any
    declared affected area (or the intent text) matches an `escalation_globs.architecture`
    path or an `architecture` keyword → tier is **architecture**. Else if it matches an
    `escalation_globs.standard` path or a `standard` keyword (security/auth/secrets/crypto/

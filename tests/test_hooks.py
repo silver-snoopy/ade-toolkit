@@ -233,7 +233,7 @@ def test_escalation_hook_noop_off_ade_branch(hook_repo: Path) -> None:
 
 
 def test_escalation_hook_baseline_holds_without_config(hook_repo: Path) -> None:
-    # No .claude/ade-routing.json at all; baseline must still block an auth change at trivial.
+    # No .ade/ade-routing.json at all; baseline must still block an auth change at trivial.
     _route(hook_repo, "feat-x", "trivial")
     _write_stage(hook_repo, "src/auth/login.py", "def login():\n    return True\n")
     result = _run_hook(hook_repo, "check-escalation-paths.py", "src/auth/login.py")
@@ -243,7 +243,7 @@ def test_escalation_hook_baseline_holds_without_config(hook_repo: Path) -> None:
 
 def test_escalation_hook_config_extends_baseline(hook_repo: Path) -> None:
     _route(hook_repo, "feat-x", "standard")
-    cfg = hook_repo / ".claude" / "ade-routing.json"
+    cfg = hook_repo / ".ade" / "ade-routing.json"
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text('{"escalation_globs": {"architecture": ["*.weird"]}}\n', encoding="utf-8")
     _write_stage(hook_repo, "thing.weird", "x\n")
@@ -253,7 +253,7 @@ def test_escalation_hook_config_extends_baseline(hook_repo: Path) -> None:
 
 def test_escalation_hook_malformed_config_falls_back_to_baseline(hook_repo: Path) -> None:
     _route(hook_repo, "feat-x", "trivial")
-    cfg = hook_repo / ".claude" / "ade-routing.json"
+    cfg = hook_repo / ".ade" / "ade-routing.json"
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text("{ not json", encoding="utf-8")
     _write_stage(hook_repo, "src/auth/login.py", "def login():\n    return True\n")
