@@ -14,6 +14,7 @@ from rich import print as rprint
 from rich.table import Table
 
 from ade.detect import detect_project, normalize_language
+from ade.eval import run_eval
 from ade.harnesses import TARGETS, HarnessTarget, selected_targets
 from ade.harnesses.hooks import emit_hooks
 from ade.harnesses.memory import emit_memory_pointer
@@ -467,3 +468,33 @@ def status(
         table.add_row(task_id, phase, last_updated)
 
     rprint(table)
+
+
+@app.command()
+def eval(  # noqa: A001 - intentional command name
+    project_dir: Annotated[Path, typer.Option(help="Project directory")] = Path("."),
+) -> None:
+    """Statically check generated skills for quality (frontmatter, lean descriptions)."""
+    project_dir = project_dir.resolve()
+    roots = [
+        project_dir / ".claude" / "skills",
+        project_dir / ".agents" / "skills",
+    ]
+    seen: set[str] = set()
+    findings = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for f in run_eval(root):
+            key = f"{f.skill}:{f.message}"
+            if key not in seen:
+                seen.add(key)
+                findings.append(f)
+    errors = [f for f in findings if f.level == "error"]
+    for f in findings:
+        color = "red" if f.level == "error" else "yellow"
+        rprint(f"  [{color}]{f.level.upper()}[/{color}]  {f.skill}: {f.message}")
+    if errors:
+        rprint(f"[red]{len(errors)} error(s).[/red]")
+        raise typer.Exit(1)
+    rprint("[green]PASS — skills well-formed.[/green]")
