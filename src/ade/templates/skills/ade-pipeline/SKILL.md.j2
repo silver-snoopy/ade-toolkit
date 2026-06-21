@@ -146,20 +146,28 @@ Verify the plan file exists and contains all 6 required sections.
 
 ---
 
-## ★ PLAN SOUNDNESS REVIEW (architecture tier only) ★
+## ★ PLAN SOUNDNESS REVIEW (standard + architecture tiers) ★
 
-For `architecture`-routed tasks only, after the PLAN GATE's completeness check passes,
-dispatch the fresh-context `plan-reviewer` subagent (it never sees the planning reasoning).
-It tries to refute the plan against the spec — hallucinated paths, weak/uncovered
-acceptance criteria, scope creep, missing edge cases, missing ADR for a hard-to-reverse
-decision — and returns `VERDICT: APPROVE | REJECT`.
+After the PLAN GATE's completeness check passes, dispatch the fresh-context `plan-reviewer`
+subagent (it never sees the planning reasoning). The review's depth is right-sized to the
+tier so blast-radius routing is preserved without dropping independent validation to zero:
 
-- On REJECT: fix the plan and re-review. **Max 2 iterations**, then escalate to the user.
-- `trivial` / `standard` tasks skip this step.
+- **`architecture` — full refutation.** The reviewer tries to refute the plan against the
+  spec: hallucinated paths, weak/uncovered acceptance criteria, scope creep, missing edge
+  cases, missing ADR for a hard-to-reverse decision. Returns `VERDICT: APPROVE | REJECT`.
+  On REJECT: fix the plan and re-review. **Max 2 iterations**, then escalate to the user.
+
+- **`standard` — lightweight coverage matrix.** The reviewer builds only the
+  acceptance criterion → implementation task → test-plan matrix and flags any acceptance
+  criterion with no covering task or no test. It does *not* hunt for scope creep or ADR
+  gaps. Returns `VERDICT: APPROVE | REJECT`. On REJECT: fix the uncovered criteria and
+  re-review **once**, then escalate to the user.
+
+- **`trivial`** — skips this step.
 
 This is distinct from the PLAN GATE: the gate is a structural completeness check (all 6
-sections present) for every tier; this is an adversarial correctness check for architecture
-tasks only.
+sections present) for every tier; this is an independent correctness check whose rigor
+scales with the tier.
 
 ---
 
@@ -374,7 +382,7 @@ Update `.ade/tasks/<task-id>/status.md`: `Phase 9/9 — Complete`
 - Design check: max 2 iterations
 - Code→review loop: max 3 cycles
 - QA fix: max 3 iterations
-- Plan Soundness Review (architecture): max 2 iterations
+- Plan Soundness Review: architecture max 2 iterations, standard max 1 iteration
 After any limit, escalate to user with summary. Do NOT retry silently.
 
 ## Orchestrator Rules

@@ -116,7 +116,7 @@ You (the orchestrator) refine the draft through Socratic Q&A with the user. Use 
 1. **Functional Scope** — what's in, what's out
 2. **Data Model** — entities, relationships, cardinality
 3. **UX Flow** — user journey, states, transitions
-4. **Non-Functional Attributes** — performance, scale, availability, latency targets
+4. **Non-Functional Attributes** — performance, scale, availability, latency targets *(forcing category — see rule below)*
 5. **Integration** — external systems, APIs, contracts
 6. **Edge Cases** — empty, max, error, concurrent, partial
 7. **Constraints** — regulatory, technical, time, team
@@ -141,6 +141,15 @@ You (the orchestrator) refine the draft through Socratic Q&A with the user. Use 
 - **Update the spec atomically after each answer** (Edit, not Write — preserve all unrelated content).
 - **Hard cap: 5 questions total per spec.** Past 5, stop and proceed with what you have.
 - **Stop early** when no high-impact, high-uncertainty items remain in any category.
+
+**NFR forcing rule (category 4).** Qualitative NFR language ("fast", "scalable", "highly
+available") is a blocking ambiguity, not a stylistic choice. When the Non-Functional
+Attributes category is material to this change, the spec must end with **either** a concrete,
+falsifiable target — p95/p99 latency, throughput, concurrency, data volume, availability,
+memory ceiling, or startup budget — **or** an explicit `NFR: not constrained` decision
+recorded in the spec for that dimension. Do not lock the spec while a material NFR is still
+qualitative. This forcing question is exempt from the 5-question cap when no NFR decision
+yet exists.
 
 **On completion**: present the final spec to the user and confirm before proceeding to R4.
 

@@ -109,8 +109,10 @@ The closing sub-step of Phase 0 assigns a **tier** that masks which phases run:
 - **trivial** — tiny self-contained change: lightweight inline research, no design-check,
   single review pass, no retro — but always author-separated TDD, the deterministic quality
   gate, and the merge gate.
-- **standard** — the full nine-phase flow (default).
-- **architecture** — standard + ≥1 ADR + an adversarial Plan Soundness Review before code.
+- **standard** — the full nine-phase flow (default), including a lightweight Plan Soundness
+  Review (fresh-context coverage matrix) before code.
+- **architecture** — standard + ≥1 ADR + a full adversarial Plan Soundness Review (refutation)
+  before code.
 
 **Hybrid classifier.** The orchestrator judges trivial-vs-standard from the intent; a
 deterministic rule set decides **forced-escalation** — security/auth/secrets/crypto/
@@ -354,6 +356,25 @@ Three Python scripts committed under `.claude/hooks/` act as a hard gate on comm
 
 All three scripts share common detection logic via `_hooklib.py` (also in `.claude/hooks/`), so they work identically regardless of which substrate wires them.
 
+### Scope and boundaries
+
+These hooks fire on the harness's PreToolUse(Bash) path, so they gate commits made by an
+ADE-driven agent session — not every commit reaching the repository. Two limits are worth
+stating plainly:
+
+- **`check-escalation-paths` is scoped to ADE-routed branches.** It enforces the blast-radius
+  floor only when a task is on an `ade/<task-id>` branch with a recorded routing tier; it
+  no-ops on direct-to-main commits, non-ADE branches, and any commit made outside an ADE
+  agent session. This is a deliberate boundary (the floor is meaningless without a routed
+  tier), not a guarantee that escalation paths are protected repository-wide.
+- **`block-mixed-commit` and `check-leftover-stub` are unconditional within an ADE session**
+  but, like all PreToolUse hooks, only run for commits issued through the wired harness.
+
+To extend any of these into a repository-wide policy that also covers human commits, CI, and
+non-ADE tooling, wire the same scripts as a `git pre-commit` hook (the
+`.pre-commit-config.yaml` fallback) or a server-side check — the PreToolUse wiring alone does
+not cover those paths.
+
 ### Wiring — native PreToolUse hooks on all four harnesses
 
 All four harnesses ship native PreToolUse (blocking) hooks, all consuming the same JSON-over-stdin contract that ADE's `_hooklib` already uses. `ade init` wires the three hook scripts into each selected harness's native hook system via the `harnesses/hooks.py` adapter:
@@ -384,7 +405,7 @@ All subagents are defined as Markdown files under `.claude/agents/` with YAML fr
 | `code-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `security-reviewer` | sonnet | Read, Glob, Grep | Phase 6 fallback |
 | `test-runner` | haiku | Read, Bash | Phase 5 |
-| `plan-reviewer` | sonnet | Read, Grep, Glob | Phase 2 (architecture tier) |
+| `plan-reviewer` | sonnet | Read, Grep, Glob | Phase 2 (standard: coverage matrix; architecture: full refutation) |
 | `pr-reviewer` | sonnet | Read, Grep, Glob, Bash | `ade-pr-review` skill (GitHub PR loop) |
 | `compounder` | sonnet | Read, Grep, Glob | Phase 9 (Codify) |
 
@@ -474,7 +495,8 @@ These rules govern the orchestrator's behavior. Violations break the architectur
 | Phase 4–6 code → review loop | 3 cycles | Escalate to user |
 | Phase 5 QA fix loop | 3 iterations | Escalate to user |
 | Phase 4 commit hooks (`block-mixed-commit`, `check-leftover-stub`) | N/A (hard gate) | Reject commit; orchestrator must correct before retry |
-| Plan Soundness Review (architecture) | 2 iterations | Escalate to user |
+| Plan Soundness Review (architecture, full refutation) | 2 iterations | Escalate to user |
+| Plan Soundness Review (standard, coverage matrix) | 1 iteration | Escalate to user |
 
 ## CLI surface
 
