@@ -564,7 +564,9 @@ def test_web_researcher_claim_provenance_and_trust_floor(python_project: Path) -
     assert "trust: high" in content
     # trust floor: a trust:low source cannot lift a claim above ASSUMED
     low = content.lower()
-    assert "trust floor" in low or ("trust: low" in content and "above" in low and "assumed" in low)
+    assert "trust floor" in low or (
+        "trust: low" in content and "above" in low and "assumed" in low
+    )
 
 
 def test_synthesizer_provenance_rules(python_project: Path) -> None:
@@ -603,3 +605,16 @@ def test_adr_0004_exists_and_records_two_axes() -> None:
     assert "CONFIRMED" in text and "CITED" in text and "ASSUMED" in text
     assert "trust floor" in text.lower()
     assert "Admiralty" in text
+
+
+def test_no_verified_grade_token_in_generated_tree(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    root = python_project / ".claude"
+    confirmed_seen = False
+    for path in root.rglob("*.md"):
+        text = path.read_text()
+        # the all-caps VERIFIED grade token must never appear (collides with R5 Verify)
+        assert "VERIFIED" not in text, f"stray VERIFIED grade token in {path}"
+        if "CONFIRMED" in text:
+            confirmed_seen = True
+    assert confirmed_seen, "CONFIRMED grade not present anywhere in the generated tree"
