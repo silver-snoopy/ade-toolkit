@@ -542,3 +542,14 @@ def test_init_on_v2_tree_exits_without_emitting(python_project: Path) -> None:
     # init must NOT have emitted v3 artifacts
     assert not (python_project / "AGENTS.md").exists()
     assert not (python_project / ".claude" / "skills" / "ade-pipeline").exists()
+
+
+def test_scout_agent_tags_provenance(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "agents" / "scout.md").read_text()
+    assert "provenance:" in content
+    assert "CONFIRMED" in content and "ASSUMED" in content
+    # framed as read-it vs inferred-it (the forcing function)
+    assert "read the actual" in content.lower() or "without reading" in content.lower()
+    # scouts cite the repo first-hand, so they do not emit CITED
+    assert "do not emit CITED" in content or "never emit CITED" in content
