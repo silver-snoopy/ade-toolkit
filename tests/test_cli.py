@@ -578,3 +578,17 @@ def test_synthesizer_provenance_rules(python_project: Path) -> None:
     assert "monotonic" in low or ("never" in low and "fact" in low)
     assert "Open Questions" in content
     assert "Assumptions" in content
+
+
+def test_ade_research_defines_provenance(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (
+        python_project / ".claude" / "skills" / "ade-research" / "SKILL.md"
+    ).read_text()
+    assert "Provenance grading" in content
+    assert "CONFIRMED" in content and "CITED" in content and "ASSUMED" in content
+    # ASSUMED prioritized within the existing 5-question cap
+    low = content.lower()
+    assert "assumed" in low and ("5-question" in low or "5 question" in low or "cap" in low)
+    # R5 CoVe targets the lowest-grounded claims first
+    assert "spec-verifier" in content or "CoVe" in content
