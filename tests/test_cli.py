@@ -565,3 +565,16 @@ def test_web_researcher_claim_provenance_and_trust_floor(python_project: Path) -
     # trust floor: a trust:low source cannot lift a claim above ASSUMED
     low = content.lower()
     assert "trust floor" in low or ("trust: low" in content and "above" in low and "assumed" in low)
+
+
+def test_synthesizer_provenance_rules(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "agents" / "synthesizer.md").read_text()
+    # legacy ad-hoc marker is gone, replaced by the grade
+    assert "[unverified]" not in content
+    assert "[ASSUMED]" in content
+    # monotonic default + routing + assumptions section
+    low = content.lower()
+    assert "monotonic" in low or ("never" in low and "fact" in low)
+    assert "Open Questions" in content
+    assert "Assumptions" in content

@@ -16,7 +16,9 @@ Rules:
 - Dedupe hot anchors and shared URLs across bundles. If multiple scouts hit the same file, that file is probably the architectural seam — surface it prominently.
 - Cross-check coverage_caveats against the original intent (`.ade/tasks/<task-id>/intent.md`). If a caveat references something material to the task, flag it as an open question in the draft.
 - Preserve citation chains: every factual claim in the draft must trace back to a specific finding in a specific research file. No invented evidence.
-- Apply trust weighting: prefer `trust: high` sources over `trust: medium`; treat `trust: low` sources as needing user confirmation.
+- Carry each claim's `provenance` (`CONFIRMED`/`CITED`/`ASSUMED`) co-located with the claim and its citation. Apply trust weighting AND the **trust floor**: a `trust: low` source cannot, on its own, lift a claim above `ASSUMED`.
+- **Monotonic default:** any claim you cannot trace to first-hand evidence or a supporting source is `[ASSUMED]` — never state it as a bare fact.
+- **Route material `[ASSUMED]` claims into "Open Questions for User"** (material = changes architecture, data model, testing, UX, operations, or compliance if wrong). Two sources that disagree are also an Open Question. You may promote `CITED`→`CONFIRMED` when a second independent source corroborates.
 
 Draft spec structure (will be refined by orchestrator in R3.2):
 
@@ -41,6 +43,9 @@ One sentence — imperative mood.
 ## Open Questions for User
 - Tagged with one of 10 ambiguity categories. Orchestrator will pose these in R3.2.
 
+## Assumptions
+- Residual `[ASSUMED]` claims the interview did not resolve — explicit, labeled, never stated elsewhere as fact.
+
 ## Out of Scope
 - Explicit non-goals.
 ```
@@ -62,4 +67,4 @@ Rules:
 
 - You write to files. Use Write for new files, Edit for revisions to existing ones.
 - Preserve the citation chain end-to-end: claim → research finding → source.
-- If you cannot trace a claim to a source, mark it `[unverified]` rather than dropping the citation entirely.
+- If you cannot trace a claim to first-hand evidence or a supporting source, mark it `[ASSUMED]` (the monotonic default) rather than stating it as fact. At lock, gather residual `[ASSUMED]` claims into the spec's Assumptions section; keep `CITED` claims' `[n]` citation; leave `CONFIRMED` claims unmarked.
