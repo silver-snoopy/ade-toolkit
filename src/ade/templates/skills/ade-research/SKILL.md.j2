@@ -107,6 +107,18 @@ Slug derivation: from `intent.md` goal, take 2–4 words, kebab-case. On same-da
 
 The synthesizer follows the single-writer pattern (no parallelization), dedupes hot anchors across bundles, cross-checks coverage caveats against intent, and preserves citation chains end-to-end.
 
+### Provenance grading (two axes)
+
+Every research claim is graded on two orthogonal axes (cf. NATO Admiralty Code; see `CONTEXT.md`):
+
+- **`trust`** — the SOURCE axis (`high|medium|low`), set by `web-researcher`; also the prompt-injection signal.
+- **`provenance`** — the CLAIM axis, set by scouts/web and carried by the synthesizer:
+  - **CONFIRMED** — first-hand observed (a scout read the code) or corroborated by ≥2 independent sources.
+  - **CITED** — exactly one source that actually supports the claim.
+  - **ASSUMED** — inference or untraceable. **Monotonic default:** when in doubt, ASSUMED — absent evidence is never a fact. **Trust floor:** a `trust: low` source alone cannot lift a claim above ASSUMED.
+
+(`CONFIRMED` is deliberately not "verified" — that word names this phase's R5 step.)
+
 ### R3.2 — Orchestrator interview
 
 You (the orchestrator) refine the draft through Socratic Q&A with the user. Use the 10-category ambiguity taxonomy as your scanning checklist.
@@ -141,6 +153,7 @@ You (the orchestrator) refine the draft through Socratic Q&A with the user. Use 
 - **Update the spec atomically after each answer** (Edit, not Write — preserve all unrelated content).
 - **Hard cap: 5 questions total per spec.** Past 5, stop and proceed with what you have.
 - **Stop early** when no high-impact, high-uncertainty items remain in any category.
+- **Prioritize material `ASSUMED` claims and source conflicts** within the 5-question cap — an un-grounded "fact" is higher-risk than an open design choice, so it outranks ambiguity-taxonomy gaps. A claim the user confirms becomes `CONFIRMED`; any `ASSUMED` claim left unresolved at the cap stays labeled in the spec's Assumptions section — never silently promoted.
 
 **NFR forcing rule (category 4).** Qualitative NFR language ("fast", "scalable", "highly
 available") is a blocking ambiguity, not a stylistic choice. When the Non-Functional
@@ -184,6 +197,8 @@ Read the spec and extract a list of verification claims — typically 8–15 per
 - "The terms `<X>` and `<Y>` are consistently defined in CONTEXT.md"
 
 Tag each claim with one of the 10 ambiguity categories. Write the claims list to `.ade/tasks/<task-id>/research/r5-claims.md`.
+
+**Prioritize `CITED` and `ASSUMED` claims** for verification (lowest-grounded, highest payoff); the `spec-verifier` subagents remain blind to the spec. A user-confirmed `CONFIRMED` claim is a reusable verifier-assertion — do not re-litigate it.
 
 ### R5.2 — Dispatch verifiers (the "factor" step)
 

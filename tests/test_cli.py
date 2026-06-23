@@ -542,3 +542,77 @@ def test_init_on_v2_tree_exits_without_emitting(python_project: Path) -> None:
     # init must NOT have emitted v3 artifacts
     assert not (python_project / "AGENTS.md").exists()
     assert not (python_project / ".claude" / "skills" / "ade-pipeline").exists()
+
+
+def test_scout_agent_tags_provenance(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "agents" / "scout.md").read_text()
+    assert "provenance:" in content
+    assert "CONFIRMED" in content and "ASSUMED" in content
+    # framed as read-it vs inferred-it (the forcing function)
+    assert "read the actual" in content.lower() or "without reading" in content.lower()
+    # scouts cite the repo first-hand, so they do not emit CITED
+    assert "do not emit CITED" in content or "never emit CITED" in content
+
+
+def test_web_researcher_claim_provenance_and_trust_floor(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "agents" / "web-researcher.md").read_text()
+    assert "provenance" in content
+    assert "CONFIRMED" in content and "CITED" in content and "ASSUMED" in content
+    # source trust is retained, not replaced
+    assert "trust: high" in content
+    # trust floor: a trust:low source cannot lift a claim above ASSUMED
+    low = content.lower()
+    assert "trust floor" in low or (
+        "trust: low" in content and "above" in low and "assumed" in low
+    )
+
+
+def test_synthesizer_provenance_rules(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "agents" / "synthesizer.md").read_text()
+    # legacy ad-hoc marker is gone, replaced by the grade
+    assert "[unverified]" not in content
+    assert "[ASSUMED]" in content
+    # monotonic default + routing + assumptions section
+    low = content.lower()
+    assert "monotonic" in low or ("never" in low and "fact" in low)
+    assert "Open Questions" in content
+    assert "Assumptions" in content
+
+
+def test_ade_research_defines_provenance(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "skills" / "ade-research" / "SKILL.md").read_text()
+    assert "Provenance grading" in content
+    assert "CONFIRMED" in content and "CITED" in content and "ASSUMED" in content
+    # ASSUMED prioritized within the existing 5-question cap
+    low = content.lower()
+    assert "assumed" in low and ("5-question" in low or "5 question" in low or "cap" in low)
+    # R5 CoVe targets the lowest-grounded claims first
+    assert "spec-verifier" in content or "CoVe" in content
+
+
+def test_adr_0004_exists_and_records_two_axes() -> None:
+    repo = Path(__file__).resolve().parents[1]
+    adr = repo / "docs" / "adr" / "0004-two-axis-research-provenance.md"
+    assert adr.exists()
+    text = adr.read_text()
+    assert "trust" in text and "provenance" in text
+    assert "CONFIRMED" in text and "CITED" in text and "ASSUMED" in text
+    assert "trust floor" in text.lower()
+    assert "Admiralty" in text
+
+
+def test_no_verified_grade_token_in_generated_tree(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    root = python_project / ".claude"
+    confirmed_seen = False
+    for path in root.rglob("*.md"):
+        text = path.read_text()
+        # the all-caps VERIFIED grade token must never appear (collides with R5 Verify)
+        assert "VERIFIED" not in text, f"stray VERIFIED grade token in {path}"
+        if "CONFIRMED" in text:
+            confirmed_seen = True
+    assert confirmed_seen, "CONFIRMED grade not present anywhere in the generated tree"

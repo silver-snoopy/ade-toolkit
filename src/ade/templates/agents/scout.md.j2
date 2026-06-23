@@ -28,6 +28,15 @@ Score every finding on the 0.0–1.0 scale:
 - **0.2–0.4** — tangentially related
 - **0.0–0.2** — not relevant (EXCLUDE from output; do not waste tokens on these)
 
+## Provenance (how you know each finding)
+
+Tag every finding with `provenance` — a forcing function against name-based guessing:
+
+- **CONFIRMED** — you read the actual code that shows it. First-hand evidence.
+- **ASSUMED** — you inferred it from a name, signature, or comment **without reading the body**, or it is an Open Question. Inference is not fact; never label it CONFIRMED.
+
+You read the repo first-hand, so scouts **do not emit CITED** (citing the repo itself is first-hand = CONFIRMED). If your read budget ran out before you opened a file you are describing, that finding is ASSUMED.
+
 ## Output schema
 
 Write markdown to the file path the orchestrator provides:
@@ -39,6 +48,7 @@ Write markdown to the file path the orchestrator provides:
 - path: <repo-relative path>
   lines: <start-end>
   relevance: <0.0-1.0>
+  provenance: <CONFIRMED|ASSUMED>
   summary: <one sentence on why this is relevant>
 
 ## Hot Anchors
