@@ -95,3 +95,27 @@ detail. Update when a term is coined, sharpened, or changes meaning.
 - **Compounder** — the read-only subagent (sonnet) that distills a task's findings and
   learnings into the Learning body and the corpus merge; the orchestrator owns the final
   write. Runs only in the Codify sub-step (standard + architecture tiers; trivial skips it).
+
+## Research provenance
+
+ADE grades research evidence on **two orthogonal axes** (the doctrine-standard separation;
+cf. NATO Admiralty Code). See `docs/research/provenance-and-evidence-grading-frameworks-2026-06.md`.
+
+- **Trust** — the **source** axis: how reliable the *origin* of a finding is, independent of
+  any particular claim. Carried on web sources as `high | medium | low` (also the
+  prompt-injection signal). ≈ Admiralty source-reliability A–F. _Avoid_: using "trust" for
+  the claim axis — that is **provenance**.
+- **Provenance grade** — the **claim** axis: how ADE knows a particular claim is true,
+  independent of how trustworthy its source is. One of three values below. ≈ Admiralty
+  information-credibility 1–6. _Avoid_: conflating with **trust** (source axis) or with R5
+  **Verify** (the Chain-of-Verification phase — a claim's provenance grade is assigned at
+  research/synthesis time and says nothing about whether R5 has checked it).
+  - **CONFIRMED** — first-hand observed (a scout read the actual code) **or** corroborated by
+    ≥2 independent sources. ≈ Admiralty credibility-1 "confirmed by other sources".
+    Deliberately **not** named "verified" — that word belongs to R5. _Avoid_: verified.
+  - **CITED** — exactly one attributed source that *actually supports* the claim (a citation
+    that does not support it is **not** CITED). Not cross-confirmed.
+  - **ASSUMED** — inference or untraceable; the **monotonic default** — a claim that cannot be
+    traced to first-hand evidence or a supporting source is ASSUMED, never silently a fact.
+    Material ASSUMED claims route into the R3 interview before the spec locks.
+    _Avoid_: unverified (legacy ad-hoc marker this replaces).

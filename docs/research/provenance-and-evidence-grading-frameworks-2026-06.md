@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-22
 **Purpose:** Survey well-established frameworks for (a) tracing claims back to their evidence (provenance/traceability) and (b) grading the credibility of evidence and reliability of sources — to ground ADE's research-provenance design (see `docs/superpowers/specs/2026-06-22-research-provenance-grading-design.md` and `docs/adr/0004-two-axis-research-provenance.md`).
-**How produced:** ADE deep-research harness — 5 search angles → 25 sources fetched → 115 falsifiable claims extracted → top 25 claims put through 3-vote adversarial verification (a claim survives only if it is *not* refuted 2-of-3). **24 of 25 claims confirmed; 1 refuted.** Confidence labels below are the harness's, carried with their primary sources. This document is itself, by ADE's own scheme, a `VERIFIED` artifact (corroborated, primary-sourced).
+**How produced:** ADE deep-research harness — 5 search angles → 25 sources fetched → 115 falsifiable claims extracted → top 25 claims put through 3-vote adversarial verification (a claim survives only if it is *not* refuted 2-of-3). **24 of 25 claims confirmed; 1 refuted.** Confidence labels below are the harness's, carried with their primary sources. This document is itself, by ADE's own scheme, a `CONFIRMED` artifact (corroborated, primary-sourced).
 
 ---
 
@@ -13,7 +13,7 @@ Separating **source reliability** from **claim credibility** into two orthogonal
 **Direct answers to the design questions:**
 
 1. **Two axes (source vs claim) — proven?** Yes, at doctrine level (Admiralty/STANAG 2511; mirrored by GRADE; confirmed by PROV's grading-free design).
-2. **Minimal proven grade vocabularies?** Admiralty credibility 1–6, GRADE certainty (high/moderate/low/very-low). ADE's 3-level `VERIFIED/CITED/ASSUMED` is a defensible minimal analogue.
+2. **Minimal proven grade vocabularies?** Admiralty credibility 1–6, GRADE certainty (high/moderate/low/very-low). ADE's 3-level `CONFIRMED/CITED/ASSUMED` is a defensible minimal analogue.
 3. **Handling "unverified/assumed"?** Default to the lowest grade (in-toto monotonicity); structurally separate the assertion from its provenance so it can't read as fact (nanopublications); abstain (RAG).
 4. **Routing low-credibility claims to a human?** Standard practice — intelligence "collector–analyst collaboration + periodic revaluation"; GRADE's human evidence→recommendation judgment; RAG grounded-refusal.
 
@@ -25,7 +25,7 @@ Separating **source reliability** from **claim credibility** into two orthogonal
 - **What it grades:** every piece of intelligence on **two independent axes**.
 - **Axes/levels:** source **reliability** `A`–`F` (A = completely reliable/tried-and-trusted … E = unreliable, F = cannot be judged); information **credibility** `1`–`6` (1 = confirmed by other sources … 4 = doubtful, 5 = improbable, 6 = truth cannot be judged).
 - **Key rule:** "Reliability and credibility, the two aspects of evaluation, must be considered independently of each other."
-- **Maps to ADE:** `trust:high/medium/low` ≈ the A–F source axis; `VERIFIED/CITED/ASSUMED` ≈ the 1–6 credibility axis (VERIFIED ≈ 1 "confirmed by other sources"; ASSUMED ≈ 6 "truth cannot be judged").
+- **Maps to ADE:** `trust:high/medium/low` ≈ the A–F source axis; `CONFIRMED/CITED/ASSUMED` ≈ the 1–6 credibility axis (CONFIRMED ≈ 1 "confirmed by other sources"; ASSUMED ≈ 6 "truth cannot be judged").
 - **Confidence:** high. Sources: STANAG 2511 reproduced at ETURWG/GMU; Irwin & Mandel 2019; Wikipedia (Admiralty code).
 
 ### Evidence-based medicine — GRADE
@@ -53,14 +53,14 @@ Separating **source reliability** from **claim credibility** into two orthogonal
 
 ### Granular provenance — Nanopublications
 - **What it does:** each nanopub separates **assertion** (the claim) from **provenance** (where it came from, via `wasDerivedFrom` + citation) into distinct named RDF graphs, attaching provenance at the **atomic claim level** rather than the document level. ~98.95% use W3C PROV in the provenance position.
-- **Maps to ADE:** the principle (not the RDF) — structurally separate an `ASSUMED`/inference claim from a `VERIFIED`/cited one so it cannot be mistaken for fact; bind each claim to its own evidence, not a bibliography blob.
+- **Maps to ADE:** the principle (not the RDF) — structurally separate an `ASSUMED`/inference claim from a `CONFIRMED`/cited one so it cannot be mistaken for fact; bind each claim to its own evidence, not a bibliography blob.
 - **Confidence:** high. Source: Kuhn et al., IEEE eScience 2018 (arXiv 1809.06532).
 
 ### Software supply chain — in-toto / SLSA
 - **What it does:** cryptographic **claim→artifact binding** (in-toto `Statement` subject matched by digest) plus two safety rules:
   - **Monotonic principle:** "ignoring an attestation, or a field within an attestation, will never turn a DENY decision into an ALLOW" — absent/unverified evidence is never silently treated as fact.
   - **Verification Summary Attestation (VSA):** separates a verifier's **assertion** ("artifact meets level N") from the underlying **evidence**, so consumers trust the summary without re-evaluating all provenance.
-- **Maps to ADE:** (1) default an unverified/absent claim to its lowest grade (`ASSUMED`) — the monotonic rule; (2) a human-confirmed `VERIFIED` claim is a reusable verifier-assertion downstream phases trust without re-deriving (R5 need not re-litigate it).
+- **Maps to ADE:** (1) default an unverified/absent claim to its lowest grade (`ASSUMED`) — the monotonic rule; (2) a human-confirmed `CONFIRMED` claim is a reusable verifier-assertion downstream phases trust without re-deriving (R5 need not re-litigate it).
 - **Caveat:** monotonicity is a **SHOULD-level** policy property, not auto-enforced — ADE must enforce "missing evidence ⇒ lowest grade" itself.
 - **Confidence:** high. Sources: in-toto attestation spec v1; SLSA v1.0 Verification Summary.
 - **Refuted (do NOT borrow):** SLSA build levels `L1..L3` are **not** a general-purpose claim-credibility vocabulary (1-of-3 vote; killed). Do not use SLSA levels as ADE grade names.
@@ -78,12 +78,12 @@ Separating **source reliability** from **claim credibility** into two orthogonal
 2. **Rigid grades can mislead.** Irwin & Mandel (2019): all-purpose scales "mask rather than effectively guide subjectivity"; ~87% of ratings collapse onto the A1/B2/C3 diagonal (Baker et al. 1968). **Mitigation:** 3 well-defined levels, grades revisable as evidence accrues, no over-claimed precision.
 3. **Monotonicity is a policy, not a mechanism** — ADE enforces "missing evidence ⇒ ASSUMED" in prose, not via a framework.
 4. Two Irwin & Mandel copies were verified via abstract/secondary corroboration (publisher returned HTTP 403); abstract confirmed by two search engines.
-5. **Grade names are a design choice**, not dictated by any framework. `VERIFIED/CITED/ASSUMED` is defensible; the deliberate refinement is that `CITED` encodes citation *quality* (does the source actually support the claim), not mere presence.
+5. **Grade names are a design choice**, not dictated by any framework. `CONFIRMED/CITED/ASSUMED` is defensible; the deliberate refinement is that `CITED` encodes citation *quality* (does the source actually support the claim), not mere presence.
 
 ## Open questions (not blocking the current design)
 
-- Should a confirmed `VERIFIED` grade be a reusable verifier-assertion that downstream phases never re-check, and how is it invalidated when the underlying code/source changes (digest-binding analogue)?
-- Exact promotion/demotion automation thresholds (e.g. does a 2nd independent source auto-promote `CITED`→`VERIFIED`, or require human confirm?). Intelligence literature recommends "periodic revaluation" but prescribes no automation threshold. ADE currently leaves promotion to synthesizer/CoVe judgment.
+- Should a confirmed `CONFIRMED` grade be a reusable verifier-assertion that downstream phases never re-check, and how is it invalidated when the underlying code/source changes (digest-binding analogue)?
+- Exact promotion/demotion automation thresholds (e.g. does a 2nd independent source auto-promote `CITED`→`CONFIRMED`, or require human confirm?). Intelligence literature recommends "periodic revaluation" but prescribes no automation threshold. ADE currently leaves promotion to synthesizer/CoVe judgment.
 - Representation of refuting/conflicting evidence beyond routing to R3 (CiTO `refutes` is the formal home if a 4th grade is ever warranted).
 
 ## Sources (primary unless noted)

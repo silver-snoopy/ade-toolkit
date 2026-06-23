@@ -24,17 +24,19 @@ The gap: a spec fact derived from an unconfirmed blog, a first-hand code read, a
 ## 2. Goals / non-goals
 
 **Goals**
-- Add a claim-level `provenance` grade — `VERIFIED | CITED | ASSUMED` — to scout and web-research findings, layered on (not replacing) the existing source-level `trust`.
+- Add a claim-level `provenance` grade — `CONFIRMED | CITED | ASSUMED` — to scout and web-research findings, layered on (not replacing) the existing source-level `trust`.
 - Define the three grades crisply and canonically (in the repo glossary + each producing agent).
 - Carry per-claim grades through synthesis into the draft spec, co-located with each claim and its citation.
 - Enforce a **monotonic default**: any claim that cannot be traced to first-hand observation or a supporting source is `ASSUMED` — absent evidence never defaults to fact.
-- Route **material `ASSUMED` claims (and source conflicts) into the R3.2 interview**, prioritized within the existing 5-question cap; a user-confirmed claim becomes `VERIFIED`. Unresolved `ASSUMED` claims remain **labeled** in the spec, never silently promoted.
+- Enforce a **trust floor**: a `trust: low` source cannot, on its own, lift a claim above `ASSUMED` (injection-laundering guard; ADE's one deliberate departure from Admiralty independence).
+- At lock, gather residual `ASSUMED` claims into a dedicated **"Assumptions"** section of the permanent spec; keep `CITED` citations; leave `CONFIRMED` unmarked (no per-claim tag litter).
+- Route **material `ASSUMED` claims (and source conflicts) into the R3.2 interview**, prioritized within the existing 5-question cap; a user-confirmed claim becomes `CONFIRMED`. Unresolved `ASSUMED` claims remain **labeled** in the spec, never silently promoted.
 - Have R5 CoVe target `CITED`/`ASSUMED` claims first.
-- Keep grades revisable (synthesizer may promote `CITED`→`VERIFIED` on a second independent corroborating source; CoVe may downgrade).
+- Keep grades revisable (synthesizer may promote `CITED`→`CONFIRMED` on a second independent corroborating source; CoVe may downgrade).
 - All affected tests updated; `ade eval` and the stale-reference guard stay green.
 
 **Non-goals (deferred / out of scope)**
-- No RDF / PROV-O / nanopublication serialization — ADE specs are human-readable Markdown; grades are inline tags (`[VERIFIED]` / `[CITED]` / `[ASSUMED]`).
+- No RDF / PROV-O / nanopublication serialization — ADE specs are human-readable Markdown; grades are inline tags (`[CONFIRMED]` / `[CITED]` / `[ASSUMED]`).
 - No fourth grade for refuting/conflicting evidence — conflicts route to R3 as Open Questions (keeps the minimal 3-level ladder; Irwin-Mandel).
 - No automated numeric credibility scoring or promotion thresholds — promotion/demotion is synthesizer/CoVe judgment, not a computed metric.
 - No change to the source-level `trust` vocabulary or the prompt-injection handling that rides on it.
@@ -46,20 +48,24 @@ The gap: a spec fact derived from an unconfirmed blog, a first-hand code read, a
 
 A claim's `provenance` answers "how do *we* know this?", independent of how trustworthy the source is:
 
-- **VERIFIED** — first-hand observed **or** corroborated by ≥2 independent sources. For a scout: the agent read the actual file and the code says it. For web: a claim confirmed by two independent sources, or a verbatim quote from a `trust: high` primary source. (≈ Admiralty credibility-1 "confirmed by other sources"; GRADE high; RAG grounded-and-corroborated.)
+- **CONFIRMED** — first-hand observed **or** corroborated by ≥2 independent sources. For a scout: the agent read the actual file and the code says it. For web: a claim confirmed by two independent sources, or a verbatim quote from a `trust: high` primary source. (≈ Admiralty credibility-1 "confirmed by other sources"; GRADE high; RAG grounded-and-corroborated.)
 - **CITED** — exactly one attributed source that **actually supports** the claim, not cross-confirmed. The citation must genuinely back the statement (citation-recall); a citation that does not support it is **not** CITED — it is ASSUMED. (≈ PROV `wasDerivedFrom` + CiTO `citesAsEvidence`; RAG citation-recall.)
 - **ASSUMED** — inference, gap-filling, or any claim with no traceable first-hand evidence or supporting source. Generalizes today's `[unverified]`. (≈ Admiralty credibility-6 "truth cannot be judged"; OCEBM bottom; RAG should-refuse.)
 
 **Monotonic rule (in-toto):** when in doubt, a claim is `ASSUMED`. Missing or unconfirmed evidence never upgrades a grade. This is enforced in prose by the synthesizer (§3.4); it is a discipline, not a computed gate.
 
+**Naming (grill 2026-06-22):** the top grade is `CONFIRMED`, **not** "VERIFIED" — ADE already owns "verify/verification/verifier" for the R5 Chain-of-Verification phase, and a claim's provenance grade is assigned at research/synthesis time and says nothing about whether R5 has checked it. `CONFIRMED` also maps directly to Admiralty credibility-1 "confirmed by other sources." See the glossary `_Avoid_: verified` note.
+
+**Trust floor (grill 2026-06-22) — ADE's one deliberate departure from Admiralty independence.** Admiralty judges the two axes independently. ADE adds a security constraint Admiralty lacks: a `trust: low` source is the prompt-injection flag (`web-researcher.md.j2:23`). To keep injected content out of locked facts, **a `trust: low` source cannot, on its own, lift a claim above `ASSUMED`.** A claim reaches `CITED`/`CONFIRMED` only with support from a `trust: medium`-or-better source (or ≥2 independent corroborating sources). The axes are still *recorded* independently; the *promotion* rule treats trust as a floor. This is the single point where ADE knowingly deviates from the cited doctrine — recorded in the ADR.
+
 ### 3.2 Scout findings (`agents/scout.md.j2`)
 
-Add a `provenance:` field to each finding in the output schema. A scout reads real files, so its findings are normally `VERIFIED` (the code is the first-hand evidence). When a scout *infers* behavior it did not directly read, or records terminology/externals it does not understand (its Open Questions), those are `ASSUMED`. Scouts effectively never produce `CITED` (they cite the repo itself = first-hand = VERIFIED). The grade definition block is added near the existing relevance-scoring block.
+Add a `provenance:` field to each finding in the output schema, framed as a **forcing function** to suppress name-based inference: `CONFIRMED` means **the scout actually read the code that shows the claim**; `ASSUMED` means it **inferred behavior from a name, signature, or comment without reading the body** (and the scout's Open Questions are inherently `ASSUMED`). This targets a real failure mode — a scout asserting what `processPayment()` does from its name, on a ~15-file read budget, rather than opening it. Scouts effectively never produce `CITED` (citing the repo = first-hand = `CONFIRMED`). The grade definition block is added near the existing relevance-scoring block.
 
 ### 3.3 Web-research findings (`agents/web-researcher.md.j2`)
 
 Add a claim-level `provenance:` to each finding, **alongside** the existing per-source `trust:`. Guidance:
-- corroborated by ≥2 independent sources, or a verbatim quote from a `trust: high` primary source → `VERIFIED`
+- corroborated by ≥2 independent sources, or a verbatim quote from a `trust: high` primary source → `CONFIRMED`
 - a single source that actually supports the claim → `CITED`
 - no fetchable/supporting source, or the agent's own inference → `ASSUMED`
 The `trust` axis and prompt-injection handling are unchanged; `provenance` is the second, orthogonal axis.
@@ -70,26 +76,31 @@ The `trust` axis and prompt-injection handling are unchanged; `provenance` is th
 - Apply the **monotonic default**: any claim that cannot be traced to first-hand evidence or a supporting source is tagged `[ASSUMED]`, never stated as a bare fact.
 - **Route material `[ASSUMED]` claims into "Open Questions for User"** (the section R3.2 consumes). "Material" = the claim, if wrong, changes architecture, data modeling, testing, UX, operations, or compliance (same materiality bar R3.2 already uses).
 - **Conflicting sources** (two sources disagree) also become Open Questions — no new grade.
-- May **promote** `CITED`→`VERIFIED` when a second independent source corroborates (revisability).
+- May **promote** `CITED`→`CONFIRMED` when a second independent source corroborates (revisability).
 
 ### 3.5 Interview, verification, spec (`skills/ade-research/SKILL.md.j2`)
 
 - **R2 / R2.3:** note that scouts and web-research tag `provenance`.
 - **R3.1:** synthesizer carries grades + routes material ASSUMED/conflicts to Open Questions.
-- **R3.2 interview:** material `ASSUMED` claims and source conflicts are **prioritized candidates** within the existing **5-question cap** (they compete with, and generally outrank, ambiguity-taxonomy gaps because an un-grounded fact is higher-risk than an open choice). A claim the user confirms becomes `VERIFIED` and is recorded as a fact; the spec drops the tag. Any `ASSUMED` claim **not** resolved within the cap **stays labeled `[ASSUMED]`** in the spec (an explicit assumption the planner/dev sees), never silently promoted.
-- **R5 CoVe:** `spec-verifier` claim extraction **prioritizes `CITED` and `ASSUMED` claims** (the lowest-grounded, highest-payoff), still blind to the spec text. A user-confirmed `VERIFIED` claim is a reusable "verifier assertion" (SLSA VSA analogue) — CoVe need not re-litigate it.
+- **R3.2 interview:** material `ASSUMED` claims and source conflicts are **prioritized candidates** within the existing **5-question cap** (they compete with, and generally outrank, ambiguity-taxonomy gaps because an un-grounded fact is higher-risk than an open choice). A claim the user confirms becomes `CONFIRMED` and is recorded as a fact; the spec drops the tag. Any `ASSUMED` claim **not** resolved within the cap **stays labeled `[ASSUMED]`** in the spec (an explicit assumption the planner/dev sees), never silently promoted.
+- **R5 CoVe:** `spec-verifier` claim extraction **prioritizes `CITED` and `ASSUMED` claims** (the lowest-grounded, highest-payoff), still blind to the spec text. A user-confirmed `CONFIRMED` claim is a reusable "verifier assertion" (SLSA VSA analogue) — CoVe need not re-litigate it.
+- **Permanent-spec format at lock (grill 2026-06-22) — provenance survives only where it changes a reader's behavior.** Tags are working state through R3.1–R5; at lock the permanent `docs/specs/{date}_{slug}.spec.md` keeps:
+  - **residual `ASSUMED`** claims (material ones the cap couldn't resolve) visibly labeled **and** gathered into a dedicated **"Assumptions"** section — the one thing a planner must scan; a non-empty Assumptions section is itself a signal at the ready-for-development gate that research left gaps;
+  - **`CITED`** claims keep their `[n]` **citation** (the citation *is* the provenance) but shed the bare `[CITED]` tag;
+  - **`CONFIRMED`** claims are stated plainly, unmarked (the default).
+  Tagging every claim (grade theater / Irwin-Mandel false objectivity) and stripping all tags (loses the assumption signal) are both rejected.
 - Add a short canonical **"Provenance grading"** subsection defining the two axes + three grades once, referenced by the rest.
 
 ### 3.6 Glossary (`CONTEXT.md`)
 
-Add a "Research provenance" group: **Provenance grade** (the claim-level axis), **VERIFIED / CITED / ASSUMED** (the three values, with the Admiralty mapping noted), and a cross-reference clarifying **trust** (source axis) vs **provenance** (claim axis) — the two-axis model. `_Avoid_`: using "trust" and "provenance" interchangeably.
+Add a "Research provenance" group: **Provenance grade** (the claim-level axis), **CONFIRMED / CITED / ASSUMED** (the three values, with the Admiralty mapping noted), and a cross-reference clarifying **trust** (source axis) vs **provenance** (claim axis) — the two-axis model. `_Avoid_`: using "trust" and "provenance" interchangeably.
 
 ## 4. Files changed
 
 **Agent templates**
-- `agents/scout.md.j2` — `provenance:` field + grade block (VERIFIED/ASSUMED for code reads/inferences).
-- `agents/web-researcher.md.j2` — claim-level `provenance:` alongside source `trust:`.
-- `agents/synthesizer.md.j2` — carry grades, monotonic default, `[unverified]`→`[ASSUMED]`, route material ASSUMED/conflicts to Open Questions, allow CITED→VERIFIED promotion.
+- `agents/scout.md.j2` — `provenance:` field + grade block, framed read-it (`CONFIRMED`) vs inferred-it (`ASSUMED`).
+- `agents/web-researcher.md.j2` — claim-level `provenance:` alongside source `trust:`, incl. the trust-floor rule.
+- `agents/synthesizer.md.j2` — carry grades, monotonic default + trust floor, `[unverified]`→`[ASSUMED]`, route material ASSUMED/conflicts to Open Questions, allow CITED→CONFIRMED promotion, and at lock gather residual ASSUMED into an "Assumptions" section.
 
 **Skill**
 - `skills/ade-research/SKILL.md.j2` — canonical "Provenance grading" subsection; R2/R3.1/R3.2/R5 wiring (prioritize ASSUMED in the 5-question cap; CoVe targets CITED/ASSUMED first).
@@ -100,21 +111,26 @@ Add a "Research provenance" group: **Provenance grade** (the claim-level axis), 
 
 ## 5. Testing
 
-- `scout` template contains `provenance` + the grade names. (skill/agent content)
-- `web-researcher` template contains a claim-level `provenance` distinct from source `trust`. (content)
-- `synthesizer` template no longer says `[unverified]`; contains `[ASSUMED]`, the monotonic rule, and the route-to-Open-Questions instruction. (content)
+- `scout` template contains `provenance` + the grade names, framed read-vs-inferred. (content)
+- `web-researcher` template contains a claim-level `provenance` distinct from source `trust`, incl. the trust-floor rule. (content)
+- `synthesizer` template no longer says `[unverified]`; contains `[ASSUMED]`, the monotonic rule, the trust floor, the route-to-Open-Questions instruction, and the "Assumptions" section at lock. (content)
 - `ade-research` skill defines the three grades and the ASSUMED→R3 routing + the 5-question prioritization. (content)
-- `docs/adr/0004-…` exists and names the two axes.
-- `CONTEXT.md` defines Provenance grade + the three values.
+- **Naming guard:** the generated tree contains the grade `CONFIRMED`, and **no** all-caps `VERIFIED` grade token (so it never collides with R5 Verify). (content)
+- `docs/adr/0004-…` exists, names the two axes, and records the trust-floor deviation.
+- `CONTEXT.md` defines Provenance grade + the three values + the trust-vs-provenance two-axis distinction.
 - `ade eval` green; the G5 stale-reference grep guard green; full suite green.
 
 ## 6. ADR-0004 (summary; full text in `docs/adr/`)
 
-**Decision:** ADE grades research on two orthogonal axes — source-level `trust` (existing) and claim-level `provenance: VERIFIED | CITED | ASSUMED` (new) — and routes material `ASSUMED` claims to the user before they lock as spec facts.
+**Decision:** ADE grades research on two orthogonal axes — source-level `trust` (existing) and claim-level `provenance: CONFIRMED | CITED | ASSUMED` (new) — and routes material `ASSUMED` claims to the user before they lock as spec facts.
 
 **Context / grounding:** the two-axis separation is doctrine (Admiralty/STANAG 2511) and mirrored by GRADE; provenance models (PROV) deliberately exclude grading, confirming the two are separate layers; the monotonic default (missing evidence ⇒ lowest grade) is in-toto's safety principle; abstain-when-unsupported is RAG best practice (Trust-Score).
 
 **Trade-off / caveat:** rigid scales can mask subjectivity and collapse to a diagonal (Irwin & Mandel 2019). Mitigated by three crisp levels, revisable grades, and no over-claimed precision.
+
+**Deliberate deviation from doctrine:** Admiralty judges the two axes strictly independently; ADE imposes a **trust floor** — a `trust: low` (prompt-injection-flagged) source cannot lift a claim above `ASSUMED` on its own. This is a security choice (block injection-laundering of web content into locked facts) that the ADR records as a knowing departure.
+
+**Naming:** the top grade is `CONFIRMED`, not "VERIFIED", to avoid colliding with the R5 Verify (Chain-of-Verification) phase.
 
 **Rejected alternative:** trust-only single axis (simpler, but cannot distinguish a first-hand code read from an inference attributed to a high-trust source).
 
