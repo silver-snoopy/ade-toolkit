@@ -5,7 +5,7 @@
 **Scope:** ADE toolkit (`src/ade/`) — addresses small-cleanup #4 of `docs/ade-sdlc-adversarial-review-suggestions-2026-06.md` ("Grade research provenance … `ASSUMED` claims routed into the R3 user interview before becoming locked spec facts").
 **Depends on:** the Phase-1 research pipeline (R2 scouts, R2.3 web research, R3 synthesize/interview, R5 CoVe) — all shipped.
 **Companion docs:** `docs/adr/0004-two-axis-research-provenance.md` (the methodology decision + its external grounding); new glossary terms in the repo `CONTEXT.md`.
-**Evidence base:** a 2026-06-22 deep-research pass (5 angles, 25 sources, 24/25 claims confirmed by 3-vote adversarial verification) over NATO Admiralty Code / STANAG 2511, GRADE, OCEBM, W3C PROV, CiTO, nanopublications, in-toto/SLSA, and RAG attribution (Trust-Score). Primary sources cited inline in the ADR.
+**Evidence base:** `docs/research/provenance-and-evidence-grading-frameworks-2026-06.md` — a 2026-06-22 deep-research pass (5 angles, 25 sources, 24/25 claims confirmed by 3-vote adversarial verification) over NATO Admiralty Code / STANAG 2511, GRADE, OCEBM, W3C PROV, CiTO, nanopublications, in-toto/SLSA, and RAG attribution (Trust-Score). The ADR cites its primary sources.
 
 ## 1. Context & motivation
 
