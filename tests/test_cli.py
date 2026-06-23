@@ -592,3 +592,14 @@ def test_ade_research_defines_provenance(python_project: Path) -> None:
     assert "assumed" in low and ("5-question" in low or "5 question" in low or "cap" in low)
     # R5 CoVe targets the lowest-grounded claims first
     assert "spec-verifier" in content or "CoVe" in content
+
+
+def test_adr_0004_exists_and_records_two_axes() -> None:
+    repo = Path(__file__).resolve().parents[1]
+    adr = repo / "docs" / "adr" / "0004-two-axis-research-provenance.md"
+    assert adr.exists()
+    text = adr.read_text()
+    assert "trust" in text and "provenance" in text
+    assert "CONFIRMED" in text and "CITED" in text and "ASSUMED" in text
+    assert "trust floor" in text.lower()
+    assert "Admiralty" in text
