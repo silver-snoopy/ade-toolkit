@@ -553,3 +553,15 @@ def test_scout_agent_tags_provenance(python_project: Path) -> None:
     assert "read the actual" in content.lower() or "without reading" in content.lower()
     # scouts cite the repo first-hand, so they do not emit CITED
     assert "do not emit CITED" in content or "never emit CITED" in content
+
+
+def test_web_researcher_claim_provenance_and_trust_floor(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "agents" / "web-researcher.md").read_text()
+    assert "provenance" in content
+    assert "CONFIRMED" in content and "CITED" in content and "ASSUMED" in content
+    # source trust is retained, not replaced
+    assert "trust: high" in content
+    # trust floor: a trust:low source cannot lift a claim above ASSUMED
+    low = content.lower()
+    assert "trust floor" in low or ("trust: low" in content and "above" in low and "assumed" in low)
