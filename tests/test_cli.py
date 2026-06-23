@@ -584,9 +584,7 @@ def test_synthesizer_provenance_rules(python_project: Path) -> None:
 
 def test_ade_research_defines_provenance(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    content = (
-        python_project / ".claude" / "skills" / "ade-research" / "SKILL.md"
-    ).read_text()
+    content = (python_project / ".claude" / "skills" / "ade-research" / "SKILL.md").read_text()
     assert "Provenance grading" in content
     assert "CONFIRMED" in content and "CITED" in content and "ASSUMED" in content
     # ASSUMED prioritized within the existing 5-question cap
