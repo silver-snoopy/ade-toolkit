@@ -678,3 +678,11 @@ def test_ade_research_has_threat_pass(python_project: Path) -> None:
     assert "residual risk" in low
     # placed before the R4 grill section (and thus before R5)
     assert content.index("### R3.3") < content.index("## R4 — Refine")
+
+
+def test_agents_md_mentions_threat_pass(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agents = (python_project / "AGENTS.md").read_text()
+    low = agents.lower()
+    assert "R3.3" in agents
+    assert "threat pass" in low or "threat-modeler" in low
