@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADE Dev Pipeline Market and Best-Practice Study</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f7f7f5;
+  --paper: #ffffff;
+  --ink: #171717;
+  --muted: #5f6368;
+  --line: #dadde2;
+  --line-strong: #b9c0ca;
+  --accent: #2456a6;
+  --accent-soft: #edf3ff;
+  --code-bg: #f1f3f5;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.58;
+}
+main.document {
+  width: min(1120px, calc(100% - 40px));
+  margin: 32px auto 56px;
+  padding: 42px 48px 56px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+h1, h2, h3, h4 {
+  line-height: 1.22;
+  margin: 1.55em 0 0.55em;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+h1 { margin-top: 0; font-size: 2.15rem; }
+h2 { font-size: 1.45rem; border-top: 1px solid var(--line); padding-top: 1.1rem; }
+h3 { font-size: 1.15rem; }
+p { margin: 0.75rem 0; }
+a { color: var(--accent); text-decoration-thickness: 0.08em; text-underline-offset: 0.14em; }
+blockquote {
+  margin: 1rem 0;
+  padding: 0.25rem 1rem;
+  color: #303846;
+  background: var(--accent-soft);
+  border-left: 4px solid var(--accent);
+}
+ul, ol { padding-left: 1.45rem; margin: 0.65rem 0 1rem; }
+li { margin: 0.28rem 0; }
+code {
+  padding: 0.12rem 0.32rem;
+  background: var(--code-bg);
+  border: 1px solid #e4e7eb;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+pre {
+  padding: 1rem;
+  overflow: auto;
+  background: #111827;
+  color: #f9fafb;
+  border-radius: 6px;
+}
+pre code { padding: 0; border: 0; background: transparent; color: inherit; }
+table {
+  width: 100%;
+  margin: 1rem 0 1.35rem;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+}
+th, td {
+  padding: 0.62rem 0.72rem;
+  border: 1px solid var(--line);
+  vertical-align: top;
+}
+th {
+  background: #f5f7fa;
+  border-bottom-color: var(--line-strong);
+  text-align: left;
+  font-weight: 700;
+}
+tr:nth-child(even) td { background: #fbfcfd; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
+@media (max-width: 760px) {
+  main.document { width: 100%; margin: 0; padding: 24px 18px 36px; border: 0; border-radius: 0; }
+  h1 { font-size: 1.65rem; }
+  h2 { font-size: 1.25rem; }
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+}
+</style>
+</head>
+<body>
+<main class="document">
+<h1 id="ade-dev-pipeline-market-and-best-practice-study">ADE Dev Pipeline Market and Best-Practice Study</h1>
+<p>Date: 2026-06-21</p>
+<p>Scope: ADE's inner development pipeline, from intent capture through review:
+Intent -&gt; Research -&gt; Plan -&gt; Design Check -&gt; Implement -&gt; Quality Gate -&gt;
+Review. Shipping, release management, and long-term product operations are
+covered only where they expose a best-practice gap in the inner loop.</p>
+<p>This file complements <code>docs/ade-dev-pipeline-study-2026-06.html</code>. It is written
+as a conservative market synthesis: score the framework against recognized
+software-engineering practices, compare the surveyed competitors against the
+same rubric, and separate strong evidence from plausible but lower-confidence
+market claims.</p>
+<h2 id="executive-conclusion">Executive conclusion</h2>
+<p>ADE is legitimately strong where the modern agentic-SDLC field is converging:
+durable artifacts, explicit routing, research/specification grounding,
+independent verification, author-separated TDD, deterministic hooks, and a
+compounding review memory. This matches the direction identified by the 2026
+"From Prompt to Process" taxonomy: frameworks are moving beyond isolated
+prompts toward persistent artifacts, roles, traceability, validation, and
+human review.</p>
+<p>The claim to keep is narrower than "no competitor matches ADE." A defensible
+version is:</p>
+<blockquote>
+<p>In the surveyed corpus, ADE is a high-rigor implementation of the
+specification-to-reviewed-code loop, with particularly strong evidence for
+routing, standard/architecture-tier spec verification, executable design
+checks, author-separated TDD, and hook enforcement. Its weakest best-practice
+gaps are live runtime evidence, standard-tier plan validation, independent
+review of design stubs, design-time security/privacy/NFR forcing, and
+operational-readiness controls.</p>
+</blockquote>
+<p>That framing roots ADE in best practices without relying on absolute market
+superlatives. It also makes the roadmap clearer: ADE does not need a new
+pipeline shape. It needs to extend its existing verification discipline to the
+gaps where standards and mature competitors agree evidence matters.</p>
+<h2 id="research-execution">Research execution</h2>
+<p>Inputs used for this synthesis:</p>
+<ul>
+<li>Local ADE source review: <code>docs/ade-architecture-design.md</code>,
+  <code>src/ade/templates/skills/*.j2</code>, hooks, tests, and the existing HTML studies.</li>
+<li>Parallel subagent review:</li>
+<li>local ADE implementation verifier</li>
+<li>standards and best-practice anchor reviewer</li>
+<li>competitor clusters for gstack/gsd/case/compound-engineering,
+    Spec Kit/BMAD/OpenSpec/HumanLayer, and ECC/oh-my-cc/LeRisque/octobots</li>
+<li>evidence-audit reviewer focused on overclaim risk</li>
+<li>External source check:</li>
+<li>Anthropic Claude Code best practices, hooks, and subagents docs</li>
+<li>NIST SSDF SP 800-218</li>
+<li>ISO/IEC/IEEE 12207:2026 and ISO/IEC 25010:2023</li>
+<li>OWASP SAMM and ASVS</li>
+<li>DORA metrics, Google SRE postmortem guidance, SLSA, NIST Privacy Framework,
+    WCAG 2.2, GitLab incremental rollout examples, and SBOM literature</li>
+<li>public repos/docs for the higher-confidence competitors</li>
+</ul>
+<p>One competitor cluster covering Superpowers, sdlc-skills, agent-skills, and
+M.Pocock did not finish before synthesis. Those rows preserve the prior study's
+evidence and are explicitly marked medium confidence rather than primary
+re-verified.</p>
+<h2 id="evidence-scoring">Evidence scoring</h2>
+<p>Use this scale for every cell:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Score</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">0</td>
+<td>Absent, marketing-only, or no observable evidence.</td>
+</tr>
+<tr>
+<td style="text-align: right;">1</td>
+<td>Prompt-level or ad hoc practice; depends on user discipline.</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>Repeatable workflow with documented artifacts, partial automation, or visible logs.</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>Enforced/defaulted mechanism with objective evidence, independent checks, and traceability.</td>
+</tr>
+</tbody>
+</table>
+<p>Source confidence:</p>
+<table>
+<thead>
+<tr>
+<th>Mark</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H</td>
+<td>Primary public source or local source verified in this session.</td>
+</tr>
+<tr>
+<td>M</td>
+<td>Public evidence exists, but some scoring depends on inference or prior study notes.</td>
+</tr>
+<tr>
+<td>L</td>
+<td>Prior internal/secondary evidence only; needs primary-source revalidation.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="best-practice-framework">Best-practice framework</h2>
+<table>
+<thead>
+<tr>
+<th>Practice dimension</th>
+<th>Why it belongs in the rubric</th>
+<th>Anchor sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lifecycle coverage and traceability</td>
+<td>A credible SDLC covers requirements, design, implementation, verification, operation, maintenance, and feedback.</td>
+<td>ISO/IEC/IEEE 12207:2026: https://www.iso.org/standard/90219.html</td>
+</tr>
+<tr>
+<td>Quality and NFR acceptance criteria</td>
+<td>Non-functional quality must become measurable acceptance criteria, not adjectives like "fast" or "robust."</td>
+<td>ISO/IEC 25010:2023: https://www.iso.org/standard/78176.html</td>
+</tr>
+<tr>
+<td>Runnable verification evidence</td>
+<td>Agentic systems need checks the agent can run and evidence the reviewer can inspect.</td>
+<td>Anthropic best practices: https://code.claude.com/docs/en/best-practices</td>
+</tr>
+<tr>
+<td>Deterministic gates</td>
+<td>Hooks and policy checks are stronger than prose instructions because they run at lifecycle/tool events.</td>
+<td>Anthropic hooks: https://docs.anthropic.com/en/docs/claude-code/hooks</td>
+</tr>
+<tr>
+<td>Independent/fresh-context review</td>
+<td>The builder should not be the only judge. Fresh-context subagents and factorized verification reduce self-confirmation risk.</td>
+<td>Anthropic subagents: https://docs.anthropic.com/en/docs/claude-code/sub-agents; CoVe: https://arxiv.org/abs/2309.11495; self-correction limits: https://arxiv.org/abs/2310.01798</td>
+</tr>
+<tr>
+<td>Security requirements and threat modeling</td>
+<td>Security requirements, risk modeling, attack-surface review, and secure design review should happen before code review.</td>
+<td>NIST SSDF: https://csrc.nist.gov/pubs/sp/800/218/final; OWASP SAMM: https://owaspsamm.org/model/; OWASP ASVS: https://owasp.org/www-project-application-security-verification-standard/</td>
+</tr>
+<tr>
+<td>Privacy and data governance</td>
+<td>Data classification and privacy risk need design-time treatment for systems handling personal or sensitive data.</td>
+<td>NIST Privacy Framework: https://www.nist.gov/privacy-framework</td>
+</tr>
+<tr>
+<td>Operational readiness</td>
+<td>Production-facing changes need observability, rollback/recovery, and incident-learning loops.</td>
+<td>DORA metrics: https://dora.dev/guides/dora-metrics/; Google SRE postmortems: https://sre.google/sre-book/postmortem-culture/</td>
+</tr>
+<tr>
+<td>Rollout and rollback safety</td>
+<td>Runtime verification should include smoke checks, rollback paths, and progressive rollout criteria when deployable software changes are involved.</td>
+<td>GitLab incremental rollouts as a concrete platform example: https://docs.gitlab.com/ci/environments/incremental_rollouts/</td>
+</tr>
+<tr>
+<td>Supply-chain integrity</td>
+<td>Dependency, build, provenance, SBOM, and artifact-verification controls are distinct from source-code security review.</td>
+<td>SLSA: https://slsa.dev/spec/v1.1/about; SBOM landscape study: https://arxiv.org/abs/2402.11151</td>
+</tr>
+<tr>
+<td>Accessibility/usability validation</td>
+<td>UI-facing changes need keyboard, contrast, semantics, and assistive-technology checks, not only code tests.</td>
+<td>WCAG 2.2: https://www.w3.org/TR/WCAG22/</td>
+</tr>
+<tr>
+<td>Process taxonomy</td>
+<td>The agentic-framework market is converging on specification, context, roles, execution, validation, and portability, but no framework covers all dimensions strongly.</td>
+<td>From Prompt to Process: https://arxiv.org/abs/2606.04967</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ade-score-against-the-framework">ADE score against the framework</h2>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th style="text-align: right;">Score</th>
+<th>ADE status</th>
+<th>Best-practice interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Intent/routing</td>
+<td style="text-align: right;">3</td>
+<td><code>trivial</code>/<code>standard</code>/<code>architecture</code> routing with escalation floors and branch-scoped hook backstop.</td>
+<td>Strong. Make branch scope explicit so users do not mistake ADE-routed protection for repo-wide policy.</td>
+</tr>
+<tr>
+<td>Research/provenance</td>
+<td style="text-align: right;">3</td>
+<td>Full research skill uses scouts, synthesis, domain grill, and CoVe; routed <code>trivial</code> tasks skip grill/CoVe.</td>
+<td>Strong for standard/architecture; docs should reconcile trivial-tier wording.</td>
+</tr>
+<tr>
+<td>Independent spec verification</td>
+<td style="text-align: right;">3</td>
+<td>Spec-blind verifier is strong where independent subagent dispatch is available.</td>
+<td>Defensible strength, but not "all tiers/all harnesses." Codex/fallback is degraded.</td>
+</tr>
+<tr>
+<td>Plan validation</td>
+<td style="text-align: right;">2</td>
+<td>Self-check for all plans; adversarial plan reviewer only for architecture tier.</td>
+<td>Add lightweight standard-tier coverage validation.</td>
+</tr>
+<tr>
+<td>Design contract gate</td>
+<td style="text-align: right;">3</td>
+<td>Executable stubs, compile/import checks, and leftover-stub hook.</td>
+<td>Strong mechanism; add independent stub reviewer.</td>
+</tr>
+<tr>
+<td>Threat/privacy/NFR forcing</td>
+<td style="text-align: right;">1</td>
+<td>Security review exists late; R3 taxonomy does not force threat model, data classification, or measurable NFR targets.</td>
+<td>Largest standards-rooting gap.</td>
+</tr>
+<tr>
+<td>Author-separated TDD</td>
+<td style="text-align: right;">3</td>
+<td>Test writer and implementer roles plus mixed-commit hook.</td>
+<td>Strong, with harness caveat: hook enforces commit content, not literal human/agent authorship in degraded fallback.</td>
+</tr>
+<tr>
+<td>Deterministic gates/hooks</td>
+<td style="text-align: right;">3</td>
+<td>Mixed-commit, leftover-stub, and escalation-path hooks.</td>
+<td>Strong for ADE branches; wider repo policy is optional future work.</td>
+</tr>
+<tr>
+<td>Repair/stall handling</td>
+<td style="text-align: right;">2</td>
+<td>Retry caps and review loops exist; no failure-fingerprint/no-progress detector.</td>
+<td>Add stall detection before expanding retry depth.</td>
+</tr>
+<tr>
+<td>Live/runtime evidence</td>
+<td style="text-align: right;">1</td>
+<td>Acceptance coverage by tests exists; no first-class run/serve/live verification slot.</td>
+<td>Restore live proof per non-manual acceptance criterion.</td>
+</tr>
+<tr>
+<td>Review/calibration</td>
+<td style="text-align: right;">2</td>
+<td>Calibration corpus and reviewer agents; fallback is mostly same-model.</td>
+<td>Good baseline; use cross-model review selectively for security/high-blast-radius changes.</td>
+</tr>
+<tr>
+<td>Learning/traceability</td>
+<td style="text-align: right;">3</td>
+<td>Durable specs, ADRs, docs, review calibration, and retrospection.</td>
+<td>Strong; distinguish passive influence from hard gating.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="competitor-matrix">Competitor matrix</h2>
+<p>Columns:</p>
+<ul>
+<li>Route: intent/routing and blast-radius sizing</li>
+<li>Rsch: research grounding and provenance</li>
+<li>SpecV: independent spec/claim verification</li>
+<li>Plan: plan validation and requirements coverage</li>
+<li>Design: contracts, scaffolding, architecture checks</li>
+<li>SecNFR: design-time security, privacy, and measurable NFR forcing</li>
+<li>TDD: test authorship and test-quality discipline</li>
+<li>Hooks: deterministic hooks/policy gates</li>
+<li>Repair: bounded repair, stall detection, recovery loops</li>
+<li>Live: runnable/live acceptance evidence</li>
+<li>Review: review diversity, adversarial review, or calibrated judging</li>
+<li>Learn: durable learning/traceability/compounding</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Conf.</th>
+<th style="text-align: right;">Route</th>
+<th style="text-align: right;">Rsch</th>
+<th style="text-align: right;">SpecV</th>
+<th style="text-align: right;">Plan</th>
+<th style="text-align: right;">Design</th>
+<th style="text-align: right;">SecNFR</th>
+<th style="text-align: right;">TDD</th>
+<th style="text-align: right;">Hooks</th>
+<th style="text-align: right;">Repair</th>
+<th style="text-align: right;">Live</th>
+<th style="text-align: right;">Review</th>
+<th style="text-align: right;">Learn</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ADE</td>
+<td>H</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td>LeRisque</td>
+<td>M</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td>gstack</td>
+<td>H</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td>compound-engineering</td>
+<td>M</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td>case</td>
+<td>H</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td>sdlc-skills</td>
+<td>M</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td>ECC</td>
+<td>M</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td>octobots</td>
+<td>M</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td>gsd</td>
+<td>H</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td>Superpowers</td>
+<td>M</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td>HumanLayer</td>
+<td>M</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td>oh-my-cc</td>
+<td>H</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td>agent-skills</td>
+<td>M</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td>M.Pocock skills</td>
+<td>M</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td>GitHub Spec Kit</td>
+<td>H</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td>OpenSpec</td>
+<td>H</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td>BMAD</td>
+<td>M</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+</tr>
+</tbody>
+</table>
+<p>Interpretation:</p>
+<ul>
+<li>ADE's profile is high-rigor and front-loaded. Its trough is runtime proof and
+  design-time tail controls, not the core spec-to-code loop.</li>
+<li>gsd is the cleanest direct challenge to ADE's plan/research rigor. It
+  pressures ADE on all-tier plan checking, provenance tags, stall detection, and
+  model-diverse review.</li>
+<li>case and gstack pressure ADE on live verification. case is narrower but
+  strong where it insists on verifier evidence; gstack is stronger on
+  browser/QA and review fan-out.</li>
+<li>BMAD and Spec Kit pressure ADE on planning/spec artifact discipline and broad
+  adoption ergonomics. They are weaker evidence for deterministic enforcement.</li>
+<li>oh-my-cc and ECC pressure ADE on hook surface, persistent state, model routing,
+  and live/repair loops.</li>
+<li>LeRisque pressures ADE on calibrated judging and hook-enforced discipline, but
+  confidence is capped without fresh public primary-source verification.</li>
+<li>Superpowers, sdlc-skills, agent-skills, and M.Pocock are useful methodology
+  comparators, but this synthesis treats them as medium confidence until the
+  evidence pack is primary-source revalidated.</li>
+</ul>
+<h2 id="competitor-notes-and-primary-sources">Competitor notes and primary sources</h2>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Best observed strength</th>
+<th>Limit against ADE framework</th>
+<th>Source posture</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gstack</td>
+<td>Parallel specialist review and browser/QA evidence.</td>
+<td>Weaker explicit research provenance and TDD authorship enforcement.</td>
+<td>Public repo: https://github.com/garrytan/gstack</td>
+</tr>
+<tr>
+<td>gsd</td>
+<td>Research provenance, plan checker, goal-backward verifier, cross-AI review, stall detection.</td>
+<td>Less evidence for hard TDD authorship gates than ADE.</td>
+<td>Public repo/docs: https://github.com/open-gsd/gsd-core</td>
+</tr>
+<tr>
+<td>case</td>
+<td>Runtime verification and deterministic PR-loop reliability.</td>
+<td>Intentionally narrower on specification/design breadth.</td>
+<td>Public repo: https://github.com/workos/case</td>
+</tr>
+<tr>
+<td>compound-engineering</td>
+<td>Durable compounding and broad reviewer/persona fan-out.</td>
+<td>Deterministic hooks and live evidence are weaker in public evidence.</td>
+<td>Public repo: https://github.com/EveryInc/compound-engineering-plugin</td>
+</tr>
+<tr>
+<td>Spec Kit</td>
+<td>Strong spec/plan/tasks/analyze artifact pipeline and portability.</td>
+<td>Validation is mostly artifact analysis, not ADE-style blind verification or hook enforcement.</td>
+<td>Public repo: https://github.com/github/spec-kit</td>
+</tr>
+<tr>
+<td>BMAD</td>
+<td>Strong full-lifecycle planning, QA/adversarial review, and human checkpoints.</td>
+<td>Enforcement appears more procedural than deterministic.</td>
+<td>Public repo/docs: https://github.com/bmad-code-org/BMAD-METHOD</td>
+</tr>
+<tr>
+<td>OpenSpec</td>
+<td>Lightweight persistent spec/change-proposal workflow.</td>
+<td>Shallow compared with ADE on verification, test discipline, and gates.</td>
+<td>Public site/repo: https://openspec.dev/ and https://github.com/Fission-AI/OpenSpec</td>
+</tr>
+<tr>
+<td>HumanLayer</td>
+<td>Human collaboration, artifact workspace, and review surfaces.</td>
+<td>More product/runtime collaboration than enforceable SDLC methodology.</td>
+<td>Public site/repo: https://www.humanlayer.dev/ and https://github.com/humanlayer/humanlayer</td>
+</tr>
+<tr>
+<td>ECC</td>
+<td>Broad cross-harness operator system and hook surface.</td>
+<td>Some specific scoring still depends on internal secondary notes.</td>
+<td>Prior study plus public repo candidate: https://github.com/affaan-m/ECC</td>
+</tr>
+<tr>
+<td>oh-my-cc</td>
+<td>Hook-driven state, team pipeline, live verification and fix loops.</td>
+<td>Less clear evidence for blind spec verification and standards-tail controls.</td>
+<td>Prior study plus public repo candidate: https://github.com/Yeachan-Heo/oh-my-claudecode</td>
+</tr>
+<tr>
+<td>octobots</td>
+<td>Standing multi-instance dev-team orchestration and worker isolation.</td>
+<td>Weak formal gates, TDD authorship, and blind verification.</td>
+<td>Prior study plus public repo candidate: https://github.com/arozumenko/octobots</td>
+</tr>
+<tr>
+<td>sdlc-skills</td>
+<td>Multi-IDE skill/persona content and test-automation workflow patterns.</td>
+<td>More content-layer than enforcement layer.</td>
+<td>Prior study plus public repo candidate: https://github.com/arozumenko/sdlc-skills</td>
+</tr>
+<tr>
+<td>agent-skills</td>
+<td>Phase-organized skills and review personas.</td>
+<td>Stronger methodology than hard gates.</td>
+<td>Prior study plus public repo candidate: https://github.com/addyosmani/agent-skills</td>
+</tr>
+<tr>
+<td>M.Pocock skills</td>
+<td>Grill-with-docs/domain-modeling style and composable small skills.</td>
+<td>Not an integrated enforcement pipeline.</td>
+<td>Prior study plus public repo candidate: https://github.com/mattpocock/skills</td>
+</tr>
+<tr>
+<td>Superpowers</td>
+<td>Strong skill methodology, TDD/worktree discipline, and task-review patterns.</td>
+<td>Relies heavily on skill compliance rather than deterministic enforcement.</td>
+<td>Prior study plus public repo candidate: https://github.com/obra/superpowers</td>
+</tr>
+<tr>
+<td>LeRisque</td>
+<td>Calibrated judge, hook discipline, and adversarial pipeline.</td>
+<td>Public primary-source confidence not refreshed in this session.</td>
+<td>Prior internal/local evidence; public candidate: https://github.com/PetroczyP/LeRisque</td>
+</tr>
+</tbody>
+</table>
+<h2 id="claims-to-avoid-or-narrow">Claims to avoid or narrow</h2>
+<table>
+<thead>
+<tr>
+<th>Original-style claim</th>
+<th>Safer version</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"ADE is field-leading and no competitor matches it."</td>
+<td>"Under this rubric, ADE scores as leader/near-leader on routing, standard/architecture-tier spec verification, executable design checks, TDD authorship, and hook enforcement; confidence varies by competitor cell."</td>
+</tr>
+<tr>
+<td>"Phase 1 blind verification exists at all tiers."</td>
+<td>"Full R4/R5 blind verification applies to standard/architecture; trivial-tier behavior is intentionally lighter and needs doc reconciliation."</td>
+</tr>
+<tr>
+<td>"Author-separated TDD is a structural guarantee."</td>
+<td>"ADE blocks mixed test+implementation commits and structurally separates authorship where independent subagent dispatch is available; Codex/fallback modes degrade to convention plus hooks."</td>
+</tr>
+<tr>
+<td>"ADE has partial live verification."</td>
+<td>"ADE has test-coverage acceptance validation, but no documented live-runtime acceptance gate."</td>
+</tr>
+<tr>
+<td>"The field covers zero privacy/incident controls."</td>
+<td>"In this corpus, no enforced gate was found for these controls; most surveyed systems under-cover the operational/compliance tail."</td>
+</tr>
+<tr>
+<td>"ADE's compound loop gates review quality."</td>
+<td>"ADE has a passive compound loop: review reads a calibration corpus that influences attention; it is not a hard merge gate."</td>
+</tr>
+</tbody>
+</table>
+<h2 id="missing-or-weak-capabilities-across-the-field">Missing or weak capabilities across the field</h2>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Best-practice anchor</th>
+<th>Field coverage</th>
+<th>ADE status</th>
+<th>Adoption path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Live runtime acceptance evidence</td>
+<td>Anthropic best practices; DORA change stability</td>
+<td>Present in stronger evidence systems such as case, gstack, and oh-my-cc; absent as a first-class ADE gate.</td>
+<td>Test-coverage gate only.</td>
+<td>Add <code>.ade/ade-stack.md</code> <code>run</code>, <code>serve</code>, and <code>verify</code> slots; require per-criterion evidence for runnable acceptance checks.</td>
+</tr>
+<tr>
+<td>Standard-tier independent plan validation</td>
+<td>CoVe/fresh-context review; "Prompt to Process" validation dimension</td>
+<td>gsd, Spec Kit, BMAD, and ECC show stronger common-case plan validation patterns.</td>
+<td>Architecture-only adversarial plan review.</td>
+<td>Add lightweight coverage matrix for standard tasks: criterion -&gt; task -&gt; test -&gt; evidence.</td>
+</tr>
+<tr>
+<td>Independent design-stub review</td>
+<td>NIST SSDF secure design review; fresh-context review</td>
+<td>Rare in the field.</td>
+<td>Stubs compile/import but are self-reviewed.</td>
+<td>Add read-only <code>stub-reviewer</code> with spec+plan+stubs and no stub-author reasoning.</td>
+</tr>
+<tr>
+<td>Threat modeling and abuse-case design</td>
+<td>NIST SSDF PW.1/PW.2; OWASP SAMM/ASVS</td>
+<td>Sporadic; usually code-level security review only.</td>
+<td>Late security review, no design-time threat model.</td>
+<td>Add threat-model gate between Plan and Implement; feed mitigations to acceptance criteria and tests.</td>
+</tr>
+<tr>
+<td>Privacy/data classification</td>
+<td>NIST Privacy Framework</td>
+<td>Very weak across surveyed systems.</td>
+<td>No explicit data inventory or PII classification.</td>
+<td>Add data-classification questions to R3; scaffold <code>DATA-INVENTORY.md</code>; block new sensitive sinks without retention/logging/legal-basis notes where applicable.</td>
+</tr>
+<tr>
+<td>Falsifiable NFR/capacity targets</td>
+<td>ISO/IEC 25010</td>
+<td>Usually optional or prose-level.</td>
+<td>NFRs can remain vague.</td>
+<td>Require target or explicit "not constrained" decision for p95/p99 latency, throughput, availability, memory, data volume, and startup/runtime budget.</td>
+</tr>
+<tr>
+<td>Observability/runbooks/SLOs</td>
+<td>Google SRE; DORA</td>
+<td>Rare in pre-merge agent frameworks.</td>
+<td>Not a build deliverable.</td>
+<td>For production-facing changes, generate SLI/SLO notes, structured log/metric/span expectations, and runbook stubs.</td>
+</tr>
+<tr>
+<td>Incident-to-learning loop</td>
+<td>Google SRE postmortems; NIST SSDF RV root-cause practices</td>
+<td>Very weak or absent as enforced pipeline input.</td>
+<td>Retro exists, but not production-incident intake.</td>
+<td>Add incident intake skill that converts postmortems into spec deltas, tests, runbooks, and review-calibration entries.</td>
+</tr>
+<tr>
+<td>Rollback/canary/production verification</td>
+<td>DORA stability metrics; SRE rollout discipline; GitLab incremental rollouts as a platform example</td>
+<td>Mixed: stronger DevOps platforms cover this well; agentic SDLC frameworks usually stop at pre-merge checks.</td>
+<td>No deploy-time evidence, rollback command, smoke check, or post-deploy verification slot.</td>
+<td>Add stack-neutral <code>smoke</code> and <code>rollback</code> slots for deployable projects; require rollout risk, rollback command, and post-deploy verification criteria when applicable.</td>
+</tr>
+<tr>
+<td>Supply-chain/SBOM/provenance</td>
+<td>SLSA; SBOM studies; NIST SSDF supply-chain concerns</td>
+<td>Vulnerability scans appear more often than SBOM/provenance controls.</td>
+<td>No first-class SBOM/provenance gate.</td>
+<td>Add dependency delta review, license policy, SBOM generation, and provenance checks for release-bound changes.</td>
+</tr>
+<tr>
+<td>Accessibility/usability validation</td>
+<td>WCAG 2.2; ISO 25010 usability/accessibility-related quality concerns</td>
+<td>Rare unless the framework is UI-specific.</td>
+<td>No conditional UI/a11y gate.</td>
+<td>For UI changes, run axe/contrast/keyboard checks and require manual usability notes where automation is insufficient.</td>
+</tr>
+<tr>
+<td>Trace manifest and evidence auditability</td>
+<td>ISO-style traceability; "From Prompt to Process" risks around benchmarks/reproducibility</td>
+<td>Artifact-heavy frameworks do some traceability; most do not emit a single end-to-end manifest.</td>
+<td>ADE has specs, ADRs, plan, review, and retro artifacts, but no unified requirement-to-evidence manifest.</td>
+<td>Add <code>trace.md</code> or <code>trace.json</code>: requirement -&gt; design decision/ADR -&gt; task -&gt; test -&gt; review finding -&gt; PR -&gt; runtime/release evidence. Store source URL/date, raw excerpts, agent notes, score rationale, and uncertainty per cell for market studies.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ade-adoption-backlog">ADE adoption backlog</h2>
+<ol>
+<li>
+<p>Restore live verification as a Phase 6 or Phase 5.5 gate.
+   - Add <code>run</code>, <code>serve</code>, <code>verify</code>, <code>smoke</code>, and <code>rollback</code> slots to
+     <code>.ade/ade-stack.md</code> where the project can support them.
+   - Require per-criterion evidence for every feasible non-manual acceptance
+     criterion.
+   - For deployable systems, require rollout risk, rollback command, and
+     post-deploy verification criteria.
+   - Keep acceptance-coverage tests as the durable complement.</p>
+</li>
+<li>
+<p>Extend independent plan validation to <code>standard</code>.
+   - Use a lightweight fresh-context coverage matrix, not full architecture-tier
+     refutation.
+   - Fail only for uncovered acceptance criteria, missing tests, fake
+     dependencies, or unbounded scope creep.</p>
+</li>
+<li>
+<p>Add blind review to the Design Check.
+   - Introduce <code>stub-reviewer</code>.
+   - Inputs: spec, plan, stubs, and compile/import output.
+   - No access to the stub author's reasoning.</p>
+</li>
+<li>
+<p>Add design-time security/privacy/NFR gates.
+   - Threat model: trust boundaries, auth, secrets, external inputs, abuse cases.
+   - Data classification: personal/sensitive data, logs, third-party sinks,
+     retention, redaction.
+   - NFR forcing: numeric target or explicit "not constrained."</p>
+</li>
+<li>
+<p>Add no-progress detection to repair loops.
+   - Record failure fingerprints and finding counts.
+   - Stop early when repeated attempts do not reduce the failure set.</p>
+</li>
+<li>
+<p>Mark source confidence in every market claim.
+   - Primary public verified.
+   - Local implementation verified.
+   - Prior internal/secondary only.
+   - Inference from docs.</p>
+</li>
+<li>
+<p>Separate harness guarantees.
+   - Claude Code with subagents can enforce fresh-context roles.
+   - Codex/fallback modes should be described as degraded for subagent
+     isolation, while deterministic hooks still enforce commit/content rules.</p>
+</li>
+<li>
+<p>Build an evidence pack next to future studies.
+   - Store source snapshots, raw agent outputs, score rationales, and dates.
+   - This is what turns "deep research" into a reproducible benchmark.</p>
+</li>
+<li>
+<p>Add a task trace manifest.
+   - Link requirement -&gt; design decision/ADR -&gt; task -&gt; test -&gt; review finding
+     -&gt; PR -&gt; runtime/release evidence.
+   - Export durable summaries before cleaning temporary task artifacts.</p>
+</li>
+</ol>
+<h2 id="bottom-line">Bottom line</h2>
+<p>The best-practice-rooted version of ADE is not "we beat every competitor at
+everything." It is:</p>
+<ul>
+<li>ADE already has a rigorous specification-to-code spine.</li>
+<li>Its strongest mechanisms align with current agentic-SDLC best practice:
+  artifacts, fresh contexts, runnable checks, deterministic gates, and traceable
+  learning.</li>
+<li>The highest-leverage improvements are extensions of existing ADE concepts,
+  not a new architecture.</li>
+<li>The market's broad missing layer is the standards tail: threat modeling,
+  privacy, NFRs, observability, incident learning, supply-chain provenance, and
+  accessibility. ADE can differentiate by making those controls small,
+  conditional, and evidence-producing rather than heavyweight ceremony.</li>
+</ul>
+</main>
+</body>
+</html>

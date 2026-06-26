@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADE SDLC Flow — Adversarial Review Suggestions</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f7f7f5;
+  --paper: #ffffff;
+  --ink: #171717;
+  --muted: #5f6368;
+  --line: #dadde2;
+  --line-strong: #b9c0ca;
+  --accent: #2456a6;
+  --accent-soft: #edf3ff;
+  --code-bg: #f1f3f5;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.58;
+}
+main.document {
+  width: min(1120px, calc(100% - 40px));
+  margin: 32px auto 56px;
+  padding: 42px 48px 56px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+h1, h2, h3, h4 {
+  line-height: 1.22;
+  margin: 1.55em 0 0.55em;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+h1 { margin-top: 0; font-size: 2.15rem; }
+h2 { font-size: 1.45rem; border-top: 1px solid var(--line); padding-top: 1.1rem; }
+h3 { font-size: 1.15rem; }
+p { margin: 0.75rem 0; }
+a { color: var(--accent); text-decoration-thickness: 0.08em; text-underline-offset: 0.14em; }
+blockquote {
+  margin: 1rem 0;
+  padding: 0.25rem 1rem;
+  color: #303846;
+  background: var(--accent-soft);
+  border-left: 4px solid var(--accent);
+}
+ul, ol { padding-left: 1.45rem; margin: 0.65rem 0 1rem; }
+li { margin: 0.28rem 0; }
+code {
+  padding: 0.12rem 0.32rem;
+  background: var(--code-bg);
+  border: 1px solid #e4e7eb;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+pre {
+  padding: 1rem;
+  overflow: auto;
+  background: #111827;
+  color: #f9fafb;
+  border-radius: 6px;
+}
+pre code { padding: 0; border: 0; background: transparent; color: inherit; }
+table {
+  width: 100%;
+  margin: 1rem 0 1.35rem;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+}
+th, td {
+  padding: 0.62rem 0.72rem;
+  border: 1px solid var(--line);
+  vertical-align: top;
+}
+th {
+  background: #f5f7fa;
+  border-bottom-color: var(--line-strong);
+  text-align: left;
+  font-weight: 700;
+}
+tr:nth-child(even) td { background: #fbfcfd; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
+@media (max-width: 760px) {
+  main.document { width: 100%; margin: 0; padding: 24px 18px 36px; border: 0; border-radius: 0; }
+  h1 { font-size: 1.65rem; }
+  h2 { font-size: 1.25rem; }
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+}
+</style>
+</head>
+<body>
+<main class="document">
+<h1 id="ade-sdlc-flow-adversarial-review-suggestions">ADE SDLC Flow — Adversarial Review Suggestions</h1>
+<p>Date: 2026-06-21</p>
+<p>This memo captures the concrete suggestions from an adversarial review of
+<code>docs/ade-dev-pipeline-study-2026-06.html</code>. The study is directionally strong,
+but some claims need narrower wording and several controls should be upgraded
+before ADE can credibly present the flow as best-practice rooted.</p>
+<h2 id="highest-priority-fixes">Highest-priority fixes</h2>
+<ol>
+<li>
+<p><strong>Restore live runtime verification as a first-class gate.</strong>
+   Phase 6 currently states that acceptance coverage by tests replaces live
+   evidence. Add stack-neutral <code>run</code> / <code>serve</code> / <code>verify</code> slots to
+   <code>.ade/ade-stack.md</code>, and require per-criterion evidence for every
+   non-manual acceptance criterion where a runnable check is feasible. Keep the
+   Acceptance-Coverage Gate as a durable complement, not a substitute.</p>
+</li>
+<li>
+<p><strong>Extend independent plan validation to the <code>standard</code> tier.</strong>
+   Architecture-tier full refutation is appropriate, but the median change
+   should still get a lightweight fresh-context coverage matrix:
+   acceptance criterion -&gt; implementation task -&gt; test plan. This preserves
+   blast-radius right-sizing without dropping independent validation to zero.</p>
+</li>
+<li>
+<p><strong>Add a blind Design Check reviewer.</strong>
+   Stubs currently compile/import and are self-checked against the plan. Add a
+   read-only <code>stub-reviewer</code> that sees the spec, plan, and stubs, but not the
+   stub author's reasoning, and rejects wrong-but-compiling contracts.</p>
+</li>
+<li>
+<p><strong>Force falsifiable NFR and capacity decisions.</strong>
+   The R3 taxonomy includes non-functional attributes, but it does not force a
+   number or an explicit "not constrained" decision. Require concrete targets
+   such as p95/p99 latency, throughput, concurrency, data volume, availability,
+   memory, or startup budget when relevant.</p>
+</li>
+<li>
+<p><strong>Add design-time threat modeling and data classification.</strong>
+   Phase 6 security review is code-level. Add an earlier threat-surface step for
+   auth, trust boundaries, secrets, external inputs, data classification, and
+   abuse cases. Feed mitigations back into acceptance criteria and tests.</p>
+</li>
+</ol>
+<h2 id="small-but-important-cleanups">Small but important cleanups</h2>
+<ol>
+<li>
+<p><strong>Fix the Phase 4 checklist contradiction.</strong>
+   <code>ade-implement</code> tells implementers not to edit tests, but the checklist says
+   "Write unit tests alongside the implementation." Replace that checklist item
+   with "Make the pre-written failing tests pass; do not author or edit tests."</p>
+</li>
+<li>
+<p><strong>Document the scope of deterministic hooks.</strong>
+   <code>check-escalation-paths</code> is scoped to ADE-routed <code>ade/&lt;task-id&gt;</code> branches.
+   That is a valid boundary, but the docs should make clear that it does not
+   protect direct-to-main or non-ADE branch workflows unless wired as a broader
+   repository policy.</p>
+</li>
+<li>
+<p><strong>Add no-progress detection to bounded loops.</strong>
+   The fixed retry caps are good, but add failure fingerprints or issue-count
+   deltas so repeated identical failures stop early instead of burning all
+   attempts.</p>
+</li>
+<li>
+<p><strong>Grade research provenance.</strong>
+   Scout/web findings should be tagged as <code>VERIFIED</code>, <code>CITED</code>, or <code>ASSUMED</code>.
+   <code>ASSUMED</code> claims should be routed into the R3 user interview before becoming
+   locked spec facts.</p>
+</li>
+<li>
+<p><strong>Use cross-model review selectively.</strong>
+   Cross-family review is not necessary everywhere. Start with the security lens
+   and high-blast-radius plans, where correlated model blind spots are most
+   expensive.</p>
+</li>
+</ol>
+<h2 id="claims-to-narrow-in-the-study">Claims to narrow in the study</h2>
+<ol>
+<li>
+<p><strong>Avoid "all tiers" for Phase 1 blind verification.</strong>
+   The driver states that <code>trivial</code> tasks use a lightweight scout and skip
+   grill/CoVe. Phrase the strength as applying to <code>standard</code> and <code>architecture</code>
+   tiers.</p>
+</li>
+<li>
+<p><strong>Avoid unqualified "structural guarantee" across all harnesses.</strong>
+   Codex is documented as a degraded tier for autonomous subagent dispatch, so
+   author separation and blind verification are structural only on harnesses
+   with real independent subagent contexts. Hooks still enforce the hard commit
+   gates.</p>
+</li>
+<li>
+<p><strong>Treat field-leader and "only system" claims as confidence-rated.</strong>
+   The current study relies on prior internal agent research for many market
+   comparisons. Keep the claims when useful, but attach evidence levels:
+   primary-source verified, secondary/internal verified, or inference.</p>
+</li>
+<li>
+<p><strong>Separate "best in ADE" from "best in field."</strong>
+   ADE's design is genuinely strong on spec-blind verification, author-separated
+   TDD, and deterministic hooks. The study should still avoid turning internal
+   strengths into absolute market claims unless the competitor evidence is
+   reproducible.</p>
+</li>
+</ol>
+<h2 id="suggested-next-study-shape">Suggested next study shape</h2>
+<p>The next market study should score ADE and competitors against a best-practice
+framework, not just against each other. Recommended dimensions:</p>
+<ul>
+<li>Intent capture and blast-radius routing</li>
+<li>Research grounding and provenance</li>
+<li>Independent specification verification</li>
+<li>Plan validation and requirements coverage</li>
+<li>Design-time security, privacy, and NFR forcing</li>
+<li>Executable contract/design validation</li>
+<li>Author-separated TDD and test quality</li>
+<li>Deterministic gates and hook enforcement</li>
+<li>Quality gate repair loops with stall detection</li>
+<li>Runtime/live verification evidence</li>
+<li>Review diversity and calibration</li>
+<li>Documentation, learning, and post-task compounding</li>
+</ul>
+<p>The final output should explicitly mark confidence per competitor and cite
+primary sources wherever possible.</p>
+</main>
+</body>
+</html>
