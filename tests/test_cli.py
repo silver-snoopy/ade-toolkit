@@ -658,3 +658,23 @@ def test_intent_routes_data_classification_to_standard_floor(python_project: Pat
     assert "standard" in low and "floor" in low
     # the routing decision records which escalation category fired
     assert "category" in low
+
+
+def test_ade_research_has_threat_pass(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (
+        python_project / ".claude" / "skills" / "ade-research" / "SKILL.md"
+    ).read_text()
+    low = content.lower()
+    # the conditional R3.3 sub-step exists, named the threat pass, dispatching the worker
+    assert "R3.3" in content
+    assert "threat pass" in low
+    assert "threat-modeler" in content
+    # trigger reuses forced-escalation vocabulary; trivial skips; standard-by-size skips
+    assert "architecture" in low and "forced-escalation" in low
+    assert "trivial" in low
+    # output contract: mitigations become acceptance criteria; residual risks surfaced
+    assert "acceptance criteria" in low
+    assert "residual risk" in low
+    # placed before the R4 grill section (and thus before R5)
+    assert content.index("### R3.3") < content.index("## R4 — Refine")
