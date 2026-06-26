@@ -21,7 +21,7 @@ The most rigorous part of the pipeline. Five sub-steps producing three permanent
 
 - **R1** Intent (from Phase 0)
 - **R2** Investigate — R2.1 parallel scouts with iterative retrieval (max 3 cycles); R2.2 orchestrator confidence check; R2.3 conditional web research (Tier 0 by default)
-- **R3** Specify — synthesizer drafts; orchestrator interviews user with 10-category ambiguity taxonomy (cap: 5 questions)
+- **R3** Specify — synthesizer drafts; orchestrator interviews user with 10-category ambiguity taxonomy (cap: 5 questions); **R3.3** conditional threat pass — a blind `threat-modeler` (trust-boundary STRIDE-lite + data classification + PII-gated privacy) whose mitigations become acceptance criteria and whose residual risks are surfaced at the gate
 - **R4** Refine — vendored `grill-with-docs` against the spec
 - **R5** Verify — Chain-of-Verification (factor+revise) with `spec-verifier` subagents that never see the spec
 
@@ -42,7 +42,7 @@ ade-toolkit/
 │   │   ├── hooks.py                    # emit_hooks() — per-substrate wiring
 │   │   └── memory.py                   # emit_memory_pointer() — thin ADE block
 │   └── templates/
-│       ├── agents/                     # 13 worker subagent definition templates
+│       ├── agents/                     # 14 worker subagent definition templates
 │       ├── skills/                     # One <skill>/SKILL.md.j2 folder per phase
 │       │   ├── ade-intent/SKILL.md.j2
 │       │   ├── ade-research/SKILL.md.j2

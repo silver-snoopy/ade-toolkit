@@ -616,3 +616,77 @@ def test_no_verified_grade_token_in_generated_tree(python_project: Path) -> None
         if "CONFIRMED" in text:
             confirmed_seen = True
     assert confirmed_seen, "CONFIRMED grade not present anywhere in the generated tree"
+
+
+def test_init_generates_threat_modeler_agent(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agent = python_project / ".claude" / "agents" / "threat-modeler.md"
+    assert agent.exists()
+    content = agent.read_text()
+    # read-only blind reviewer on sonnet
+    assert "model:" in content and "sonnet" in content
+    assert "[Read, Grep, Glob]" in content
+    # blind to design reasoning (the structural guarantee)
+    low = content.lower()
+    assert "design reasoning" in low or "design rationale" in low
+    # the method: trust boundary + STRIDE-lite + data classification + abuse cases
+    assert "trust boundary" in low
+    assert "STRIDE" in content
+    assert "abuse case" in low
+    # privacy is PII-flag gated, names Unawareness
+    assert "Unawareness" in content
+    # hard no-boilerplate guardrail + single-shot static
+    assert "boilerplate" in low or "generic" in low
+    assert "read-only" in low
+
+
+def test_routing_has_data_classification_keywords(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    data = json.loads((python_project / ".ade" / "ade-routing.json").read_text())
+    assert "data_classification" in data["keywords"]
+    kws = data["keywords"]["data_classification"]
+    for term in ("pii", "gdpr", "personal data"):
+        assert term in kws
+
+
+def test_intent_routes_data_classification_to_standard_floor(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    intent = (python_project / ".claude" / "skills" / "ade-intent" / "SKILL.md").read_text()
+    low = intent.lower()
+    # a data_classification keyword imposes a standard floor like the security category
+    assert "data_classification" in intent
+    assert "standard" in low and "floor" in low
+    # the routing decision records which escalation category fired
+    assert "category" in low
+
+
+def test_ade_research_has_threat_pass(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    content = (python_project / ".claude" / "skills" / "ade-research" / "SKILL.md").read_text()
+    low = content.lower()
+    # the conditional R3.3 sub-step exists, named the threat pass, dispatching the worker
+    assert "R3.3" in content
+    assert "threat pass" in low
+    assert "threat-modeler" in content
+    # trigger reuses forced-escalation vocabulary; trivial skips; standard-by-size skips
+    assert "architecture" in low and "forced-escalation" in low
+    assert "trivial" in low
+    # output contract: mitigations become acceptance criteria; residual risks surfaced
+    assert "acceptance criteria" in low
+    assert "residual risk" in low
+    # placed before the R4 grill section (and thus before R5)
+    assert content.index("### R3.3") < content.index("## R4 — Refine")
+
+
+def test_agents_md_mentions_threat_pass(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agents = (python_project / "AGENTS.md").read_text()
+    low = agents.lower()
+    assert "R3.3" in agents
+    assert "threat pass" in low or "threat-modeler" in low
+
+
+def test_generated_tree_has_fourteen_workers(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agents = list((python_project / ".claude" / "agents").glob("*.md"))
+    assert len(agents) == 14, sorted(p.stem for p in agents)

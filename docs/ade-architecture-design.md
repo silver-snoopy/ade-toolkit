@@ -30,24 +30,24 @@ src/ade/
 ```
 .claude/
 ├── skills/            → phase skills (SKILL.md folders, shared with .agents/skills/)
-├── agents/            → worker subagent definitions (13 × .md)
+├── agents/            → worker subagent definitions (14 × .md)
 ├── hooks/             → deterministic commit hooks + _hooklib.py (G1/G2/G4)
 └── settings.json      → PreToolUse hook wiring (claude harness)
 
 .gemini/
 ├── skills/            → phase skills (SKILL.md folders, shared with .agents/skills/)
-├── agents/            → worker subagent definitions (13 × .md)
+├── agents/            → worker subagent definitions (14 × .md)
 ├── hooks/             → deterministic hooks (same scripts, gemini wiring)
 └── settings.json      → PreToolUse hook wiring (gemini harness)
 
 .github/
 ├── skills/            → phase skills (SKILL.md folders, shared with .agents/skills/)
-├── agents/            → worker subagent definitions (13 × .agent.md)
+├── agents/            → worker subagent definitions (14 × .agent.md)
 ├── hooks/             → deterministic hooks (copilot wiring)
 └── copilot-instructions.md   → thin ADE memory pointer
 
 .codex/
-├── agents/            → worker subagent definitions (13 × .toml)
+├── agents/            → worker subagent definitions (14 × .toml)
 └── hooks/             → deterministic hooks (codex wiring, hooks.json / config.toml)
 
 .agents/
@@ -269,6 +269,14 @@ Hard rules:
 - **Hard cap: 5 questions total per spec.** Past 5, proceed with what you have.
 - **Stop early** when no high-impact, high-uncertainty items remain.
 
+#### R3.3 — Threat pass (conditional)
+
+A fast, single-shot, static, read-only design-time security + privacy pass, inserted between the R3.2 interview and the R4 grill. **It runs only when the change warrants it** — when the Phase-0 routing tier is `architecture`, when a forced-escalation fired (the `security` or new `data_classification` category), or when the orchestrator conservatively judges a new trust boundary. A `standard`-by-size change (no escalation) and `trivial` skip it — no security theater on a rename.
+
+The orchestrator dispatches one blind `threat-modeler` (sonnet, read-only), passing the draft spec + affected code but **withholding its design reasoning** (the same blind-reviewer guarantee as the R5 `spec-verifier`). The worker runs Shostack's four questions over the change's delta; for each trust boundary it classifies the cross-boundary data (four sensitivity tiers — `public | internal | confidential | restricted` — plus an orthogonal `PII` flag), elicits STRIDE-lite + abuse-case threats (plus a Linking/Identifying/Data-Disclosure/Unawareness privacy prompt for PII-flagged boundaries), and assigns each a mitigation or an accepted residual risk. A hard no-boilerplate guardrail drops any generic, change-agnostic threat.
+
+The orchestrator (single writer) records the pass to `.ade/tasks/<id>/threat-model.md` and folds the verdict into the spec: material mitigations become acceptance criteria (rides Phase-4 TDD + the Phase-6 security lens — no new phase), trust-boundary decisions become ADRs, and accepted residual risks land in an "Accepted residual risks" section surfaced at the ready-for-development gate. The method and its grounding are in ADR-0005 and `docs/research/threat-modeling-frameworks-2026-06.md`.
+
 ### R4 — Refine (grill-with-docs)
 
 Invoke the vendored `grill-with-docs` skill against the spec. Skill location: `.claude/skills/grill-with-docs/SKILL.md` (also under `.agents/skills/grill-with-docs/SKILL.md` for multi-harness projects).
@@ -409,6 +417,7 @@ All subagents are defined as Markdown files under `.claude/agents/` with YAML fr
 | `test-runner` | haiku | Read, Bash | Phase 5 |
 | `plan-reviewer` | sonnet | Read, Grep, Glob | Phase 2 (standard: coverage matrix; architecture: full refutation) |
 | `stub-reviewer` | sonnet | Read, Grep, Glob | Phase 3 (blind stub review, standard + architecture) |
+| `threat-modeler` | sonnet | Read, Grep, Glob | R3.3 (blind threat pass, conditional) |
 | `pr-reviewer` | sonnet | Read, Grep, Glob, Bash | `ade-pr-review` skill (GitHub PR loop) |
 | `compounder` | sonnet | Read, Grep, Glob | Phase 9 (Codify) |
 

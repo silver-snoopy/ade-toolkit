@@ -164,7 +164,50 @@ recorded in the spec for that dimension. Do not lock the spec while a material N
 qualitative. This forcing question is exempt from the 5-question cap when no NFR decision
 yet exists.
 
-**On completion**: present the final spec to the user and confirm before proceeding to R4.
+**On completion**: present the final spec to the user and confirm before proceeding to R3.3.
+
+### R3.3 — Threat pass (conditional)
+
+A fast, **single-shot, static, read-only** design-time security + privacy pass. Runs only when
+the change warrants it — never on a rename.
+
+**When it runs.** Read the Phase-0 routing decision in `.ade/tasks/<task-id>/routing.md`. Run R3.3
+if **any** hold:
+
+1. tier is `architecture`, OR
+2. a **forced-escalation** fired during routing — the `security` **or** `data_classification`
+   category (the routing rationale records which, e.g. `forced: data_classification`), OR
+3. you judge the change introduces or crosses a concrete, nameable **new trust boundary** the
+   deterministic rules missed. This leg is conservative — never "run it to be safe".
+
+A change that is `standard` merely by size (no forced-escalation) does **not** get a threat pass.
+`trivial` always skips. Record the decision (which trigger fired, or why skipped) in `status.md`.
+
+**The pass.** Dispatch one `threat-modeler` subagent. Pass it the **draft spec and the affected
+code paths**, and deliberately **withhold your design reasoning** (the blind-reviewer guarantee —
+the same property as the R5 `spec-verifier`). The worker runs Shostack's four questions over the
+change's delta; for each trust boundary it classifies the cross-boundary data (tiers
+`public | internal | confidential | restricted` plus an orthogonal `PII` flag), elicits STRIDE-lite +
+abuse-case threats (plus a Linking / Identifying / Data-Disclosure / Unawareness privacy prompt only
+for PII-flagged boundaries), and assigns each a mitigation or an accepted residual risk. The
+**no-boilerplate guardrail** is the point: every threat must name the real flow in *this* change
+with a concrete, testable mitigation, or it is dropped. On Codex (no autonomous dispatch) the
+orchestrator runs the same four-question pass in-context, forgoing the fresh-context guarantee.
+
+**Fold the verdict in (you are the single writer).** Write the working pass to
+`.ade/tasks/<task-id>/threat-model.md`, then update the spec:
+
+- **Material mitigations → acceptance criteria** in the `ade-intent` format (`- [ ] …`; `(manual)`
+  when not automatable). Phase-4 `test-writer` authors the abuse-case/negative tests; the Phase-6
+  security lens confirms — no new phase.
+- **Trust-boundary decisions → ADRs** when they meet the 3-criteria ADR gate.
+- **Accepted residual risks → an "Accepted residual risks" section** of the spec, surfaced at the
+  ready-for-development gate (never silently dropped). Four fields each: threat, boundary, why
+  accepted, compensating control.
+- A newly discovered boundary may **escalate the tier** (recorded as a routing note).
+
+R3.3 sits before R4 so the grill can challenge the new mitigations/terms, and before R5 so CoVe
+verifies the threat-derived acceptance criteria like any other claim.
 
 ## R4 — Refine
 
@@ -240,4 +283,4 @@ The spec is now the contract for the Development phase. Phase 2 (Plan) consumes 
 - The orchestrator never edits the spec directly during R3. R3.1 is the synthesizer's write; R3.2 updates happen via the orchestrator's `Edit` calls in response to user answers; R4 changes flow through grill-with-docs; R5 changes flow through synthesizer Role B.
 - The R2.1 iterative loop is hard-capped at 3 cycles. If 3 cycles still leave critical gaps, escalate to the user — do not silently proceed with thin research.
 - Every claim in every artifact must trace back to a citation: scouts cite files+lines, web-researchers cite URLs+verbatim quotes, the synthesizer preserves the citation chain end-to-end.
-- The Research phase status file (`.ade/tasks/<task-id>/status.md`) should be updated at each sub-step transition: `R2.1 cycle 1`, `R2.2 confidence check`, `R2.3 web research`, `R3.1 synthesizer draft`, `R3.2 interview`, `R4 grill`, `R5 CoVe`, `R5 ready-for-dev`.
+- The Research phase status file (`.ade/tasks/<task-id>/status.md`) should be updated at each sub-step transition: `R2.1 cycle 1`, `R2.2 confidence check`, `R2.3 web research`, `R3.1 synthesizer draft`, `R3.2 interview`, `R3.3 threat pass`, `R4 grill`, `R5 CoVe`, `R5 ready-for-dev`.

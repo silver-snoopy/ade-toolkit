@@ -42,6 +42,11 @@ glossary (`CONTEXT.md`), and zero-or-more ADRs under `docs/adr/`.
     Functional Scope, Data Model, UX Flow, Non-Functional, Integration, Edge Cases,
     Constraints, Terminology, Completion Signals, Misc. **One question at a time**,
     multi-choice preferred (recommended + 1 alternative), **hard cap: 5 questions**.
+  - R3.3 Threat pass (conditional): when tier is `architecture` or a forced-escalation fired
+    (security or `data_classification`), dispatch the blind `threat-modeler` (sees spec draft +
+    code, never the design reasoning). Trust-boundary STRIDE-lite + data classification + abuse
+    cases; mitigations become acceptance criteria, residual risks are surfaced at the gate.
+    Single-shot, static, read-only. `trivial` and `standard`-by-size skip it.
   - Spec written to `docs/specs/{YYYY-MM-DD}_{slug}.spec.md` (permanent).
 - **R4 Refine**: invoke vendored `grill-with-docs` against the spec. Always runs;
   trivial when spec uses existing CONTEXT.md vocabulary. Updates CONTEXT.md inline

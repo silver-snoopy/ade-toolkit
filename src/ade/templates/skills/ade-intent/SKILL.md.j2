@@ -120,8 +120,12 @@ Once intent is captured, assign the task a **routing tier** from `Type` + `Affec
    declared affected area (or the intent text) matches an `escalation_globs.architecture`
    path or an `architecture` keyword → tier is **architecture**. Else if it matches an
    `escalation_globs.standard` path or a `standard` keyword (security/auth/secrets/crypto/
-   data-loss) → floor is **standard** (never trivial). If the config is missing or
-   unparseable, treat the change as **≥ standard** (conservative).
+   data-loss), **or a `data_classification` keyword** (pii/gdpr/personal data/payment/…) →
+   floor is **standard** (never trivial). When a forced-escalation fires, note **which
+   category** triggered it — `security` or `data_classification` — in the routing rationale
+   (e.g. `forced: data_classification`), so Phase-1 R3.3 can decide whether the threat pass
+   runs. If the config is missing or unparseable, treat the change as **≥ standard**
+   (conservative).
 2. **Size judgment (only within the non-forced band).** A change with no escalation match
    and a small, single-area scope (≈ size `S`) → **trivial**; otherwise **standard**.
 
