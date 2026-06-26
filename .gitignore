@@ -37,3 +37,6 @@ Thumbs.db
 # uv lockfile — project is pip-based (CLAUDE.md), do not track
 uv.lock
 .venv/
+
+# Talks contain sensitive company information — never version them
+docs/talks/
