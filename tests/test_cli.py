@@ -647,3 +647,14 @@ def test_routing_has_data_classification_keywords(python_project: Path) -> None:
     kws = data["keywords"]["data_classification"]
     for term in ("pii", "gdpr", "personal data"):
         assert term in kws
+
+
+def test_intent_routes_data_classification_to_standard_floor(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    intent = (python_project / ".claude" / "skills" / "ade-intent" / "SKILL.md").read_text()
+    low = intent.lower()
+    # a data_classification keyword imposes a standard floor like the security category
+    assert "data_classification" in intent
+    assert "standard" in low and "floor" in low
+    # the routing decision records which escalation category fired
+    assert "category" in low
