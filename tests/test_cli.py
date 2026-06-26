@@ -638,3 +638,12 @@ def test_init_generates_threat_modeler_agent(python_project: Path) -> None:
     # hard no-boilerplate guardrail + single-shot static
     assert "boilerplate" in low or "generic" in low
     assert "read-only" in low
+
+
+def test_routing_has_data_classification_keywords(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    data = json.loads((python_project / ".ade" / "ade-routing.json").read_text())
+    assert "data_classification" in data["keywords"]
+    kws = data["keywords"]["data_classification"]
+    for term in ("pii", "gdpr", "personal data"):
+        assert term in kws
