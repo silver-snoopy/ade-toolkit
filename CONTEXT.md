@@ -119,3 +119,35 @@ cf. NATO Admiralty Code). See `docs/research/provenance-and-evidence-grading-fra
     traced to first-hand evidence or a supporting source is ASSUMED, never silently a fact.
     Material ASSUMED claims route into the R3 interview before the spec locks.
     _Avoid_: unverified (legacy ad-hoc marker this replaces).
+
+## Security & privacy risk
+
+ADE runs a conditional, design-time risk analysis in Phase 1 (the **R3.3 threat pass**). See
+`docs/research/threat-modeling-frameworks-2026-06.md` and `docs/adr/0005-design-time-threat-modeling.md`.
+
+- **Trust boundary** — a point in a change's data flow where the level of trust changes (e.g.
+  untrusted input crossing into a privileged process, data leaving a service). It is the **unit
+  of the threat pass**: ADE analyses the ~1–3 boundaries a change introduces or crosses, not the
+  whole system. Controls (authN, authZ, validation, encryption) belong *at* boundaries.
+- **Threat pass** — the **activity**: the conditional R3.3 sub-step that, for each trust boundary
+  in the change, classifies the data, elicits STRIDE-lite + abuse-case + (for PII) privacy threats,
+  and assigns each a mitigation or an accepted residual risk. Single-shot, static, read-only.
+  _Avoid_: "threat model" for the activity — that is the artifact (mirrors **Codify**/Learning,
+  **Route**/routing.md).
+- **Threat model** — the **artifact** the threat pass produces, at `.ade/tasks/<id>/threat-model.md`:
+  the recorded boundaries, classifications, threats, and mitigations/residual risks. Distinct from
+  the Phase-6 code-level **security review** (the threat pass is design-time and upstream).
+- **Data classification** — the sensitivity label on data crossing a boundary, on **two orthogonal
+  axes**: a four-level **tier** (`public` · `internal` · `confidential` · `restricted`) **plus** an
+  independent **`regulated/PII` flag**. Orthogonal because regulated data isn't always most
+  sensitive (an email is `internal` + PII; a signing key is `restricted`, not PII). The tier drives
+  security controls; the PII flag gates the privacy prompt. _Avoid_: treating PII as a top tier.
+- **Abuse case** — a way to use a feature that its implementer did not intend, letting an attacker
+  influence its outcome via their action or input. The per-feature "how could this be misused?"
+  prompt; selected abuse cases become acceptance criteria. _Avoid_: misuse case (used as a synonym).
+- **Mitigation** — an **actionable, testable** control that answers a threat ("can success/failure
+  be measured?"). Material mitigations become Phase-4 acceptance criteria; vague or hypothetical
+  controls do not count. Distinct from a **Residual risk** (a threat consciously *not* mitigated).
+- **Residual risk** — a threat the team consciously **accepts** rather than mitigates, recorded in a
+  lightweight four-field form (threat, boundary, why accepted, compensating control) and surfaced at
+  the ready-for-development gate (never silently dropped). _Avoid_: silently omitting it.

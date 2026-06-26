@@ -662,9 +662,7 @@ def test_intent_routes_data_classification_to_standard_floor(python_project: Pat
 
 def test_ade_research_has_threat_pass(python_project: Path) -> None:
     runner.invoke(app, ["init", "--project-dir", str(python_project)])
-    content = (
-        python_project / ".claude" / "skills" / "ade-research" / "SKILL.md"
-    ).read_text()
+    content = (python_project / ".claude" / "skills" / "ade-research" / "SKILL.md").read_text()
     low = content.lower()
     # the conditional R3.3 sub-step exists, named the threat pass, dispatching the worker
     assert "R3.3" in content
@@ -686,3 +684,9 @@ def test_agents_md_mentions_threat_pass(python_project: Path) -> None:
     low = agents.lower()
     assert "R3.3" in agents
     assert "threat pass" in low or "threat-modeler" in low
+
+
+def test_generated_tree_has_fourteen_workers(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agents = list((python_project / ".claude" / "agents").glob("*.md"))
+    assert len(agents) == 14, sorted(p.stem for p in agents)
