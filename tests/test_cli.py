@@ -616,3 +616,25 @@ def test_no_verified_grade_token_in_generated_tree(python_project: Path) -> None
         if "CONFIRMED" in text:
             confirmed_seen = True
     assert confirmed_seen, "CONFIRMED grade not present anywhere in the generated tree"
+
+
+def test_init_generates_threat_modeler_agent(python_project: Path) -> None:
+    runner.invoke(app, ["init", "--project-dir", str(python_project)])
+    agent = python_project / ".claude" / "agents" / "threat-modeler.md"
+    assert agent.exists()
+    content = agent.read_text()
+    # read-only blind reviewer on sonnet
+    assert "model:" in content and "sonnet" in content
+    assert "[Read, Grep, Glob]" in content
+    # blind to design reasoning (the structural guarantee)
+    low = content.lower()
+    assert "design reasoning" in low or "design rationale" in low
+    # the method: trust boundary + STRIDE-lite + data classification + abuse cases
+    assert "trust boundary" in low
+    assert "STRIDE" in content
+    assert "abuse case" in low
+    # privacy is PII-flag gated, names Unawareness
+    assert "Unawareness" in content
+    # hard no-boilerplate guardrail + single-shot static
+    assert "boilerplate" in low or "generic" in low
+    assert "read-only" in low
