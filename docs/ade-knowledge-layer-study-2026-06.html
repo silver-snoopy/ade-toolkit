@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADE Knowledge-Layer Generation Study</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f7f7f5;
+  --paper: #ffffff;
+  --ink: #171717;
+  --muted: #5f6368;
+  --line: #dadde2;
+  --line-strong: #b9c0ca;
+  --accent: #2456a6;
+  --accent-soft: #edf3ff;
+  --code-bg: #f1f3f5;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.58;
+}
+main.document {
+  width: min(1120px, calc(100% - 40px));
+  margin: 32px auto 56px;
+  padding: 42px 48px 56px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+h1, h2, h3, h4 {
+  line-height: 1.22;
+  margin: 1.55em 0 0.55em;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+h1 { margin-top: 0; font-size: 2.15rem; }
+h2 { font-size: 1.45rem; border-top: 1px solid var(--line); padding-top: 1.1rem; }
+h3 { font-size: 1.15rem; }
+h4 { font-size: 1.02rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+p { margin: 0.75rem 0; }
+a { color: var(--accent); text-decoration-thickness: 0.08em; text-underline-offset: 0.14em; word-break: break-word; }
+blockquote {
+  margin: 1rem 0;
+  padding: 0.25rem 1rem;
+  color: #303846;
+  background: var(--accent-soft);
+  border-left: 4px solid var(--accent);
+}
+ul, ol { padding-left: 1.45rem; margin: 0.65rem 0 1rem; }
+li { margin: 0.28rem 0; }
+code {
+  padding: 0.12rem 0.32rem;
+  background: var(--code-bg);
+  border: 1px solid #e4e7eb;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+pre {
+  padding: 1rem;
+  overflow: auto;
+  background: #111827;
+  color: #f9fafb;
+  border-radius: 6px;
+}
+pre code { padding: 0; border: 0; background: transparent; color: inherit; }
+table {
+  width: 100%;
+  margin: 1rem 0 1.35rem;
+  border-collapse: collapse;
+  font-size: 0.93rem;
+}
+th, td {
+  padding: 0.62rem 0.72rem;
+  border: 1px solid var(--line);
+  vertical-align: top;
+}
+th {
+  background: #f5f7fa;
+  border-bottom-color: var(--line-strong);
+  text-align: left;
+  font-weight: 700;
+}
+tr:nth-child(even) td { background: #fbfcfd; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
+.meta { color: var(--muted); font-size: 0.95rem; }
+@media (max-width: 760px) {
+  main.document { width: 100%; margin: 0; padding: 24px 18px 36px; border: 0; border-radius: 0; }
+  h1 { font-size: 1.65rem; }
+  h2 { font-size: 1.25rem; }
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+}
+</style>
+</head>
+<body>
+<main class="document">
+<h1 id="ade-knowledge-layer-generation-study">ADE Knowledge-Layer Generation Study</h1>
+<p class="meta">Date: 2026-06-26</p>
+<p>Scope: Should ADE's pipeline be responsible for generating and maintaining the
+<em>knowledge layer</em> / grounding documents that its own agents read — e.g.
+<code>ARCHITECTURE.md</code>, the per-harness instruction files
+(<code>copilot-instructions.md</code> / <code>CLAUDE.md</code> /
+<code>AGENTS.md</code>), language/stack detection, and a grounding document of
+the codebase's <em>actually-used</em> practices and conventions?</p>
+<p>This file complements the dev-pipeline studies in <code>docs/</code>. It is
+written as a conservative market synthesis: separate adversarially-verified
+findings from lower-confidence claims, map the field onto ADE's existing design,
+and give a recommendation with explicit alternatives. The competitor evidence
+comes from a deep-research run (104 agents, 22 sources fetched, 109 claims
+extracted, 25 adversarially verified — 23 confirmed, 2 refuted). The ADE-side
+analysis comes from local source review (<code>src/ade/detect.py</code>,
+<code>src/ade/templates/bootstrap/</code>,
+<code>src/ade/templates/AGENTS.md.j2</code>, the hook layer).</p>
+
+<h2 id="executive-conclusion">Executive conclusion</h2>
+<p>Yes — ADE should own a knowledge layer, but a <strong>bounded</strong> one.
+The defensible position from the surveyed field is:</p>
+<blockquote>
+<p>Persist only the expensive, judgment-laden distillations (architecture
+rationale, actually-used conventions), generate them AI-assisted with a human
+review gate, derive the cheap/volatile context (file structure, current state)
+per-task instead of persisting it, and back the whole thing with a deterministic
+drift check. Do <strong>not</strong> fully automate it — the field explicitly
+refutes removing the human author.</p>
+</blockquote>
+<p>ADE already implements the cheaper half of this (stack detection, per-request
+scouts) and already owns the one piece most competitors lack (a deterministic
+hook layer, the natural home for drift detection). The genuine gap is a
+<strong>brownfield cold-start</strong>: on day one against an existing repo,
+ADE's agents have stack commands but no distilled architectural model or
+convention grounding.</p>
+
+<h2 id="what-the-field-does">What the field actually does (verified)</h2>
+<p>The market splits into two strategies, and the strongest players hedge across
+both: <strong>persistent maintained docs</strong> versus <strong>per-request
+derived context</strong>.</p>
+<table>
+<thead>
+<tr><th>Tool</th><th>Strategy</th><th>Generation</th><th>Persisted</th><th>Human in loop</th></tr>
+</thead>
+<tbody>
+<tr><td>GitHub Copilot (<code>copilot-instructions.md</code>)</td><td>Persistent</td><td>AI drafts after repo inventory, then human reviews; layered scoped instruction files; recommended ~5-section structure</td><td>Yes</td><td><strong>Yes — explicitly recommended</strong></td></tr>
+<tr><td>Cursor (<code>.mdc</code> rules)</td><td>Persistent</td><td>Version-controlled rule files; four application modes (Always / Auto-attached / Agent-requested / Manual); auto-generation affordances beyond manual <code>/create-rule</code></td><td>Yes</td><td>Partial</td></tr>
+<tr><td>Devin / Cognition (DeepWiki)</td><td>Persistent</td><td><strong>Auto-indexes the codebase and auto-generates a grounding wiki at onboarding</strong>, used to ground the agent</td><td>Yes</td><td>Minimal (closest to full-auto)</td></tr>
+<tr><td>Aider (repo-map)</td><td><strong>Derived per-request</strong></td><td>tree-sitter parses source into a concise structural map, token-budgeted, sent with each request</td><td><strong>No</strong></td><td>n/a</td></tr>
+<tr><td>Aider (conventions)</td><td>Persistent</td><td><strong>Manually authored</strong> — no auto-derivation</td><td>Yes</td><td>Fully manual</td></tr>
+<tr><td>Cody (Sourcegraph)</td><td>Derived per-request</td><td>keyword / BM25 + retrieval context</td><td>No</td><td>n/a</td></tr>
+</tbody>
+</table>
+<p>Windsurf, Continue, Tabnine, Qodo, and Augment produced no claims that
+survived adversarial verification — treat them as unconfirmed here, not as absent
+capability.</p>
+
+<h3>Findings the verifiers confirmed</h3>
+<ul>
+<li><strong>Consensus generation pattern = AI-assisted draft + human review.</strong>
+GitHub explicitly recommends using Copilot <em>itself</em> to draft the
+custom-instructions file, then a human edits. This is the field's center of
+gravity.</li>
+<li><strong>Staleness is the dominant failure mode</strong>, and outdated
+grounding docs cause <em>silent</em> failures: the agent confidently follows
+wrong context. Partly automatable via a session-start Git-vs-doc drift check.
+<em>(Caveat: rests largely on a single arXiv preprint, n=1 — directionally
+credible, not conclusive.)</em></li>
+<li><strong>Aider's repo-map is auto-derived from the actual code, token-budgeted,
+and sent per request — never persisted.</strong> A clean example of the derived
+strategy.</li>
+<li><strong>A good agent instruction file is concise and structured</strong>
+(~5–6 sections); lessons drawn from 2500+ repositories.</li>
+<li><strong>Devin/DeepWiki auto-generates its wiki at onboarding and uses it to
+ground the agent</strong> — the one surveyed tool near full-auto persistent
+generation.</li>
+</ul>
+
+<h3>Findings the verifiers refuted</h3>
+<ul>
+<li><strong>Refuted (1–2 votes):</strong> "the knowledge documents can be fully
+AI-generated, with the human reduced to designing structure." The field does
+<em>not</em> support removing the human author from the loop.</li>
+<li><strong>Refuted (0–3 votes):</strong> "Cursor rule creation is manual-only."
+Cursor has auto-generation affordances beyond the manual command — so
+"persistent docs must be hand-written" is false.</li>
+</ul>
+
+<h2 id="where-ade-sits">Where ADE sits today</h2>
+<p>ADE already implements part of this, and its existing ownership model aligns
+well with the verified best practice:</p>
+<ul>
+<li><strong>Stack/language detection</strong> — <code>detect.py</code> maps
+marker files to languages and build/lint/format/test commands, seeding
+<code>.ade/ade-stack.md</code> as a <strong>seeded-once, user-editable</strong>
+artifact. This is exactly the right model.</li>
+<li><strong><code>CONTEXT.md</code></strong> is a <em>domain glossary</em>,
+deliberately <strong>not pre-filled</strong>, accumulated lazily via
+<code>grill-with-docs</code> during the Research phase. This is an
+Aider-conventions-style "manual / incremental" philosophy.</li>
+<li><strong>R2.1 scouts</strong> (<code>current-state</code> +
+<code>available-surface</code>) are essentially <strong>per-request
+repo-mapping</strong> — the Aider/Cody derived strategy, already inside the
+pipeline.</li>
+</ul>
+<p><strong>The gap the idea targets is real and specific:</strong> ADE has
+<strong>no <code>ARCHITECTURE.md</code> and no auto-derived "actually-used
+practices" grounding doc.</strong> The lazy-accumulation philosophy is excellent
+for greenfield-incremental work but leaves a <strong>cold-start hole on
+brownfield repos</strong> — on day one the agents have stack commands but no
+distilled architectural model or convention grounding. Competitors (Devin
+DeepWiki, Copilot inventory-draft) specifically solve onboarding; ADE does not.</p>
+
+<h2 id="recommendation">Recommendation: bounded hybrid</h2>
+
+<h3>1. Persist only what is expensive to re-derive</h3>
+<p>Split the knowledge layer by cost:</p>
+<ul>
+<li><strong>Derive per-task, do not persist:</strong> file structure, current
+state, available surface — already covered by scouts. Zero staleness, no
+maintenance. Do not persist what a scout re-derives cheaply.</li>
+<li><strong>Persist (seeded-once, human-reviewed):</strong> the judgment-laden
+distillations — <code>ARCHITECTURE.md</code> (the <em>why</em>, module
+boundaries, data flow) and a <strong>practices/conventions grounding doc</strong>
+derived from the <em>actual code</em> (lint configs, observed patterns), not from
+language defaults.</li>
+</ul>
+
+<h3>2. Resolve the "bootstrapper only scaffolds" tension</h3>
+<p>ADE's invariant is <em>"the bootstrapper only scaffolds — it doesn't run
+agents, execute code, or manage state."</em> Distilling an architecture doc
+requires reading and reasoning over the whole codebase — that is an
+<strong>agent job, not a Python-CLI job</strong>. The clean resolution:</p>
+<blockquote>
+<p><code>ade init</code> (Python) scaffolds an <strong>empty seed + the
+generating skill + the drift hook</strong>. The <strong>harness agent</strong>
+performs the actual derivation when the skill runs. The Python side never reads
+the codebase to distill it.</p>
+</blockquote>
+<p>This preserves the invariant and matches the field's "AI drafts, human
+reviews" consensus. Concretely: a new <strong><code>ade-onboard</code> /
+<code>ade-ground</code> skill</strong> (a one-time Phase 0.5), run once per repo,
+dispatches scouts to draft <code>ARCHITECTURE.md</code> plus a practices doc,
+then surfaces them for the same <strong>seeded-once, never-overwritten,
+user-owned</strong> treatment as <code>CONTEXT.md</code> /
+<code>ade-stack.md</code>.</p>
+
+<h3>3. Lean into the hook layer (ADE's structural advantage)</h3>
+<p>Staleness is the field's #1 risk, and <strong>ADE already ships a
+deterministic hook layer</strong> — most competitors do not. Add a
+<strong>session-start (or pre-commit) drift check</strong>: compare the grounding
+doc's hash/mtime against architecture-relevant files changed in Git, and
+<strong>warn</strong> (not gate) when a doc has gone stale beneath moved code.
+Given the existing <code>_hooklib</code> infrastructure this is cheap, and it is
+the single highest-leverage differentiator available.</p>
+
+<h3>4. Keep the human gate</h3>
+<p>Do not fully automate — the field explicitly refutes it. ADE's existing
+"seeded once, never overwritten" pattern <em>is</em> the human gate; reuse it.</p>
+
+<h2 id="alternatives">Alternatives</h2>
+<table>
+<thead>
+<tr><th>Option</th><th>Pro</th><th>Con</th><th>Verdict</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>A. Persist nothing new</strong> — extend R2.1 scouts to cover architecture/conventions per-task (pure Aider/Cody model)</td><td>Zero staleness; nothing to maintain; minimal change</td><td>No cross-session memory; pays distillation cost every task; loses human-curated "why"; does not fix brownfield cold-start</td><td>Good fallback, misses onboarding value</td></tr>
+<tr><td><strong>B. Full persistent KB</strong> — auto-generate a DeepWiki-style index</td><td>Rich onboarding; matches Devin</td><td>Heavy; large staleness surface; ADE is a scaffolder, not a runtime, and cannot continuously re-index; violates minimalism</td><td>Over-reach for ADE</td></tr>
+<tr><td><strong>C. Bounded hybrid (recommended)</strong> — persist expensive distillations (seeded-once + reviewed), derive cheap context via scouts, add drift hook</td><td>Matches verified consensus; fixes cold-start; exploits the hook advantage; preserves invariants</td><td>One new skill + one hook to build and maintain</td><td><strong>Recommended</strong></td></tr>
+</tbody>
+</table>
+<p><strong>One sharp caution:</strong> resist deriving "conventions" from
+<em>language defaults</em> (e.g. "Python → use ruff"). The field's value is
+grounding in <strong>actually-used</strong> practices — read the repo's lint
+configs and observed patterns, or ADE will generate confidently-wrong guidance,
+which is exactly the silent-failure mode the research flagged.</p>
+
+<h2 id="next-step">Suggested next step</h2>
+<p>The cleanest first slice: an <strong><code>ade-onboard</code> skill</strong>
+that drafts <code>ARCHITECTURE.md</code> plus a practices doc from scout output
+(human-reviewed, seeded-once), plus a <strong>grounding-drift warn-hook</strong>.
+It is additive, respects every existing ADE invariant, and closes the brownfield
+onboarding gap that competitors specifically target.</p>
+
+<h2 id="sources">Sources</h2>
+<h4>Primary / vendor documentation</h4>
+<ul>
+<li>GitHub Copilot — adding custom instructions: <a href="https://docs.github.com/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot">docs.github.com</a></li>
+<li>GitHub blog — writing a great AGENTS.md (lessons from 2500+ repos): <a href="https://github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md-lessons-from-over-2500-repositories/">github.blog</a></li>
+<li>GitHub blog — 5 tips for better custom instructions: <a href="https://github.blog/ai-and-ml/github-copilot/5-tips-for-writing-better-custom-instructions-for-copilot/">github.blog</a></li>
+<li>Cursor — rules documentation: <a href="https://cursor.com/docs/rules">cursor.com/docs/rules</a></li>
+<li>Aider — repo map: <a href="https://aider.chat/docs/repomap.html">aider.chat/docs/repomap.html</a>, <a href="https://aider.chat/2023/10/22/repomap.html">2023 announcement</a></li>
+<li>Aider — conventions: <a href="https://aider.chat/docs/usage/conventions.html">aider.chat/docs/usage/conventions.html</a></li>
+<li>Sourcegraph — how Cody understands your codebase: <a href="https://sourcegraph.com/blog/how-cody-understands-your-codebase">sourcegraph.com</a></li>
+<li>Devin / Cognition — DeepWiki: <a href="https://docs.devin.ai/work-with-devin/deepwiki">docs.devin.ai</a></li>
+</ul>
+<h4>Contrarian / skeptical (staleness, drift, maintenance)</h4>
+<ul>
+<li>arXiv preprint (staleness as primary failure mode; drift hook): <a href="https://arxiv.org/html/2602.20478v1">arxiv.org/html/2602.20478v1</a></li>
+<li>cursorrules vs copilot-instructions benchmark 2026: <a href="https://rpdi.us/blog/cursorrules-vs-copilot-instructions-md-benchmark-2026/">rpdi.us</a></li>
+<li>Continuous context: <a href="https://datahub.com/blog/continuous-context/">datahub.com</a></li>
+</ul>
+<h4>Practitioner / implementation</h4>
+<ul>
+<li>HumanLayer — writing a good CLAUDE.md: <a href="https://www.humanlayer.dev/blog/writing-a-good-claude-md">humanlayer.dev</a></li>
+<li>Augment — how to build agents.md: <a href="https://www.augmentcode.com/guides/how-to-build-agents-md">augmentcode.com</a></li>
+<li>Amp — context engineering: <a href="https://github.com/ampcode/amp-examples-and-guides/blob/main/guides/context-management/Context%20Engineering%20-%20Amp.md">github.com/ampcode</a></li>
+<li>Building an AI init command: <a href="https://kau.sh/blog/build-ai-init-command/">kau.sh</a></li>
+</ul>
+
+<h2 id="caveats">Caveats</h2>
+<ul>
+<li>The staleness finding leans heavily on one arXiv preprint (n=1). It is
+directionally consistent with practitioner reports but should not be treated as
+settled empirical fact.</li>
+<li>Windsurf, Continue, Tabnine, Qodo, and Augment had no claims survive
+verification in this run — "no surviving claim" means unconfirmed coverage, not
+evidence of absence.</li>
+<li>Two claims were adversarially refuted and excluded from the recommendation:
+fully-autonomous (human-free) generation, and Cursor being manual-only.</li>
+</ul>
+
+<hr>
+
+<h1 id="part-ii">Part II — Cross-Harness Grounding &amp; Determinism (Extension, 2026-06-26)</h1>
+<p class="meta">Date: 2026-06-26</p>
+<p>Motivation: this part is driven by ADE's brownfield north-star — a
+<strong>one-shot project seeder</strong> that removes the tedious manual work of
+grounding coding agents on an <em>existing</em> repo, producing the knowledge
+layer / technical-instruction context once and grounding <strong>Claude Code +
+Copilot + Codex (+ Gemini, Cursor) identically</strong>. The question Part II
+answers: <em>which artifacts should a single seed run emit, and how do they wire
+together, so behavior is stable and close-to-deterministic across harnesses —
+realistically?</em></p>
+<p>Evidence base: a second deep-research run (104 agents, 21 sources, 96 claims
+extracted, 25 adversarially verified — 23 confirmed, 2 refuted), plus local
+review of ADE's harness adapter layer (<code>src/ade/harnesses/</code>,
+<code>AGENTS.md.j2</code>, <code>memory_pointer.md.j2</code>).</p>
+
+<h2 id="two-layers">The core reframe: two layers, because the LLM step is irreducibly stochastic</h2>
+<p>"Deterministic code generation" is not literally achievable, and the research
+is blunt about it. The realistic target is a <strong>two-layer</strong> system:</p>
+<ul>
+<li><strong>Layer 1 — reduce output <em>variance</em></strong> via a single
+shared grounding the agents consume (the instruction files). This makes behavior
+<em>consistent</em>, not <em>identical</em>.</li>
+<li><strong>Layer 2 — enforce deterministic <em>acceptance</em></strong> via
+hooks / CI / linters / formatters / tests, because no prompt can make generation
+reproducible.</li>
+</ul>
+<p>Verified support for why Layer 2 is mandatory:</p>
+<ul>
+<li><strong>LLM codegen is severely non-deterministic by default.</strong> Across
+CodeContests / APPS / HumanEval, <strong>75.76% / 51.00% / 47.56%</strong> of
+problems had <em>zero</em> identical test output among repeated requests under
+identical prompts (peer-reviewed, ACM TOSEM).</li>
+<li><strong><code>temperature=0</code> does NOT guarantee determinism</strong> —
+it only reduces variance (batched-GPU floating-point non-associativity, MoE
+routing). Grounding files reduce variance but determinism must come from
+downstream gates.</li>
+<li><strong>Instruction files are advisory, with no runtime enforcement.</strong>
+Claude Code is documented violating explicit, read-and-acknowledged
+<code>CLAUDE.md</code> rules when built-in system prompts take precedence
+(plan-mode's prompt literally says "This supersedes any other instructions").</li>
+<li><strong>Reliable AI artifacts require a mandatory multi-stage acceptance
+gate</strong> — security, syntax, execution, accuracy — <em>not</em> better
+prompting alone.</li>
+</ul>
+<p><strong>ADE implication:</strong> ADE already owns Layer 2 (the deterministic
+hook layer) — the piece most competitors lack. Part II is therefore mostly about
+getting Layer 1 right <em>across harnesses from one seed run</em>, while
+explicitly positioning the hook layer as the determinism guarantee. The grounding
+files are the variance-reducer; the hooks are the enforcer.</p>
+
+<h2 id="agents-standard">The canonical file: <code>AGENTS.md</code> is now the cross-tool standard</h2>
+<ul>
+<li><code>AGENTS.md</code> ("a README for agents") is an <strong>open, cross-tool
+format</strong>, released by OpenAI (Aug 2025) and transferred to the
+<strong>Linux Foundation's Agentic AI Foundation</strong>; natively read by
+<strong>Codex, Copilot's coding agent, Cursor, Gemini CLI</strong> and ~28 other
+tools (adopter counts are the standard's own — promotional; named load-bearing
+tools are independently confirmed).</li>
+<li>It <strong>complements, does not replace</strong> each harness's richer native
+format.</li>
+</ul>
+<p><strong>ADE implication:</strong> ADE's canonical harness-neutral
+<code>AGENTS.md</code> is exactly the right spine and already matches the de-facto
+standard. No change to the <em>concept</em> — only to <em>coverage</em>
+(monorepo) and <em>content</em> (Part I's <code>ARCHITECTURE.md</code> + practices
+doc).</p>
+
+<h2 id="consumption-matrix">Per-harness consumption matrix (the load-bearing facts)</h2>
+<table>
+<thead>
+<tr><th>Harness</th><th>Reads canonical <code>AGENTS.md</code>?</th><th>Bridge required</th><th>ADE status today</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Codex</strong></td><td><strong>Yes, natively</strong> (nested, nearest-wins; concatenates root→cwd)</td><td>None</td><td>✓ <code>memory_file = AGENTS.md</code>, read natively</td></tr>
+<tr><td><strong>Copilot</strong> (coding agent)</td><td><strong>Yes, natively</strong> — plus root <code>CLAUDE.md</code> / <code>GEMINI.md</code>, plus <code>.github/copilot-instructions.md</code> + <code>.github/instructions/**</code>; all coexist</td><td>None for the coding agent</td><td>✓ emits root <code>AGENTS.md</code> + a thin <code>copilot-instructions.md</code> pointer (belt-and-suspenders, fine)</td></tr>
+<tr><td><strong>Claude Code</strong></td><td><strong>No</strong> — reads <strong>only <code>CLAUDE.md</code></strong></td><td><strong><code>@AGENTS.md</code> import</strong> at top of <code>CLAUDE.md</code> (documented transclusion; expanded at launch; cannot drift; Windows-safe without admin — preferred over symlink)</td><td>✓ <code>supports_at_import=True</code> already emits <code>@AGENTS.md</code> — <strong>documented best practice, exactly right</strong></td></tr>
+<tr><td><strong>Gemini CLI</strong></td><td><strong>Only via config</strong> — reads <code>AGENTS.md</code> only if <code>context.fileName</code> in <code>.gemini/settings.json</code> names it; else reads <code>GEMINI.md</code></td><td>Set <code>context.fileName</code>, or keep a <code>GEMINI.md</code> pointer</td><td>⚠ uses a plain-text <code>GEMINI.md</code> pointer (<code>supports_at_import=False</code>); see rec 4</td></tr>
+<tr><td><strong>Cursor</strong> (if targeted)</td><td>Via <code>.mdc</code> rules / native <code>AGENTS.md</code></td><td>Glob-scoped <code>.mdc</code> for path rules</td><td>n/a (not an ADE target)</td></tr>
+</tbody>
+</table>
+<p>Caveat: Copilot's <strong>coding/cloud agent</strong> reads
+<code>AGENTS.md</code> + <code>CLAUDE.md</code> + <code>GEMINI.md</code>; some
+surfaces (Chat, CLI) support only singular <code>AGENTS.md</code>, and
+<code>CLAUDE.md</code> / <code>GEMINI.md</code> must sit at <strong>repo
+root</strong> (no nested-path scoping). The only fully path-scopable canonical
+file is <code>AGENTS.md</code> itself.</p>
+
+<h2 id="monorepo">The real brownfield gap: path-scoping in monorepos</h2>
+<p>Three <strong>incompatible</strong> path-scoping models exist, and a brownfield
+monorepo seed must satisfy all harnesses at once:</p>
+<table>
+<thead>
+<tr><th>Model</th><th>Mechanism</th><th>Used by</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Directory-proximity (nearest-wins)</strong></td><td>nested <code>AGENTS.md</code> per package; agent reads the nearest and concatenates root→cwd</td><td>Codex, Copilot native <code>AGENTS.md</code></td></tr>
+<tr><td><strong>Glob frontmatter</strong></td><td><code>.github/instructions/NAME.instructions.md</code> with <code>applyTo: "**/*.ts,**/*.tsx"</code></td><td>Copilot</td></tr>
+<tr><td><strong>Glob-scoped rules</strong></td><td><code>.mdc</code> rule files with globs</td><td>Cursor</td></tr>
+</tbody>
+</table>
+<p>These do not interoperate (proximity ≠ glob; off-path sibling
+<code>AGENTS.md</code> files are not loaded). <strong>A hand-maintained repo
+cannot keep all three in sync — but a generator can.</strong> This is precisely
+where ADE is uniquely positioned: a brownfield seed run can derive path-scoped
+guidance <strong>once</strong> and emit it in all three styles. No surveyed
+competitor does this; it is the strongest available differentiator and directly
+serves the "remove manual work" goal.</p>
+
+<h2 id="governance">Enterprise governance patterns (verified)</h2>
+<ul>
+<li><strong>Protect the instruction files as agent configuration.</strong>
+GitHub's Well Architected guidance: files like <code>AGENTS.md</code>,
+<code>mcp.json</code>, <code>copilot-instructions.md</code> "define what agents
+can do. Changes to these files need human review," enforced via <strong>CODEOWNERS
++ branch rulesets requiring independent review</strong> (per-file "required
+reviewer rule" GA 2026-02-17).</li>
+<li><strong>Org-vs-repo layering:</strong> org-level only for <strong>narrow,
+non-negotiable standards</strong> (security/compliance, &lt;1000 words, no
+repo-specific logic); repo-level via a <strong>central library of starters teams
+copy and adapt</strong>. Pushing everything to the org level "wastes tokens and
+produces generic results."</li>
+</ul>
+<p><strong>ADE implication:</strong> the governance pattern <em>is</em> ADE's "AI
+drafts → human reviews" gate, expressed in version control. A brownfield seed can
+scaffold a <strong>CODEOWNERS entry for the grounding files</strong> so the
+minimum-friction review checkpoint is also the governance control — one diff
+review satisfies both.</p>
+
+<h2 id="deliverable">What a one-shot brownfield seed run should emit</h2>
+<table>
+<thead>
+<tr><th>Artifact</th><th>Purpose</th><th>Harnesses served</th></tr>
+</thead>
+<tbody>
+<tr><td><code>AGENTS.md</code> (root, canonical)</td><td>single source of truth: stack, build/test, conventions, ARCHITECTURE pointer</td><td>Codex, Copilot (native), Gemini (via config)</td></tr>
+<tr><td><code>ARCHITECTURE.md</code> (root)</td><td>distilled module boundaries + data flow + the <em>why</em> (Part I)</td><td>referenced by <code>AGENTS.md</code></td></tr>
+<tr><td>practices/conventions doc</td><td>actually-used conventions from lint configs + observed patterns (Part I)</td><td>referenced by <code>AGENTS.md</code></td></tr>
+<tr><td><code>CLAUDE.md</code> (root)</td><td>thin file whose first line is <code>@AGENTS.md</code></td><td>Claude Code</td></tr>
+<tr><td><code>GEMINI.md</code> <em>or</em> <code>.gemini/settings.json</code> <code>context.fileName</code></td><td>point Gemini at the canonical file</td><td>Gemini CLI</td></tr>
+<tr><td><code>.github/copilot-instructions.md</code></td><td>thin pointer (coding agent already reads <code>AGENTS.md</code>; covers Chat/CLI)</td><td>Copilot</td></tr>
+<tr><td>nested <code>AGENTS.md</code> + <code>.instructions.md</code> + <code>.mdc</code> (monorepo)</td><td>path-scoped per-package guidance in all three styles, from one source</td><td>all</td></tr>
+<tr><td><code>CODEOWNERS</code> entry</td><td>makes the review gate a governance control</td><td>n/a (process)</td></tr>
+<tr><td>deterministic hooks (existing)</td><td>Layer 2 acceptance enforcement</td><td>all</td></tr>
+</tbody>
+</table>
+<p>The human checkpoint is a <strong>single diff-review pass</strong> over this
+set — both the field's required review gate and the minimum-friction UX the
+north-star demands.</p>
+
+<h2 id="recommendations-ii">Recommendations for ADE (ranked)</h2>
+<ol>
+<li><strong>Keep the spine — it is already best practice.</strong> Canonical
+<code>AGENTS.md</code> + the <code>@AGENTS.md</code> Claude bridge are exactly the
+documented single-source pattern. Do not refactor; lock it with a test.</li>
+<li><strong>Add <code>ARCHITECTURE.md</code> + a practices doc to the seed</strong>
+(Part I) and reference both from <code>AGENTS.md</code>.</li>
+<li><strong>Generate path-scoped guidance for monorepos in all three styles</strong>
+(nested <code>AGENTS.md</code>, Copilot <code>.instructions.md</code>
+<code>applyTo</code>, Cursor <code>.mdc</code>) from one derivation. The
+differentiator.</li>
+<li><strong>Fix/verify Gemini single-sourcing:</strong> emit
+<code>.gemini/settings.json</code> with <code>context.fileName</code> including
+<code>AGENTS.md</code> (true single-source, drop the duplicate pointer) or keep
+<code>GEMINI.md</code> knowingly. Re-check whether <code>supports_at_import=False</code>
+is still accurate.</li>
+<li><strong>Scaffold governance:</strong> seed a <code>CODEOWNERS</code> entry for
+the grounding files; document the single review pass as the minimum-friction
+human gate.</li>
+<li><strong>Position the hook layer explicitly as Layer 2</strong> ("deterministic
+acceptance") in ADE's own docs — it is the answer to "how can generation be
+close-to-deterministic," and it is ADE's structural advantage.</li>
+</ol>
+
+<h2 id="open-questions-ii">Open questions (unresolved by the research)</h2>
+<ul>
+<li>Does a single canonical <code>AGENTS.md</code> actually <em>reduce
+cross-harness output variance</em> on the same task, or only improve single-harness
+efficiency? The one efficiency study tested <strong>Codex only</strong>; no study
+measures behavioral consistency across Copilot + Claude + Codex on identical
+grounding. <em>(Two cross-harness-generalization claims were refuted, 0-3.)</em></li>
+<li>Observed drift rate / detection latency of multi-file sync patterns vs the
+no-second-copy <code>@AGENTS.md</code> import in real monorepos.</li>
+<li>The minimal deterministic gate set that reliably catches the rule classes most
+often ignored under system-prompt override (parallel-agent dispatch, file-location
+rules, author-separation) — expressed once, emitted per harness like ADE's
+hooks.</li>
+</ul>
+
+<h2 id="sources-ii">Part II sources</h2>
+<h4>Primary / vendor</h4>
+<ul>
+<li>agents.md (the standard): <a href="https://agents.md/">agents.md</a></li>
+<li>GitHub Copilot — custom instructions (repo-wide + <code>applyTo</code> + AGENTS.md/CLAUDE.md/GEMINI.md): <a href="https://docs.github.com/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot">docs.github.com</a></li>
+<li>GitHub changelog — Copilot coding agent supports AGENTS.md: <a href="https://github.blog/changelog/2025-08-28-copilot-coding-agent-now-supports-agents-md-custom-instructions/">github.blog</a></li>
+<li>Anthropic — Claude Code memory &amp; <code>@AGENTS.md</code> import: <a href="https://code.claude.com/docs/en/memory">code.claude.com/docs/en/memory</a></li>
+<li>OpenAI Codex — AGENTS.md (nested, nearest-wins): <a href="https://developers.openai.com/codex/guides/agents-md">developers.openai.com</a></li>
+<li>GitHub Well Architected governance (CODEOWNERS + rulesets): <a href="https://github.com/orgs/community/discussions/193359">github.com/orgs/community/discussions/193359</a></li>
+</ul>
+<h4>Determinism (peer-reviewed + preprint)</h4>
+<ul>
+<li>Non-determinism of LLM code generation (ACM TOSEM): <a href="https://arxiv.org/pdf/2308.02828">arxiv.org/pdf/2308.02828</a></li>
+<li>Mandatory multi-stage acceptance gate / one-time invocation (preprint): <a href="https://arxiv.org/html/2604.05150v1">arxiv.org/html/2604.05150v1</a></li>
+<li>AGENTS.md efficiency on Codex (preprint; Codex-only): <a href="https://arxiv.org/abs/2601.20404">arxiv.org/abs/2601.20404</a></li>
+</ul>
+<h4>Practitioner</h4>
+<ul>
+<li>Cross-tool portability of AGENTS.md / CLAUDE.md: <a href="https://codex.danielvaughan.com/2026/05/27/agent-instruction-files-agents-md-claude-md-cross-tool-portability-codex-cli/">codex.danielvaughan.com</a></li>
+<li>AGENTS.md in monorepos: <a href="https://dev.to/datadog-frontend-dev/steering-ai-agents-in-monorepos-with-agentsmd-13g0">dev.to/datadog-frontend-dev</a></li>
+<li>Why Claude Code ignores your CLAUDE.md: <a href="https://github.com/anthropics/claude-code/issues/27032">github.com/anthropics/claude-code/issues/27032</a></li>
+<li>Symlink AGENTS.md → CLAUDE.md (and why import is preferred): <a href="https://www.ssw.com.au/rules/symlink-agents-to-claude">ssw.com.au</a></li>
+</ul>
+
+<h2 id="caveats-ii">Part II caveats</h2>
+<ul>
+<li><strong>Fast-moving area (mid-2026).</strong> Harness instruction-file support
+evolves surface-by-surface (Copilot Chat/CLI vs coding agent differ; Gemini CLI
+reads <code>AGENTS.md</code> only via explicit config). Re-verify before
+implementing.</li>
+<li><strong>Determinism/efficiency evidence is thin in places.</strong>
+<code>2308.02828</code> is strong and peer-reviewed; <code>2604.05150</code> is a
+single v1 preprint on a narrow benchmark; <code>2601.20404</code> tested
+<strong>Codex only</strong> with a non-rigorous quality check — do not generalize
+its numbers to Claude/multi-harness.</li>
+<li><strong>Refuted and excluded:</strong> "AGENTS.md gains are efficiency-only,
+not quality" (0-3) and "the efficiency effect was measured across both Codex and
+Claude" (0-3).</li>
+<li>The Claude-Code rule-violation evidence is from GitHub issues (observed
+behavior + reporter root-cause), not documented design intent — but the underlying
+"instruction files are advisory, not enforced" point is robustly corroborated.</li>
+</ul>
+
+<hr>
+
+<h1 id="part-iii">Part III — Repo Topologies: Monorepo &amp; Polyrepo (Extension, 2026-06-26)</h1>
+<p class="meta">Date: 2026-06-26</p>
+<p>Motivation: a brownfield seeder must work in two structurally different worlds
+— <strong>monorepos</strong> (one repo, many packages: the knowledge layer
+collocates by <em>directory proximity</em>) and <strong>polyrepos</strong> (many
+separate repos: no shared tree, so the layer must be <em>distributed and
+tiered</em>). This part covers how the agent-hardening files (<code>AGENTS.md</code>,
+<code>CLAUDE.md</code>, <code>GEMINI.md</code>, <code>copilot-instructions.md</code>
++ <code>.instructions.md</code>, Cursor <code>.mdc</code>, hook/settings configs,
+<code>mcp.json</code>) collocate, layer, merge, and stay in sync in each.</p>
+<p>Evidence base: two further deep-research runs — monorepo (108 agents, 25/25
+claims confirmed) and polyrepo (110 agents, 24/25 confirmed) — both anchored
+overwhelmingly in primary vendor docs (Anthropic, GitHub, VS Code/Microsoft, Nx,
+OpenAI Codex, Cursor, Gemini CLI).</p>
+
+<h2 id="universal-merge">The universal mechanic: additive merge, not override (verified both topologies)</h2>
+<p>The single fact that governs everything below, confirmed in both passes:
+<strong>instruction/context files <em>concatenate</em>; settings/rules
+<em>override</em>.</strong> Two families, two merge models.</p>
+<table>
+<thead>
+<tr><th>File family</th><th>Merge model</th><th>Conflict resolution</th></tr>
+</thead>
+<tbody>
+<tr><td><code>CLAUDE.md</code>, <code>AGENTS.md</code>, <code>GEMINI.md</code>, <code>copilot-instructions.md</code>, <code>*.instructions.md</code></td><td><strong>Additive concatenation</strong> (broadest → closest; closest read last)</td><td>By <strong>model attention</strong> (later/closer text weighted more) — <em>not</em> a hard override</td></tr>
+<tr><td>Claude <code>settings.json</code>, Cursor rules</td><td><strong>Override chain</strong> (Managed/Team highest)</td><td>Higher scope wins per key</td></tr>
+<tr><td>Claude <strong>permission</strong> rules</td><td><strong>Merge across scopes</strong></td><td><code>deny</code> cannot be overridden by any <code>allow</code></td></tr>
+</tbody>
+</table>
+<p>Practical consequence: you can <em>layer guidance</em> freely (nothing is
+dropped — a root file and a package file both apply), but you cannot rely on a
+closer file to <em>hard-override</em> a farther one — only to out-weight it.
+Determinism still has to come from the settings/hook/CI layer, not from
+instruction-file precedence.</p>
+
+<h2 id="monorepo">A. Monorepo (one repo, many packages) — collocation by proximity</h2>
+<ul>
+<li><strong>Claude Code walks UP at launch and lazy-loads subdirectories.</strong>
+Launching at repo root loads the <strong>root <code>CLAUDE.md</code> only</strong>;
+subdirectory files load <em>on demand</em>. Launching inside <code>packages/api/</code>
+loads that file <strong>plus every ancestor</strong>. The on-demand subdir load is
+the documented token-saving mechanism.</li>
+<li><strong>Recommended inheritance = two levels.</strong> A <strong>root</strong>
+file holds cross-cutting rules; a <strong>thin per-package</strong> file adds only
+that area's stack-specific conventions. Shared rules inherited once, never
+duplicated — single-source-of-truth <em>within</em> a monorepo.</li>
+<li><strong>Copilot path-scoping:</strong> <code>.github/instructions/*.instructions.md</code>
+with an <code>applyTo:</code> glob targets exact paths and stacks
+<strong>cumulatively</strong> on top of the repo-wide
+<code>copilot-instructions.md</code> (files lacking <code>applyTo</code> are
+ignored).</li>
+<li><strong>VS Code nested <code>AGENTS.md</code> is experimental</strong>
+(<code>chat.useNestedAgentsMdFiles</code>): it injects subfolder paths and lets the
+agent <em>choose</em> — not a hard nearest-wins resolution.</li>
+</ul>
+
+<h3>⚠ The critical asymmetry (the most ADE-relevant finding in this study)</h3>
+<p><strong>Instruction files inherit up the tree; hooks / settings / MCP do
+NOT.</strong> Claude Code's <code>.claude/settings.json</code> (hooks, permissions,
+worktree config) loads <strong>only from the directory Claude is launched
+in</strong> — no parent traversal; MCP servers and permissions are
+<strong>session-global</strong>. Official load table: Skills ✅ nested,
+<code>CLAUDE.md</code> ✅ on-demand subdirs, <strong>Settings ❌ root-only, Hooks ❌
+root-only, MCP ❌ session-global</strong>. Hierarchical merge is only
+<em>proposed</em> (issues #12962 / #37344). Project MCP config is a single repo-root
+<code>.mcp.json</code>, not per-package.</p>
+<blockquote>
+<p><strong>Why this matters for ADE:</strong> ADE's determinism story (Part II
+"Layer 2") rests on the <strong>deterministic hook layer</strong>. In a monorepo,
+if a developer launches the agent from the repo root while working in a sub-package,
+<strong>that package's ADE hooks do not fire</strong> — the acceptance gate silently
+does not run. A real correctness gap. Workarounds: emit <strong>self-contained
+<code>.claude/settings.json</code> per package</strong>, always launch from the
+package directory, or rely on global user settings. ADE, as a generator, can do the
+first automatically.</p>
+</blockquote>
+
+<h3>Monorepo tooling awareness</h3>
+<ul>
+<li><strong>Nx is the proof-of-model for ADE:</strong> <code>npx nx
+configure-ai-agents</code> generates per-tool config
+(Claude/Cursor/Copilot/Gemini/Codex/OpenCode) <strong>from one source</strong> —
+exactly ADE's pattern — and the Nx <strong>MCP server</strong> exposes the project
+graph (<code>nx_workspace</code>, <code>nx_project_details</code>) so agents
+discover workspace boundaries <em>dynamically</em>.</li>
+<li><strong>Turborepo / Bazel / pnpm-yarn workspaces:</strong> no verified
+agent-facing project-graph/MCP equivalent surfaced — dynamic workspace discovery
+appears Nx-specific today (open question).</li>
+</ul>
+
+<h2 id="polyrepo">B. Polyrepo (many separate repos) — collocation by tier</h2>
+<p>No shared tree exists, so collocation becomes <strong>layering across repo
+boundaries</strong>: push durable conventions to a home/org tier, keep only
+repo-specifics per repo.</p>
+<table>
+<thead>
+<tr><th>Harness</th><th>Home/global tier</th><th>Org/enterprise tier</th><th>Per-repo tier</th><th>Precedence family</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Claude Code</strong></td><td><code>~/.claude/CLAUDE.md</code>, <code>~/.claude/settings.json</code></td><td><strong>Managed policy</strong> <code>CLAUDE.md</code> + <code>managed-settings.json</code> (MDM/GPO/Ansible; <em>cannot be overridden</em>)</td><td><code>./CLAUDE.md</code>, <code>.claude/settings.json</code></td><td><code>CLAUDE.md</code> <strong>additive</strong>; settings <strong>override</strong> (Managed &gt; CLI &gt; Local &gt; Project &gt; User)</td></tr>
+<tr><td><strong>Codex</strong></td><td><code>~/.codex/AGENTS.md</code>, <code>~/.codex/config.toml</code></td><td>—</td><td><code>AGENTS.md</code> chain, <code>.codex/config.toml</code> (trusted only)</td><td><code>AGENTS.md</code> <strong>additive</strong> (global → root → cwd, closest last)</td></tr>
+<tr><td><strong>Copilot</strong></td><td>personal (web)</td><td><strong>Org custom instructions</strong> (GA 2026-04-02) — but <strong>prioritized <em>last</em></strong></td><td><code>copilot-instructions.md</code> + <code>.instructions.md</code></td><td>additive; priority Personal &gt; Repo &gt; <strong>Org</strong></td></tr>
+<tr><td><strong>Cursor</strong></td><td>User Rules (in-app, <em>not</em> a versioned file)</td><td><strong>Team Rules</strong> (dashboard; enforceable, <em>cannot be disabled</em>)</td><td><code>.cursor/rules/*.mdc</code></td><td><strong>override</strong> (Team &gt; Project &gt; User)</td></tr>
+<tr><td><strong>Gemini CLI</strong></td><td><code>~/.gemini/GEMINI.md</code></td><td><em>(no org tier found)</em></td><td><code>GEMINI.md</code></td><td>additive concatenation</td></tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Strongest cross-repo single-source levers:</strong> Claude
+<strong>managed-policy</strong> <code>CLAUDE.md</code>/settings (unoverridable,
+OS-path deployed), Cursor <strong>Team Rules</strong> (enforceable). Copilot's org
+tier exists but is <strong>weak — prioritized last</strong>, so it must stay narrow
+and non-conflicting to matter.</li>
+<li><strong>Codex and Gemini global files are filesystem-path-based, <em>not</em>
+git-aware</strong> — they cross repo boundaries only when repos nest under a shared
+parent dir (e.g. <code>~/dev/</code>). Additive loading also means every global file
+is concatenated <strong>on every prompt → token cost</strong>; keep global tiers
+narrow.</li>
+<li><strong>ADE is itself a pull-style distribution mechanism.</strong> Because ADE
+owns and regenerates the <strong>per-repo</strong> tier on every <code>init</code>,
+re-running it across N repos <em>is</em> distribution (pull if developer-invoked,
+push if CI-driven). The org/global tiers sit <em>above</em> ADE's scope — where
+narrow, durable conventions belong.</li>
+</ul>
+
+<h3>Distribution &amp; fleet-sync mechanisms (LOWER confidence — see caveat)</h3>
+<p>Named in fetched sources but did <strong>not</strong> survive into the verified
+top-claim set, so directional only: a <strong>central starter-instruction
+repo</strong> teams copy-and-adapt; <strong>git submodule/subtree</strong> of shared
+fragments; packaging instructions as an <strong>npm/pip/OCI dependency</strong>; the
+GitHub <strong><code>.github</code> default community-health repo</strong>;
+<strong>template repositories</strong>; and fleet-update tooling
+(<strong><code>multi-gitter</code></strong>, <strong><code>safe-settings</code></strong>,
+<strong><code>actions-template-sync</code></strong>, <strong>Renovate</strong>) to
+bump a pinned generator version across many repos. The trade-off axis is always
+<strong>push vs pull</strong> and <strong>drift control</strong>: a generator +
+pinned version + a CI drift-check (diff generated <code>AGENTS.md</code> against the
+canonical) is the pattern most aligned with how ADE already works.</p>
+
+<h2 id="recommendations-iii">Combined recommendations for ADE (ranked)</h2>
+<ol>
+<li><strong>Fix the monorepo hook asymmetry — highest priority.</strong> It silently
+disables ADE's Layer-2 determinism for sub-package work. Emit <strong>self-contained
+<code>.claude/settings.json</code> (hooks/permissions) per package</strong>, and/or
+document the launch-from-package-root requirement, and/or provide root-level hooks
+that detect the touched package. Track #12962 / #37344 — if hierarchical merge ships,
+revisit.</li>
+<li><strong>Emit the two-level monorepo layout</strong> (one root <code>AGENTS.md</code>
++ thin nested per-package; keep nested files thin to exploit lazy subdir loading and
+control token bloat). ADE's generator nature makes this nearly free; Nx's
+<code>configure-ai-agents</code> proves the model.</li>
+<li><strong>Generate path-scoping in all three styles in sync</strong> (nested
+<code>AGENTS.md</code> + Copilot <code>applyTo</code> <code>.instructions.md</code> +
+Cursor <code>.mdc</code>) from one derivation — carried from Part II; the monorepo is
+where this pays off most.</li>
+<li><strong>Position ADE-re-run as the polyrepo pull-distribution mechanism</strong>,
+and add a <strong>CI drift-check</strong> (diff generated <code>AGENTS.md</code>/pointers
+against a pinned canonical version) so N repos cannot silently diverge; pair with
+<code>multi-gitter</code>/Renovate-style fleet bumps of the pinned ADE version.</li>
+<li><strong>Optionally emit org-tier templates</strong> (a managed-policy
+<code>CLAUDE.md</code> and a narrow Copilot org-instruction starter) for durable
+cross-repo conventions that live <em>above</em> ADE's per-repo tier — kept narrow to
+avoid the always-concatenated token tax.</li>
+</ol>
+
+<h2 id="open-questions-iii">Open questions (Part III)</h2>
+<ul>
+<li>Cursor <code>.mdc</code>, native Codex <code>AGENTS.md</code>, and Gemini
+<code>GEMINI.md</code> <strong>nested merge semantics</strong> were under-sourced vs
+Claude/Copilot/VS Code — verify before relying on them.</li>
+<li>If Claude Code ships <strong>hierarchical settings/hooks discovery</strong>
+(#12962/#37344), the central monorepo finding <strong>inverts</strong> — re-verify.</li>
+<li>Do <strong>Turborepo/Bazel/pnpm</strong> expose any agent-facing
+project-graph/MCP equivalent to Nx, or is dynamic workspace discovery Nx-only?</li>
+<li>The <strong>polyrepo distribution/sync mechanisms</strong> (submodules, template
+repos, <code>safe-settings</code>, <code>multi-gitter</code>, Renovate,
+<code>.github</code> default repo) need a dedicated verification pass.</li>
+</ul>
+
+<h2 id="sources-iii">Part III sources</h2>
+<h4>Monorepo (primary)</h4>
+<ul>
+<li>Claude Code — large codebases (nested CLAUDE.md, settings non-inheritance): <a href="https://code.claude.com/docs/en/large-codebases">code.claude.com/docs/en/large-codebases</a></li>
+<li>Claude Code — memory: <a href="https://code.claude.com/docs/en/memory">memory</a> · settings: <a href="https://code.claude.com/docs/en/settings">settings</a> · MCP: <a href="https://code.claude.com/docs/en/mcp">mcp</a></li>
+<li>Claude Code issues — hierarchical settings proposals: <a href="https://github.com/anthropics/claude-code/issues/12962">#12962</a>, <a href="https://github.com/anthropics/claude-code/issues/37344">#37344</a></li>
+<li>VS Code — custom instructions (nested AGENTS.md, applyTo): <a href="https://code.visualstudio.com/docs/agent-customization/custom-instructions">code.visualstudio.com</a></li>
+<li>GitHub — path-scoped instruction files: <a href="https://github.blog/changelog/2025-09-03-copilot-code-review-path-scoped-custom-instruction-file-support/">github.blog</a></li>
+<li>Nx — AI agent skills / single-source generation: <a href="https://nx.dev/blog/nx-ai-agent-skills">nx.dev/blog</a>, <a href="https://github.com/nrwl/nx-ai-agents-config">nrwl/nx-ai-agents-config</a> · MCP project graph: <a href="https://nx.dev/docs/reference/nx-mcp">nx-mcp</a></li>
+</ul>
+<h4>Polyrepo (primary)</h4>
+<ul>
+<li>Claude Code — memory / settings / permissions (managed tier): <a href="https://code.claude.com/docs/en/memory">memory</a>, <a href="https://code.claude.com/docs/en/settings">settings</a>, <a href="https://code.claude.com/docs/en/permissions">permissions</a></li>
+<li>Codex — AGENTS.md chain + config reference: <a href="https://developers.openai.com/codex/guides/agents-md">agents-md</a>, <a href="https://developers.openai.com/codex/config-reference">config-reference</a></li>
+<li>Copilot — customizing chat responses (tiers) + org instructions GA: <a href="https://docs.github.com/copilot/concepts/about-customizing-github-copilot-chat-responses">docs.github.com</a>, <a href="https://github.blog/changelog/2026-04-02-copilot-organization-custom-instructions-are-generally-available/">github.blog</a></li>
+<li>Cursor — rules (Team/Project/User): <a href="https://cursor.com/docs/rules">cursor.com/docs/rules</a></li>
+<li>Gemini CLI — GEMINI.md hierarchy: <a href="https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/gemini-md.md">github.com/google-gemini</a></li>
+</ul>
+<h4>Polyrepo fleet-sync (lower confidence, not adversarially confirmed)</h4>
+<ul>
+<li><a href="https://github.com/github/safe-settings">safe-settings</a> · <a href="https://github.com/lindell/multi-gitter">multi-gitter</a> · <a href="https://github.com/AndreasAugustin/actions-template-sync">actions-template-sync</a> · <a href="https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/creating-a-default-community-health-file">GitHub default community-health repo</a></li>
+</ul>
+
+<h2 id="caveats-iii">Part III caveats</h2>
+<ul>
+<li><strong>Fast-moving (2025–2026), feature-gated.</strong> VS Code nested
+<code>AGENTS.md</code> and auto-detection are experimental settings; Copilot org
+instructions reached GA only 2026-04-02; Cursor Team Rules and Claude
+<code>managed-settings.d/</code> are recent. Re-verify before building.</li>
+<li><strong>The monorepo hook-asymmetry finding could invert</strong> if Claude
+ships hierarchical settings (#12962/#37344) — it is the load-bearing recommendation,
+so track those issues.</li>
+<li><strong>Cursor / Codex / Gemini nested-merge semantics are under-sourced</strong>
+vs Claude/Copilot/VS Code; the polyrepo <strong>distribution/sync mechanisms</strong>
+were fetched but not adversarially verified — both flagged lower-confidence above.</li>
+<li><strong>Vendor framing:</strong> Nx's "every tool gets the same capabilities" is
+marketing — read as <em>same generated config surface</em>, not runtime parity
+(Codex still can't dispatch subagents).</li>
+<li><strong>Scope vs tree precedence are orthogonal.</strong> Claude's 5-scope
+settings precedence and Copilot's Personal&gt;Repo&gt;Org ordering are
+<em>scope</em>-based; the directory-tree concatenation is a separate axis — do not
+conflate them.</li>
+</ul>
+</main>
+</body>
+</html>
