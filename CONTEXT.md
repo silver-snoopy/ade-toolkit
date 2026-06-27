@@ -8,7 +8,8 @@ detail. Update when a term is coined, sharpened, or changes meaning.
 - **Phase** — one of the **nine** numbered stages (0–9) of the ADE SDLC:
   0 Intent, 1 Research, 2 Plan, 3 Design-check, 4 Implement, 5 Quality-gate, 6 Review,
   7 Docs, 8 Ship, 9 Retro. (Formerly ten — live verification was removed in G5; the test
-  suite, via the acceptance-coverage gate, is now the acceptance mechanism.)
+  suite, via the acceptance-coverage gate, is now the primary automated acceptance
+  mechanism.)
 - **Orchestrator** — the main-session Claude (Opus) that owns context and the write path
   and dispatches subagents. It never writes application code itself.
 
@@ -30,8 +31,10 @@ detail. Update when a term is coined, sharpened, or changes meaning.
   definition carrying a model tier and tool allowlist, so its **context isolation is
   guaranteed, not merely requested**. Distinct from an **Agent Skill**, which carries
   portable behavior but cannot itself guarantee isolation. Phase skills *dispatch* worker
-  subagents; on a harness without autonomous dispatch (Codex) they degrade to sequential
+  subagents; on a harness without autonomous dispatch they degrade to sequential
   in-context steps, with the deterministic hooks still enforcing the hard guarantees.
+  Codex is no longer assumed to be such a harness; current Codex releases support explicit
+  subagent workflows, so ADE treats Codex parity as an integration/verification concern.
 
 ## Routing (G4)
 
@@ -57,7 +60,7 @@ detail. Update when a term is coined, sharpened, or changes meaning.
   floor of `standard`; a migration has a floor of `architecture`).
 - **Escalation path** — a file path/glob whose modification triggers forced-escalation.
   A baseline set is compiled into the enforcement hook and cannot be removed by config;
-  `.claude/ade-routing.json` may only extend it.
+  `.ade/ade-routing.json` may only extend it.
 - **Plan Soundness Review** — the architecture-tier adversarial review of the *plan*
   (not the code) by a fresh-context reviewer that tries to refute it against the spec.
   Distinct from the **PLAN GATE**, which is a structural completeness check applied to all

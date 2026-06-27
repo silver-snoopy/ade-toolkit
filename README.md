@@ -13,7 +13,7 @@ The pipeline runs a **9-phase SDLC (Phases 0–9)** with Opus as orchestrator an
 ```
 your-project/
 ├── .claude/
-│   ├── agents/                        # 12 worker defs (model + tools in frontmatter) — .md
+│   ├── agents/                        # 14 worker defs (model + tools in frontmatter) — .md
 │   ├── skills/                        # Phase skills — SKILL.md folders
 │   │   ├── ade-intent/SKILL.md        # Phase 0 — intent + routing
 │   │   ├── ade-research/SKILL.md      # Phase 1 — R1–R5 research
@@ -35,21 +35,21 @@ your-project/
 │   │   └── _hooklib.py                # shared detection logic
 │   └── settings.json                  # PreToolUse hook wiring (claude harness)
 ├── .gemini/
-│   ├── agents/                        # 12 worker defs — .md
+│   ├── agents/                        # 14 worker defs — .md
 │   ├── skills/                        # Phase skills (same SKILL.md content, gemini target)
 │   ├── hooks/                         # Deterministic hooks (gemini wiring)
 │   └── settings.json                  # PreToolUse hook wiring (gemini harness)
 ├── .github/
-│   ├── agents/                        # 12 worker defs — .agent.md
+│   ├── agents/                        # 14 worker defs — .agent.md
 │   ├── skills/                        # Phase skills (copilot target)
 │   ├── hooks/                         # Deterministic hooks (copilot preToolUse wiring)
 │   └── copilot-instructions.md        # Thin ADE memory pointer
 ├── .codex/
-│   ├── agents/                        # 12 worker defs — .toml
+│   ├── agents/                        # 14 worker defs — .toml
 │   └── hooks/                         # Deterministic hooks (codex wiring)
 ├── .agents/
 │   └── skills/                        # Shared SKILL.md folders (Copilot + Gemini read this)
-│       └── …                          # (same 12 skill folders as .claude/skills/)
+│       └── …                          # (same skill folders as .claude/skills/)
 ├── .ade/
 │   ├── ade-routing.json               # Blast-radius routing config — seeded (user-owned)
 │   ├── ade-stack.md                   # Detected stack commands — seeded (user-owned)
@@ -99,14 +99,14 @@ claude                  # Start Claude Code (or: gemini / gh copilot / codex)
 ## The 9-phase SDLC
 
 <p align="center">
-  <img src="docs/sdlc-flow.png" alt="ADE 10-phase SDLC flow" width="900">
+  <img src="docs/sdlc-flow.png" alt="ADE 9-phase SDLC flow" width="900">
 </p>
 
 | Phase | Actor | Model | Output |
 |-------|-------|-------|--------|
 | 0. Intent **(+ route)** | Orchestrator | Opus | `.ade/tasks/<id>/intent.md`, `routing.md` (tier) |
 | 1. Research | R1–R5 (see below) | Opus + Sonnet + Haiku | `docs/specs/{date}_{slug}.spec.md`, `CONTEXT.md` updates, `docs/adr/NNNN-*.md` |
-| 2. Plan | Orchestrator (+ `plan-reviewer` on architecture tier) | Opus (+ Sonnet) | `.ade/tasks/<id>/plan.md` (6 sections) |
+| 2. Plan | Orchestrator (+ `plan-reviewer` on standard + architecture tiers) | Opus (+ Sonnet) | `.ade/tasks/<id>/plan.md` (6 sections) |
 | 3. Design check *(skipped for `trivial`)* | Subagent in worktree | Sonnet | Stubs matching the plan |
 | 4. Implement **(author-separated TDD)** | `test-writer` (RED) → `implementer`(s) (GREEN) | Sonnet | Failing tests, then code — committed separately, hook-enforced |
 | 5. Quality gate | `test-runner` | Haiku | Lint, format, build, tests (fix loop max 3) |
@@ -141,6 +141,7 @@ ADE's Research phase is the most rigorous part of the pipeline. It produces thre
 - **R3 — Specify**:
   - **R3.1** `synthesizer` consolidates research bundles into a draft spec (single-writer pattern).
   - **R3.2** Orchestrator interviews the user using a 10-category ambiguity taxonomy (Functional Scope, Data Model, UX Flow, Non-Functional, Integration, Edge Cases, Constraints, Terminology, Completion Signals, Misc). One question at a time, multi-choice with recommended + 1 alternative, **hard cap: 5 questions**. Spec written to `docs/specs/{YYYY-MM-DD}_{slug}.spec.md`.
+  - **R3.3 Threat pass (conditional)**. For architecture/security/data-classification/trust-boundary changes, a blind `threat-modeler` classifies cross-boundary data, elicits STRIDE-lite + abuse-case + PII privacy threats, and folds material mitigations into acceptance criteria before implementation.
 - **R4 — Refine**: invokes the vendored `grill-with-docs` skill against the spec. Updates `CONTEXT.md` glossary inline; creates ADRs sparingly (three-criteria gate: hard-to-reverse, surprising, real trade-off). Always runs; trivial when the spec already uses CONTEXT.md vocabulary.
 - **R5 — Verify (Chain of Verification, factor+revise)**: extract 8–15 verification claims from the spec; dispatch one `spec-verifier` subagent per claim. **Each verifier receives only the claim — never the spec itself** (the structural defining property of factor+revise). `synthesizer` (Role B) revises the spec for material discrepancies.
 
@@ -176,8 +177,10 @@ Claude Opus  (orchestrator)
 Claude Sonnet  (subagents)
 ├── web-researcher   (R2.3, IPI-hardened)
 ├── synthesizer      (R3.1 consolidation, R5 revision)
+├── threat-modeler   (R3.3 conditional blind threat pass)
 ├── spec-verifier    (R5 — never receives the spec)
-├── plan-reviewer    (Phase 2, architecture tier)
+├── plan-reviewer    (Phase 2, standard + architecture tiers)
+├── stub-reviewer    (Phase 3 blind design-check review)
 ├── test-writer      (Phase 4a — failing tests only)
 ├── implementer      (Phase 4b — code only, in worktrees)
 ├── code-reviewer / security-reviewer (Phase 6 fallback)
@@ -189,7 +192,7 @@ Claude Haiku  (subagents)
 └── test-runner      (Phase 5)
 ```
 
-No runtime framework. Skills are SKILL.md folders; workers are Markdown or TOML. `ade init` writes them. The selected harness is the runtime — its native Agent tool dispatches subagents, native worktree support isolates implementation, native Edit/Write/Bash handle the work, and native PreToolUse hooks enforce the deterministic gates. **Codex is a degraded tier**: it cannot yet autonomously dispatch subagents (openai/codex#18513), so author-separation and the blind verifier run as in-context conventions there — but Codex's native PreToolUse hooks still deterministically enforce the hard gates.
+No runtime framework. Skills are SKILL.md folders; workers are Markdown or TOML. `ade init` writes them. The selected harness is the runtime — its native Agent tool dispatches subagents, native worktree support isolates implementation, native Edit/Write/Bash handle the work, and native PreToolUse hooks enforce the deterministic gates. Current Codex releases support explicit subagent workflows and project-scoped custom agents, so Codex should be treated as an integration/parity target rather than as lacking the platform primitive. ADE's remaining Codex risk is verification: its driver prompts and generated `.codex/agents/*.toml` definitions must be tested to prove that author separation and blind verification run as isolated Codex agents in practice.
 
 ## Orchestrator invariants
 

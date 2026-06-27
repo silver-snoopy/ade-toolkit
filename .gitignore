@@ -40,3 +40,6 @@ uv.lock
 
 # Talks contain sensitive company information — never version them
 docs/talks/
+
+# Local Claude Code worktree state
+.claude/

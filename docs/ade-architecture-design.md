@@ -392,7 +392,7 @@ All four harnesses ship native PreToolUse (blocking) hooks, all consuming the sa
 - **`--agent claude`** (default): writes `.claude/settings.json` with PreToolUse(Bash) entries.
 - **`--agent gemini`**: writes `.gemini/settings.json` with PreToolUse(Bash) entries.
 - **`--agent copilot`**: writes `.github/hooks/*.json` (`preToolUse` deny entries). `_hooklib` handles Copilot's camelCase field names via the per-harness envelope parser.
-- **`--agent codex`**: writes `hooks.json` / `[hooks]` in `config.toml` under `.codex/hooks/`. **Codex is a degraded tier**: it cannot yet autonomously dispatch subagents (openai/codex#18513), so author-separation and the blind verifier run as in-context conventions there — but Codex's native PreToolUse hooks still deterministically enforce the hard gates (G1/G2/G4).
+- **`--agent codex`**: writes `hooks.json` / `[hooks]` in `config.toml` under `.codex/hooks/`. Current Codex releases support explicit subagent workflows and project-scoped custom agents, so Codex should no longer be described as intrinsically degraded. ADE still needs parity tests and procedural verification that its phase prompts spawn the intended Codex custom agents rather than falling back to in-context conventions; Codex's native PreToolUse hooks continue to enforce the hard gates (G1/G2/G4).
 
 `git pre-commit` (`.pre-commit-config.yaml`) is demoted to an **optional belt-and-suspenders fallback** for non-ADE commits or CI, not the primary gate.
 
